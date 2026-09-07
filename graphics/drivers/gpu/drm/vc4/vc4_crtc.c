@@ -731,8 +731,8 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 		struct vc4_dev *vc4__ = to_vc4_dev(dev);
 		struct vc4_hvs *hvs = vc4__->hvs;
 
-		printf("vc4: pv%d after enable: PV_CONTROL=%#x PV_V_CONTROL=%#x "
-		    "HVS_EN=%#x (#51)\n", vc4_crtc->channel,
+		printf("vc4: pv[crtc %u] after enable: PV_CONTROL=%#x "
+		    "PV_V_CONTROL=%#x HVS_EN=%#x (#51)\n", crtc->base.id,
 		    CRTC_READ(PV_CONTROL), CRTC_READ(PV_V_CONTROL),
 		    vc4__->gen >= VC4_GEN_6_C ?
 		    HVS_READ(SCALER6_CONTROL) : HVS_READ(SCALER_DISPCTRL));
