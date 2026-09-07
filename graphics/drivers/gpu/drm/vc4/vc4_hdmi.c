@@ -3541,12 +3541,19 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 		}
 	}
 
+	printf("vc4: rr: rate=%lu audio_clk=%p reset=%p (#51)\n", rate,
+	    vc4_hdmi->audio_clock, vc4_hdmi->variant->reset);
+
 	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
+	printf("vc4: rr: audio enable -> %d (#51)\n", ret);
 	if (ret)
 		goto err_disable_clk;
 
-	if (vc4_hdmi->variant->reset)
+	if (vc4_hdmi->variant->reset) {
+		printf("vc4: rr: calling variant->reset (#51)\n");
 		vc4_hdmi->variant->reset(vc4_hdmi);
+		printf("vc4: rr: reset done (#51)\n");
+	}
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
