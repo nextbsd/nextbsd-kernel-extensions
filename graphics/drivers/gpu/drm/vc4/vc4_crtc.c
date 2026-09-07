@@ -712,6 +712,32 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
 
+	/*
+	 * Is the pixelvalve actually running here? (#51)
+	 *
+	 * By this point the HDMI block's status registers read as all ones --
+	 * HDMI_RAM_PACKET_STATUS and HDMI_SCHEDULER_CONTROL both 0xffffffff,
+	 * while HDMI_RAM_PACKET_CONFIG in the SAME bank eight bytes away reads
+	 * back the 0x10000 the driver wrote. Latched config surviving while
+	 * generated status floats is what an unclocked block looks like, and
+	 * the HDMI block's clock comes from here.
+	 *
+	 * So read the pixelvalve back after enabling it, rather than assuming
+	 * the writes took. A PV_CONTROL that does not show PV_CONTROL_EN, or a
+	 * PV_V_CONTROL without PV_VCONTROL_VIDEN, means the pixelvalve is not
+	 * running and nothing downstream of it can be.
+	 */
+	{
+		struct vc4_dev *vc4__ = to_vc4_dev(dev);
+		struct vc4_hvs *hvs = vc4__->hvs;
+
+		printf("vc4: pv%d after enable: PV_CONTROL=%#x PV_V_CONTROL=%#x "
+		    "HVS_EN=%#x (#51)\n", vc4_crtc->channel,
+		    CRTC_READ(PV_CONTROL), CRTC_READ(PV_V_CONTROL),
+		    vc4__->gen >= VC4_GEN_6_C ?
+		    HVS_READ(SCALER6_CONTROL) : HVS_READ(SCALER_DISPCTRL));
+	}
+
 	if (vc4_encoder->post_crtc_enable)
 		vc4_encoder->post_crtc_enable(encoder, state);
 
