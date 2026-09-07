@@ -576,7 +576,38 @@ static int vc4_drm_bind(struct device *dev)
 	drm_info(drm, "bind: stage 5 drm_dev_register ok (#51)\n");
 
 	if (enable_fbdev) {
+		struct drm_connector_list_iter conn_iter;
+		struct drm_connector *conn;
+		int nmodes;
+
 		drm_fbdev_dma_setup(drm, 16);
+
+		/*
+		 * DEVIATION (#51): probe the connectors explicitly.
+		 *
+		 * Nothing else does. The poll worker only calls detect(), and
+		 * raises a hotplug event on a CHANGE of status -- the status
+		 * here is "connected" from the first probe onwards, so no
+		 * event is ever raised. Measured: vc4_hdmi_read_edid() is
+		 * called over and over by the poll's detect path, while
+		 * vc4_hdmi_connector_get_modes() is never called once.
+		 *
+		 * get_modes() is the only thing that turns an EDID into modes,
+		 * and it runs from drm_helper_probe_single_connector_modes().
+		 * Without this the connector holds a complete EDID -- the
+		 * panel is identified by name -- and still has no modes, so
+		 * the CRTC is never programmed (ACTIVE = 0, MODE_ID = 0).
+		 */
+		mutex_lock(&drm->mode_config.mutex);
+		drm_connector_list_iter_begin(drm, &conn_iter);
+		drm_for_each_connector_iter(conn, &conn_iter) {
+			nmodes = drm_helper_probe_single_connector_modes(conn,
+			    4096, 4096);
+			drm_info(drm, "fbdev: probed %s -> %d modes (#51)\n",
+			    conn->name != NULL ? conn->name : "?", nmodes);
+		}
+		drm_connector_list_iter_end(&conn_iter);
+		mutex_unlock(&drm->mode_config.mutex);
 
 		/*
 		 * DEVIATION (#51): kick the clients once, after setup.
@@ -598,6 +629,7 @@ static int vc4_drm_bind(struct device *dev)
 		 * that the firmware can answer.
 		 */
 		drm_kms_helper_hotplug_event(drm);
+		drm_info(drm, "fbdev: hotplug event delivered (#51)\n");
 	} else
 		drm_info(drm, "fbdev emulation off by request (#51)\n");
 
