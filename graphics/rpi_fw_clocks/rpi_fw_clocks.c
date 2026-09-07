@@ -232,7 +232,12 @@ rpi_fw_clocks_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Raspberry Pi firmware clocks");
-	return (BUS_PROBE_DEFAULT);
+
+	/*
+	 * SPECIFIC, to outrank FreeBSD's generic ofw_clkbus, which otherwise
+	 * claims this node and provides nothing from it.
+	 */
+	return (BUS_PROBE_SPECIFIC);
 }
 
 static int
@@ -337,13 +342,33 @@ static driver_t rpi_fw_clocks_driver = {
 };
 
 /*
- * simplebus, because /soc/firmware/clocks sits under the firmware node on a
- * simplebus. BUS_PASS_BUS so that, compiled into a kernel, it comes up before
- * the consumers; loaded as a module the pass no longer gates anything and the
- * vc4 kext must simply be loaded after this one.
+ * bcm2835_firmware, NOT simplebus.
+ *
+ * /soc/firmware/clocks is a child of the firmware node, and the firmware
+ * driver enumerates its own children, so the clocks node appears on the
+ * bcm2835_firmware bus:
+ *
+ *	bcm2835_firmware0: <BCM2835 Firmware> on simplebus0
+ *	ofw_clkbus1: <OFW clocks bus> on bcm2835_firmware0
+ *
+ * Registering on simplebus meant this driver never saw the device at all --
+ * it loaded cleanly and attached to nothing.
+ *
+ * That second line is the other half of the problem: FreeBSD's generic
+ * ofw_clkbus claims the node at boot. It enumerates CHILD clock nodes, and
+ * this node has none -- it is a provider with #clock-cells = 1 -- so it owns
+ * the node and supplies nothing. BUS_PROBE_SPECIFIC below outranks it, but
+ * newbus does not re-probe a device that is already attached, so as a module
+ * loaded after boot this driver still has to be given the node:
+ *
+ *	devctl detach ofw_clkbus1
+ *	kextload .../RpiFirmwareClocks.kext
+ *
+ * Compiled into a kernel the priority alone would settle it. That is the
+ * argument for this eventually living in nextbsd-kernel rather than here.
  */
-EARLY_DRIVER_MODULE(rpi_fw_clocks, simplebus, rpi_fw_clocks_driver, 0, 0,
+EARLY_DRIVER_MODULE(rpi_fw_clocks, bcm2835_firmware, rpi_fw_clocks_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(rpi_fw_clocks_ofw, ofwbus, rpi_fw_clocks_driver, 0, 0,
+EARLY_DRIVER_MODULE(rpi_fw_clocks_sb, simplebus, rpi_fw_clocks_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rpi_fw_clocks, 1);
