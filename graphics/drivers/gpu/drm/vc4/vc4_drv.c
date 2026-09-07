@@ -427,14 +427,35 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto err;
 
-	if (firmware && !firmware_kms()) {
-		ret = rpi_firmware_property(firmware,
-					    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
-					    NULL, 0);
-		if (ret)
-			drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
+	/*
+	 * DEVIATION (#51): keep the firmware handle.
+	 *
+	 * vc4->firmware is only ever assigned by vc4_firmware_kms.c, so on the
+	 * full KMS path it stayed NULL and vc4_hdmi_fw_get_edid_block() failed
+	 * -ENODEV on its first check -- every time. That is why both connectors
+	 * came up "connected" with no EDID and no modes at all:
+	 *
+	 *	"EDID" (immutable): blob = 0
+	 *	(no Modes section)
+	 *
+	 * from drm_info on the running system. No modes means fbdev has nothing
+	 * to pick, so nothing is ever programmed and the screen keeps whatever
+	 * the firmware left. The EDID has to come from the mailbox here,
+	 * because there is no DDC adapter on this board.
+	 *
+	 * The reference is deliberately NOT put: the mailbox is needed for as
+	 * long as connectors can be probed, which is the life of the driver.
+	 */
+	if (firmware) {
+		vc4->firmware = firmware;
 
-		rpi_firmware_put(firmware);
+		if (!firmware_kms()) {
+			ret = rpi_firmware_property(firmware,
+						    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
+						    NULL, 0);
+			if (ret)
+				drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
+		}
 	}
 
 	/*

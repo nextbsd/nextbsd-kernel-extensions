@@ -456,12 +456,23 @@ vc4_hdmi_fw_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 	};
 	int ret;
 
-	if (vc4 == NULL || vc4->firmware == NULL || len > sizeof(mb.edid))
+	if (vc4 == NULL || vc4->firmware == NULL || len > sizeof(mb.edid)) {
+		/*
+		 * Say which of the three it was. A silent -ENODEV here is how
+		 * the missing vc4->firmware handle stayed invisible: it looks
+		 * exactly like a display with no EDID (#51).
+		 */
+		pr_warn_once("vc4: firmware EDID unavailable: vc4=%p firmware=%p len=%zu (#51)\n",
+		    vc4, vc4 != NULL ? vc4->firmware : NULL, len);
 		return (-ENODEV);
+	}
 
 	ret = rpi_firmware_property_list(vc4->firmware, &mb, sizeof(mb));
-	if (ret != 0)
+	if (ret != 0) {
+		pr_warn_once("vc4: firmware EDID block %u failed: %d (#51)\n",
+		    block, ret);
 		return (ret);
+	}
 	memcpy(buf, mb.edid, len);
 	return (0);
 }
