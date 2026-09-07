@@ -139,6 +139,15 @@ static bool vc4_hdmi_supports_scrambling(struct vc4_hdmi *vc4_hdmi)
 	    !display->hdmi.scdc.scrambling.supported)
 		return false;
 
+	/*
+	 * DEVIATION (#51): SCDC is an i2c transaction on the DDC channel, so
+	 * without an adapter it cannot be done at all. EDID comes from the
+	 * firmware mailbox here and connector->ddc is NULL, which upstream
+	 * never has to consider.
+	 */
+	if (vc4_hdmi->connector.ddc == NULL)
+		return false;
+
 	return true;
 }
 
@@ -941,8 +950,32 @@ static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
 		   ~VC5_HDMI_SCRAMBLER_CTL_ENABLE);
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 
-	drm_scdc_set_scrambling(connector, false);
-	drm_scdc_set_high_tmds_clock_ratio(connector, false);
+	/*
+	 * DEVIATION (#51): THIS PANICKED THE MACHINE.
+	 *
+	 * vc4_hdmi_bind() sets scdc_enabled = true on any variant whose max
+	 * pixel clock is above HDMI 1.4 -- deliberately, so that this function
+	 * runs once at boot to put the block in a known state. 2712 qualifies,
+	 * so vc4_crtc_disable_at_boot() reaches here on every load, and these
+	 * two calls end up in i2c_transfer() with a NULL adapter:
+	 *
+	 *	far: 0x140    esr: 0x96000004    (read, translation fault)
+	 *	panic: vm_fault failed: ... error 1
+	 *
+	 * measured on a Pi 500+, from a crash dump. Upstream never sees it
+	 * because Linux always has a DDC adapter; the firmware EDID path here
+	 * leaves connector->ddc NULL.
+	 *
+	 * The register write above is what actually disables scrambling in the
+	 * hardware and is kept -- it needs no i2c. Only the SCDC half, which
+	 * tells the SINK, is skipped. A sink left believing scrambling is on
+	 * would need a hotplug or a mode set to be corrected, which is a real
+	 * limitation of having no DDC, not a consequence of this guard.
+	 */
+	if (connector->ddc != NULL) {
+		drm_scdc_set_scrambling(connector, false);
+		drm_scdc_set_high_tmds_clock_ratio(connector, false);
+	}
 
 	drm_dev_exit(idx);
 }
@@ -953,6 +986,17 @@ static void vc4_hdmi_scrambling_wq(struct work_struct *work)
 						 struct vc4_hdmi,
 						 scrambling_work);
 	struct drm_connector *connector = &vc4_hdmi->connector;
+
+	/*
+	 * DEVIATION (#51): same NULL adapter as the enable/disable paths. This
+	 * one requeues itself every SCRAMBLING_POLLING_DELAY_MS, so an
+	 * unguarded call here would be a repeating panic rather than a single
+	 * one. Nothing should queue it without scrambling support -- and with
+	 * this guard, supports_scrambling() is false -- but it is reachable
+	 * through a stale queued work, so it checks for itself.
+	 */
+	if (connector->ddc == NULL)
+		return;
 
 	if (drm_scdc_get_scrambling_status(connector))
 		return;
