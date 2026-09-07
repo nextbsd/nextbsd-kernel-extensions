@@ -223,6 +223,29 @@ static inline int
 clk_set_min_rate(struct clk *clk, unsigned long rate)
 {
 
+	/*
+	 * A floor of zero is NO floor -- it withdraws the constraint. It does
+	 * not mean "run this clock at 0 Hz", and treating it that way turned
+	 * the HDMI state machine clock off:
+	 *
+	 *	vc4_hdmi_runtime_suspend():  clk_set_min_rate(hsm_clock, 0);
+	 *	vc4_hdmi_runtime_resume():   rate = clk_get_rate(hsm_clock);
+	 *	                             if (!rate) return -EINVAL;
+	 *
+	 * These are firmware clocks, so setting 0 really did stop it, resume
+	 * then read 0 and bailed, and everything after that check was skipped
+	 * -- including clk_prepare_enable(audio_clock), which is why the DVP
+	 * gate sat at enable_cnt 0, and including variant->reset(), which is
+	 * why the block was never reset and its packet RAM never went idle:
+	 *
+	 *	vc40: [drm] *ERROR* Failed to wait for infoframe to go idle: -60
+	 *
+	 * measured on a Pi 500+. Upstream survives it because a Linux clock
+	 * keeps running at its current rate when its floor drops to zero.
+	 */
+	if (rate == 0)
+		return (0);
+
 	return (lkpi_clk_set_freq(clk, rate, CLK_SET_ROUND_UP));
 }
 
