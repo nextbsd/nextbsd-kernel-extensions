@@ -320,35 +320,25 @@ static bool firmware_kms(void)
 }
 
 /*
- * DEVIATION (#51): the initial modeset is gated, and OFF by default.
+ * The initial modeset can be switched off (#51).
  *
- * drm_fbdev_dma_setup() runs the first atomic commit, and that commit panics
- * the machine on a Pi 500+:
+ * This gate was added while the machine was panicking on every kextload and
+ * drm_fbdev_dma_setup() was the suspect. It was not the cause: the panic was
+ * vc4_hdmi_disable_scrambling() driving SCDC over a NULL DDC adapter, from
+ * vc4_crtc_disable_at_boot(), and it is fixed. So the default is on, which is
+ * upstream behaviour.
  *
- *	far: 0x0000000000000140      <- NULL + 0x140, a read
- *	esr: 0x0000000096000004      <- data abort, translation fault
- *	elr: 0xffff000125adbaf0      <- inside vc4_kms.ko
- *	panic: vm_fault failed: 0xffff000125adbaf0 error 1
+ * The knob stays because it is the one switch that separates "the driver binds"
+ * from "the driver programs the display", and those fail differently. Set
+ * compat.linuxkpi.vc4_kms.enable_fbdev=0 to bind without touching the display.
  *
- * captured from a real core (savecore on a dedicated dump device). The two
- * instructions in this module that read a NULL + 0x140 are both at the entry
- * of a modeset callback -- vc4_hdmi_encoder_pre_crtc_configure() and
- * vc4_hdmi_encoder_pre_crtc_enable() -- reading their first argument, the
- * encoder. Nothing else runs at that point, which is why this gate exists here
- * rather than somewhere further down.
- *
- * Default off so the driver can be loaded, bound and inspected at all; a
- * kernel that panics on kextload cannot be developed against. Set
- * compat.linuxkpi.vc4_kms.enable_fbdev=1 to reproduce.
- *
- * This is a DIAGNOSTIC DEFAULT, not a fix, and not the end state: with it off
- * there is no fbdev console (extensions#55). The NULL encoder is a real bug
- * and still has to be found.
+ * Note it is a sysctl, not a loader tunable: LinuxKPI's module_param() does not
+ * register one, so setting it with kenv before kextload does nothing.
  */
-static int enable_fbdev;
+static int enable_fbdev = 1;
 module_param(enable_fbdev, int, 0644);
 MODULE_PARM_DESC(enable_fbdev,
-    "Run fbdev emulation's initial modeset; currently panics on 2712 (#51)");
+    "Run fbdev emulation's initial modeset (default on) (#51)");
 
 static int vc4_drm_bind(struct device *dev)
 {
@@ -501,9 +491,7 @@ static int vc4_drm_bind(struct device *dev)
 	if (enable_fbdev)
 		drm_fbdev_dma_setup(drm, 16);
 	else
-		drm_info(drm, "fbdev emulation off; set "
-		    "compat.linuxkpi.vc4_kms.enable_fbdev=1 to run the initial "
-		    "modeset, which currently panics (#51)\n");
+		drm_info(drm, "fbdev emulation off by request (#51)\n");
 
 	return 0;
 
