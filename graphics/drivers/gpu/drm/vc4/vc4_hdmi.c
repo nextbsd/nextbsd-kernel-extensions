@@ -3504,8 +3504,41 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 	 */
 	rate = clk_get_rate(vc4_hdmi->hsm_clock);
 	if (!rate) {
-		ret = -EINVAL;
-		goto err_disable_clk;
+		/*
+		 * DEVIATION (#51): start the clock instead of giving up.
+		 *
+		 * The comment above is exactly right about the cause, and on
+		 * this board it is the normal case rather than the no-monitor
+		 * one: the firmware reports the HSM clock as 0 because nothing
+		 * has ever set it. Upstream can only refuse, because on Linux
+		 * the firmware has already initialised it.
+		 *
+		 * Refusing here is expensive and silent. Everything below this
+		 * point is skipped -- clk_prepare_enable() on the audio clock,
+		 * so the DVP gate stays at enable_cnt 0, and variant->reset(),
+		 * so the block is never reset and its packet RAM never goes
+		 * idle:
+		 *
+		 *	vc40: [drm] *ERROR* Failed to wait for infoframe to go
+		 *	    idle: -60
+		 *
+		 * measured on a Pi 500+, with no other error reported.
+		 *
+		 * rpi_fw_clocks(4) can set this clock, so set it to the
+		 * minimum the driver already defines for it and carry on. A
+		 * real rate for the mode is programmed later by
+		 * vc4_hdmi_set_timings(); this only has to be non-zero and
+		 * legal so the block can be touched at all.
+		 */
+		ret = clk_set_min_rate(vc4_hdmi->hsm_clock,
+		    HSM_MIN_CLOCK_FREQ);
+		if (ret == 0)
+			rate = clk_get_rate(vc4_hdmi->hsm_clock);
+		printf("vc4: hsm clock was 0, set to %lu Hz (#51)\n", rate);
+		if (!rate) {
+			ret = -EINVAL;
+			goto err_disable_clk;
+		}
 	}
 
 	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
