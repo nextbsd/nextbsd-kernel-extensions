@@ -510,6 +510,7 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int idx, ret;
 
+
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
 
@@ -573,6 +574,7 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 				      "brcm,bcm2712-pixelvalve1")))
 		return 0;
 
+
 	if (!(CRTC_READ(PV_CONTROL) & PV_CONTROL_EN))
 		return 0;
 
@@ -592,6 +594,7 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	encoder = vc4_find_encoder_by_type(drm, encoder_type);
 	if (WARN_ON(!encoder))
 		return 0;
+
 
 	vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
@@ -695,6 +698,7 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 	 */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+
 
 	if (vc4_encoder->post_crtc_enable)
 		vc4_encoder->post_crtc_enable(encoder, state);

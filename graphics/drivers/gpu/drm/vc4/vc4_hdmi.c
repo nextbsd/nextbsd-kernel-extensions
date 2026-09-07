@@ -55,6 +55,7 @@
 #include <sound/jack.h>
 #include <sound/pcm_drm_eld.h>
 #include <sound/pcm_params.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>	/* firmware EDID (#51) */
 #include <sound/soc.h>
 #include "media/cec.h"
 #include "vc4_drv.h"
@@ -115,8 +116,32 @@
 #define HDMI_14_MAX_TMDS_CLK   (340 * 1000 * 1000)
 
 /* bit field to force hotplug detection. bit0 = HDMI0 */
-static int force_hotplug;
+/*
+ * DIAGNOSTIC DEFAULT (#51): bit 0 set, forcing HDMI0 connected.
+ *
+ * With the register mapping corrected, HDMI_HOTPLUG reads 0 on a Pi 500+ with
+ * a monitor plugged in, so vc5_hdmi_hp_detect() reports disconnected and the
+ * connector never probes for modes. The 57 modes seen earlier were an artifact
+ * of the same mapping bug: that register read 0xffffffff, which is non-zero,
+ * so the connector always looked plugged in.
+ *
+ * Forcing it separates two questions that are otherwise tangled together --
+ * whether HPD sensing works, and whether the display pipeline can drive a
+ * panel at all. EDID does not depend on HPD here; it comes over the firmware
+ * mailbox, which never went through the broken mapping.
+ *
+ * Not a fix and not shippable: a forced connector reports a monitor whether or
+ * not one is attached. It comes out once HPD reads correctly.
+ */
+static int force_hotplug = 1;
 module_param(force_hotplug, int, 0644);
+/*
+ * DEVIATION (#51): upstream has no MODULE_PARM_DESC for this parameter, and
+ * LinuxKPI's module_param() expands to reference a linuxkpi_<module>_<name>_desc
+ * symbol that only MODULE_PARM_DESC defines. Without it the module links and
+ * then fails to load with ENOEXEC on linuxkpi_vc4_kms_force_hotplug_desc.
+ */
+MODULE_PARM_DESC(force_hotplug, "Bitfield forcing hotplug detect; bit0 = HDMI0");
 
 static bool vc4_hdmi_supports_scrambling(struct vc4_hdmi *vc4_hdmi)
 {
@@ -129,6 +154,15 @@ static bool vc4_hdmi_supports_scrambling(struct vc4_hdmi *vc4_hdmi)
 
 	if (!display->hdmi.scdc.supported ||
 	    !display->hdmi.scdc.scrambling.supported)
+		return false;
+
+	/*
+	 * DEVIATION (#51): SCDC is an i2c transaction on the DDC channel, so
+	 * without an adapter it cannot be done at all. EDID comes from the
+	 * firmware mailbox here and connector->ddc is NULL, which upstream
+	 * never has to consider.
+	 */
+	if (vc4_hdmi->connector.ddc == NULL)
 		return false;
 
 	return true;
@@ -359,6 +393,15 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 		return 0;
 	}
 
+	/*
+	 * DEVIATION (#51): SCDC is a real i2c transaction, so it needs a real
+	 * adapter. Without one, report "not scrambling" rather than
+	 * dereferencing NULL -- the caller then declines modes that require
+	 * scrambling (>340 MHz TMDS) instead of driving them misconfigured.
+	 */
+	if (connector->ddc == NULL)
+		return (false);
+
 	ret = drm_scdc_readb(connector->ddc, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
 		drm_err(drm, "Failed to read TMDS config: %d\n", ret);
@@ -385,6 +428,93 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 	return reset_pipe(crtc, ctx);
 }
 
+/*
+ * DEVIATION (nextbsd-kernel-extensions#51): EDID over the firmware mailbox.
+ *
+ * vc4_hdmi reads EDID over DDC, an i2c bus. On bcm2712 that controller is
+ * ddc0/ddc1 at 0x7d508200, compatible "brcm,brcmstb-i2c" -- a Broadcom STB
+ * controller with no FreeBSD driver, so of_find_i2c_adapter_by_node() returns
+ * NULL and there is no adapter to read from.
+ *
+ * The VideoCore firmware can read it instead. That is not a workaround
+ * invented here: it is exactly what vc4_firmware_kms.c does today on this
+ * hardware, over RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY, and it is why firmware
+ * KMS shows a picture without touching DDC at all.
+ *
+ * Firmware display numbers are fixed (vc4_firmware_kms.c:342): HDMI0 is 2 and
+ * HDMI1 is 7.
+ *
+ * Used ONLY when ddc is NULL. With a real adapter the upstream path is taken
+ * unchanged, so this disappears the day a brcmstb-i2c driver exists.
+ */
+#define	VC4_FW_DISPLAY_HDMI0	2
+#define	VC4_FW_DISPLAY_HDMI1	7
+
+/*
+ * Layout copied from vc4_firmware_kms.c's mailbox_get_edid (#51), which is the
+ * one that demonstrably works -- firmware KMS reads EDID from this same tag on
+ * this same board.
+ *
+ * This struct used to carry an extra u32 "status" between display_number and
+ * edid. There is no such field: it pushed edid[] four bytes past where the
+ * firmware writes it and made sizeof(*this) disagree with the declared
+ * buf_size of 128 + 8, so every read came back as
+ *
+ *	EDID block 0 is all zeroes
+ *
+ * measured on a Pi 500+, which looks exactly like a display that has no EDID.
+ */
+struct vc4_hdmi_fw_edid {
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					block;
+	u32					display_number;
+	u8					edid[128];
+};
+
+static int
+vc4_hdmi_fw_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
+{
+	struct vc4_hdmi *vc4_hdmi = data;
+	struct vc4_dev *vc4 = to_vc4_dev(vc4_hdmi->connector.dev);
+	struct vc4_hdmi_fw_edid mb = {
+		.tag1 = { RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY, 128 + 8, 0 },
+		.block = block,
+		.display_number =
+		    vc4_hdmi->variant->encoder_type == VC4_ENCODER_TYPE_HDMI1 ?
+		    VC4_FW_DISPLAY_HDMI1 : VC4_FW_DISPLAY_HDMI0,
+	};
+	int ret;
+
+	/*
+	 * printf(), not pr_warn_once(): the earlier version of this used
+	 * pr_warn_once and printed nothing at all, which left it unclear
+	 * whether the guard below was even being hit. printf is known to
+	 * work here -- it is what the disable_scrambling markers used (#51).
+	 */
+	if (vc4 == NULL || vc4->firmware == NULL || len > sizeof(mb.edid)) {
+		return (-ENODEV);
+	}
+
+	ret = rpi_firmware_property_list(vc4->firmware, &mb, sizeof(mb));
+	if (ret != 0)
+		return (ret);
+	memcpy(buf, mb.edid, len);
+	return (0);
+}
+
+/*
+ * EDID from whichever source this board actually has. See the note above.
+ */
+static const struct drm_edid *
+vc4_hdmi_read_edid(struct vc4_hdmi *vc4_hdmi, struct drm_connector *connector)
+{
+
+	if (vc4_hdmi->ddc != NULL)
+		return (drm_edid_read_ddc(connector, vc4_hdmi->ddc));
+	return (drm_edid_read_custom(connector, vc4_hdmi_fw_get_edid_block,
+	    vc4_hdmi));
+}
+
 static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 				    struct drm_modeset_acquire_ctx *ctx,
 				    enum drm_connector_status status)
@@ -408,7 +538,7 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 	 */
 
 	if (status != connector_status_disconnected)
-		drm_edid = drm_edid_read_ddc(connector, vc4_hdmi->ddc);
+		drm_edid = vc4_hdmi_read_edid(vc4_hdmi, connector);
 
 	/*
 	 * Report plugged/unplugged events to ALSA jack detection.  Do this
@@ -507,12 +637,13 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	 * the lock for now.
 	 */
 
-	drm_edid = drm_edid_read_ddc(connector, vc4_hdmi->ddc);
+	drm_edid = vc4_hdmi_read_edid(vc4_hdmi, connector);
 	drm_edid_connector_update(connector, drm_edid);
 	cec_s_phys_addr(vc4_hdmi->cec_adap,
 			connector->display_info.source_physical_address, false);
-	if (!drm_edid)
+	if (!drm_edid) {
 		return 0;
+	}
 
 	ret = drm_edid_connector_add_modes(connector);
 	drm_edid_free(drm_edid);
@@ -856,8 +987,32 @@ static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
 		   ~VC5_HDMI_SCRAMBLER_CTL_ENABLE);
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 
-	drm_scdc_set_scrambling(connector, false);
-	drm_scdc_set_high_tmds_clock_ratio(connector, false);
+	/*
+	 * DEVIATION (#51): THIS PANICKED THE MACHINE.
+	 *
+	 * vc4_hdmi_bind() sets scdc_enabled = true on any variant whose max
+	 * pixel clock is above HDMI 1.4 -- deliberately, so that this function
+	 * runs once at boot to put the block in a known state. 2712 qualifies,
+	 * so vc4_crtc_disable_at_boot() reaches here on every load, and these
+	 * two calls end up in i2c_transfer() with a NULL adapter:
+	 *
+	 *	far: 0x140    esr: 0x96000004    (read, translation fault)
+	 *	panic: vm_fault failed: ... error 1
+	 *
+	 * measured on a Pi 500+, from a crash dump. Upstream never sees it
+	 * because Linux always has a DDC adapter; the firmware EDID path here
+	 * leaves connector->ddc NULL.
+	 *
+	 * The register write above is what actually disables scrambling in the
+	 * hardware and is kept -- it needs no i2c. Only the SCDC half, which
+	 * tells the SINK, is skipped. A sink left believing scrambling is on
+	 * would need a hotplug or a mode set to be corrected, which is a real
+	 * limitation of having no DDC, not a consequence of this guard.
+	 */
+	if (connector->ddc != NULL) {
+		drm_scdc_set_scrambling(connector, false);
+		drm_scdc_set_high_tmds_clock_ratio(connector, false);
+	}
 
 	drm_dev_exit(idx);
 }
@@ -868,6 +1023,17 @@ static void vc4_hdmi_scrambling_wq(struct work_struct *work)
 						 struct vc4_hdmi,
 						 scrambling_work);
 	struct drm_connector *connector = &vc4_hdmi->connector;
+
+	/*
+	 * DEVIATION (#51): same NULL adapter as the enable/disable paths. This
+	 * one requeues itself every SCRAMBLING_POLLING_DELAY_MS, so an
+	 * unguarded call here would be a repeating panic rather than a single
+	 * one. Nothing should queue it without scrambling support -- and with
+	 * this guard, supports_scrambling() is false -- but it is reachable
+	 * through a stale queued work, so it checks for itself.
+	 */
+	if (connector->ddc == NULL)
+		return;
 
 	if (drm_scdc_get_scrambling_status(connector))
 		return;
@@ -887,6 +1053,7 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	unsigned long flags;
 	int idx;
+
 
 	mutex_lock(&vc4_hdmi->mutex);
 
@@ -1562,8 +1729,10 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 		goto err_disable_pixel_clock;
 	}
 
+
 	if (vc4_hdmi->variant->phy_init)
 		vc4_hdmi->variant->phy_init(vc4_hdmi, conn_state);
+
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
@@ -2529,29 +2698,66 @@ static int vc4_hdmi_hotplug_init(struct vc4_hdmi *vc4_hdmi)
 	if (vc4_hdmi->variant->external_irq_controller) {
 		int hpd = platform_get_irq_byname(pdev, "hpd-connected");
 
-		if (hpd < 0)
-			return hpd;
+		if (hpd < 0) {
+			ret = hpd;
+			goto no_hpd_irq;
+		}
 
 		ret = devm_request_threaded_irq(&pdev->dev, hpd,
 						NULL,
 						vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
 						"vc4 hdmi hpd connected", vc4_hdmi);
 		if (ret)
-			return ret;
+			goto no_hpd_irq;
 
 		hpd = platform_get_irq_byname(pdev, "hpd-removed");
-		if (hpd < 0)
-			return hpd;
+		if (hpd < 0) {
+			ret = hpd;
+			goto no_hpd_irq;
+		}
 
 		ret = devm_request_threaded_irq(&pdev->dev, hpd,
 						NULL,
 						vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT,
 						"vc4 hdmi hpd disconnected", vc4_hdmi);
 		if (ret)
-			return ret;
+			goto no_hpd_irq;
 
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
+
+	return 0;
+
+no_hpd_irq:
+	/*
+	 * DEVIATION (#51): losing the hotplug interrupt is not fatal.
+	 *
+	 * hdmi0's interrupt-parent is interrupt-controller@7d510600,
+	 * compatible "brcm,bcm2711-l2-intc", and FreeBSD has no driver for
+	 * that controller -- so every interrupt behind it fails to allocate
+	 * and the request comes back -ENXIO. Upstream propagates it and the
+	 * whole bind dies:
+	 *
+	 *	lkpi component: master bind failed: -6
+	 *
+	 * measured on a Pi 500+. Hotplug is a convenience; refusing to bring
+	 * up the display at all because a cable-detect line is unavailable is
+	 * not the right trade, so fall back to polling the connector, which is
+	 * a mode upstream already supports and which detect() serves from the
+	 * firmware EDID path.
+	 *
+	 * This is a REPORTED DEGRADATION, not a fix. The L2 interrupt
+	 * controller is still missing, and the same gap costs the HVS EOF
+	 * interrupts, which ARE vblank on gen6 -- see the sysctl and the
+	 * driver's own "irq 65535" lines. Plugging a monitor in after the
+	 * fact will be noticed a poll interval late, not immediately.
+	 */
+	drm_warn(connector->dev,
+	    "no hotplug interrupt (%d); polling the connector instead. The "
+	    "brcm,bcm2711-l2-intc driver is missing, so vblank is affected "
+	    "too (#51)\n", ret);
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
 
 	return 0;
 }
@@ -3108,19 +3314,16 @@ static int vc4_hdmi_init_resources(struct drm_device *drm,
 	if (ret)
 		return ret;
 
-	vc4_hdmi->pixel_clock = devm_clk_get(dev, "pixel");
-	if (IS_ERR(vc4_hdmi->pixel_clock)) {
-		ret = PTR_ERR(vc4_hdmi->pixel_clock);
-		if (ret != -EPROBE_DEFER)
-			drm_err(drm, "Failed to get pixel clock\n");
-		return ret;
-	}
+		/*
+	 * DEVIATION (#51): clocks are OPTIONAL -- see the long note in
+	 * vc4_hvs.c. The bcm2712 device tree gives the hdmi nodes no "clocks"
+	 * property, the VideoCore firmware owns these clocks, and every clk_*
+	 * call this file makes (prepare_enable, disable_unprepare,
+	 * set_min_rate, set_rate, get_rate) tolerates NULL.
+	 */
+vc4_hdmi->pixel_clock = devm_clk_get_optional(dev, "pixel");
 
-	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(vc4_hdmi->hsm_clock)) {
-		drm_err(drm, "Failed to get HDMI state machine clock\n");
-		return PTR_ERR(vc4_hdmi->hsm_clock);
-	}
+	vc4_hdmi->hsm_clock = devm_clk_get_optional(dev, "hdmi");
 	vc4_hdmi->audio_clock = vc4_hdmi->hsm_clock;
 	vc4_hdmi->cec_clock = vc4_hdmi->hsm_clock;
 
@@ -3135,6 +3338,20 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	struct resource *res;
 	int ret;
 
+	/*
+	 * Print what each bank actually maps to (#51).
+	 *
+	 * Not releasing the display changed nothing: the core window reads
+	 * 0xffffffff while the firmware is still driving the panel, so the
+	 * block is demonstrably powered, clocked and working. A live block
+	 * cannot read as a floating bus, which means what is mapped here is
+	 * not that block -- and every clock, reset, gate and power theory
+	 * chased so far was aimed at a window that was never the right one.
+	 *
+	 * Print the physical address and size of each named bank, so the
+	 * mapping is a fact rather than something inferred from reg-names
+	 * ordering.
+	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi");
 	if (!res)
 		return -ENODEV;
@@ -3200,33 +3417,28 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	if (!vc4_hdmi->rm_regs)
 		return -ENOMEM;
 
-	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(vc4_hdmi->hsm_clock)) {
-		drm_err(drm, "Failed to get HDMI state machine clock\n");
-		return PTR_ERR(vc4_hdmi->hsm_clock);
-	}
+	vc4_hdmi->hsm_clock = devm_clk_get_optional(dev, "hdmi");
 
-	vc4_hdmi->pixel_bvb_clock = devm_clk_get(dev, "bvb");
-	if (IS_ERR(vc4_hdmi->pixel_bvb_clock)) {
-		drm_err(drm, "Failed to get pixel bvb clock\n");
-		return PTR_ERR(vc4_hdmi->pixel_bvb_clock);
-	}
+	vc4_hdmi->pixel_bvb_clock = devm_clk_get_optional(dev, "bvb");
 
-	vc4_hdmi->audio_clock = devm_clk_get(dev, "audio");
-	if (IS_ERR(vc4_hdmi->audio_clock)) {
-		drm_err(drm, "Failed to get audio clock\n");
-		return PTR_ERR(vc4_hdmi->audio_clock);
-	}
+	vc4_hdmi->audio_clock = devm_clk_get_optional(dev, "audio");
 
-	vc4_hdmi->cec_clock = devm_clk_get(dev, "cec");
-	if (IS_ERR(vc4_hdmi->cec_clock)) {
-		drm_err(drm, "Failed to get CEC clock\n");
-		return PTR_ERR(vc4_hdmi->cec_clock);
-	}
+	vc4_hdmi->cec_clock = devm_clk_get_optional(dev, "cec");
 
+	/*
+	 * Back to upstream: the reset is required and now satisfiable.
+	 *
+	 * This was made optional when nothing could provide it -- dvp, the
+	 * reset controller hdmi names in "resets = <&dvp 1>", had no driver.
+	 * Skipping it let bind finish and left the block in reset, which is
+	 * what "no signal at all" turned out to be. bcm_dvp(4) provides it now,
+	 * and linux/reset.h maps onto hwreset, so a failure here is once again
+	 * a real failure worth refusing to continue on.
+	 */
 	vc4_hdmi->reset = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(vc4_hdmi->reset)) {
-		drm_err(drm, "Failed to get HDMI reset line\n");
+		drm_err(drm, "Failed to get HDMI reset line: %ld\n",
+		    PTR_ERR(vc4_hdmi->reset));
 		return PTR_ERR(vc4_hdmi->reset);
 	}
 
@@ -3277,6 +3489,64 @@ static int vc4_hdmi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+/*
+ * Ask the firmware to power the display on (#51).
+ *
+ * DEVIATION: upstream never does this, because on Linux the firmware has the
+ * display powered when the driver takes over. Here vc4_drm_bind() sends
+ * NOTIFY_DISPLAY_DONE to tell the firmware to let go, and after that a large
+ * part of the HDMI core bank reads 0xffffffff -- HDMI_SCHEDULER_CONTROL,
+ * HDMI_HOTPLUG, HDMI_RAM_PACKET_STATUS -- while the registers that do answer
+ * return plausible values, so the mapping and the register table are right and
+ * the block is simply not powered.
+ *
+ * Measured on a Pi 500+: dead before phy_init and still dead after it, so the
+ * PHY is not what powers them, and hdmi has no power-domains property so there
+ * is no device tree domain to enable either.
+ *
+ * vc4_firmware_kms.c does exactly this on every encoder enable, with the same
+ * display numbers this driver already uses for EDID (2 for HDMI0, 7 for
+ * HDMI1), and firmware KMS is the configuration that lights this panel today.
+ */
+struct vc4_hdmi_fw_pwr {
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					display;
+	u32					state;
+};
+
+static void
+vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
+{
+	struct drm_device *drm = vc4_hdmi->connector.dev;
+	struct vc4_dev *vc4 = drm != NULL ? to_vc4_dev(drm) : NULL;
+	struct rpi_firmware *fw;
+	struct vc4_hdmi_fw_pwr pwr = {
+		.tag1 = { RPI_FIRMWARE_SET_DISPLAY_POWER, 8, 0 },
+		.display =
+		    vc4_hdmi->variant->encoder_type == VC4_ENCODER_TYPE_HDMI1 ?
+		    VC4_FW_DISPLAY_HDMI1 : VC4_FW_DISPLAY_HDMI0,
+		.state = on ? 1 : 0,
+	};
+	/*
+	 * runtime_resume runs from bind BEFORE vc4_hdmi_connector_init(), so
+	 * connector.dev is still NULL here and vc4 cannot be reached through
+	 * it. Deriving the firmware handle from the connector made this
+	 * function return silently and do nothing -- which looked exactly like
+	 * the call failing, and cost a cycle to tell apart.
+	 *
+	 * Find the firmware node directly instead. It does not depend on how
+	 * far bind has got.
+	 */
+	fw = vc4 != NULL ? vc4->firmware : NULL;
+	if (fw == NULL)
+		fw = rpi_firmware_get(rpi_firmware_find_node());
+	if (fw == NULL) {
+		return;
+	}
+
+	(void)rpi_firmware_property_list(fw, &pwr, sizeof(pwr));
+}
+
 static int vc4_hdmi_runtime_resume(struct device *dev)
 {
 	struct vc4_hdmi *vc4_hdmi = dev_get_drvdata(dev);
@@ -3300,9 +3570,48 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 	 */
 	rate = clk_get_rate(vc4_hdmi->hsm_clock);
 	if (!rate) {
-		ret = -EINVAL;
-		goto err_disable_clk;
+		/*
+		 * DEVIATION (#51): start the clock instead of giving up.
+		 *
+		 * The comment above is exactly right about the cause, and on
+		 * this board it is the normal case rather than the no-monitor
+		 * one: the firmware reports the HSM clock as 0 because nothing
+		 * has ever set it. Upstream can only refuse, because on Linux
+		 * the firmware has already initialised it.
+		 *
+		 * Refusing here is expensive and silent. Everything below this
+		 * point is skipped -- clk_prepare_enable() on the audio clock,
+		 * so the DVP gate stays at enable_cnt 0, and variant->reset(),
+		 * so the block is never reset and its packet RAM never goes
+		 * idle:
+		 *
+		 *	vc40: [drm] *ERROR* Failed to wait for infoframe to go
+		 *	    idle: -60
+		 *
+		 * measured on a Pi 500+, with no other error reported.
+		 *
+		 * rpi_fw_clocks(4) can set this clock, so set it to the
+		 * minimum the driver already defines for it and carry on. A
+		 * real rate for the mode is programmed later by
+		 * vc4_hdmi_set_timings(); this only has to be non-zero and
+		 * legal so the block can be touched at all.
+		 */
+		ret = clk_set_min_rate(vc4_hdmi->hsm_clock,
+		    HSM_MIN_CLOCK_FREQ);
+		if (ret == 0)
+			rate = clk_get_rate(vc4_hdmi->hsm_clock);
+		if (!rate) {
+			ret = -EINVAL;
+			goto err_disable_clk;
+		}
 	}
+
+
+	/*
+	 * Power the block before the reset hook touches its registers. See the
+	 * note on vc4_hdmi_fw_display_power().
+	 */
+	vc4_hdmi_fw_display_power(vc4_hdmi, true);
 
 	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
 	if (ret)
@@ -3339,7 +3648,9 @@ static void vc4_hdmi_put_ddc_device(void *ptr)
 {
 	struct vc4_hdmi *vc4_hdmi = ptr;
 
-	put_device(&vc4_hdmi->ddc->dev);
+	/* DEVIATION (#51): there may be no adapter -- see the probe path. */
+	if (vc4_hdmi->ddc != NULL)
+		put_device(&vc4_hdmi->ddc->dev);
 }
 
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
@@ -3398,8 +3709,21 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	vc4_hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
 	of_node_put(ddc_node);
 	if (!vc4_hdmi->ddc) {
-		drm_dbg(drm, "Failed to get ddc i2c adapter by node\n");
-		return -EPROBE_DEFER;
+		/*
+		 * DEVIATION (#51): upstream returns -EPROBE_DEFER here, which
+		 * on this platform defers forever -- "brcm,brcmstb-i2c" has no
+		 * FreeBSD driver, so no adapter will ever appear and HDMI
+		 * would never probe.
+		 *
+		 * EDID comes from the firmware mailbox instead
+		 * (vc4_hdmi_read_edid above), which is the same source
+		 * firmware KMS uses on this hardware today. What is genuinely
+		 * lost is DDC/CI and SCDC: SCDC configures TMDS scrambling
+		 * above 340 MHz, so modes needing it are refused below rather
+		 * than driven wrongly.
+		 */
+		drm_info(drm,
+			 "no DDC i2c adapter; EDID will come from the firmware (#51)\n");
 	}
 
 	ret = devm_add_action_or_reset(dev, vc4_hdmi_put_ddc_device, vc4_hdmi);
@@ -3428,6 +3752,44 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
 		return ret;
+
+	/*
+	 * DEVIATION (#51): bring the device up by hand, because nothing else
+	 * will.
+	 *
+	 * The comment above is exact -- the device has to be powered up here
+	 * for the reset hook -- and upstream gets that from runtime PM calling
+	 * vc4_hdmi_runtime_resume(). LinuxKPI has no runtime PM: every entry
+	 * point in linux/pm_runtime.h is a no-op,
+	 *
+	 *	#define pm_runtime_resume(x) (void)(x)
+	 *	static inline int pm_runtime_resume_and_get(...) { return 0; }
+	 *
+	 * so the callback registered at the bottom of this file is never
+	 * invoked, and everything it does is simply skipped. That is both the
+	 * enable of the audio clock -- which is why the DVP gate sat at
+	 * enable_cnt 0 with a lookup that plainly succeeded -- and
+	 * variant->reset(), which is why the block was never reset even after
+	 * bcm_dvp made its reset line available, and why its packet RAM never
+	 * went idle:
+	 *
+	 *	vc40: [drm] *ERROR* Failed to wait for infoframe to go idle: -60
+	 *
+	 * measured on a Pi 500+, with markers inside vc4_hdmi_runtime_resume()
+	 * proving it never ran.
+	 *
+	 * Calling it directly is the narrow fix. Implementing runtime PM in
+	 * LinuxKPI is the broad one, and it would change behaviour for every
+	 * other consumer of these headers, so it is not something to do from
+	 * inside a display bring-up.
+	 */
+
+	ret = vc4_hdmi_runtime_resume(dev);
+	if (ret) {
+		drm_err(drm, "Failed to resume HDMI: %d\n", ret);
+		return ret;
+	}
+
 
 	if ((of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi0") ||
 	     of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi1") ||

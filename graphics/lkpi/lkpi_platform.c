@@ -131,13 +131,48 @@ int
 lkpi_of_reg_by_index(struct platform_device *pdev, int idx, uint64_t *startp,
     uint64_t *lenp)
 {
+	struct resource *res;
 	rman_res_t start, count;
+	int rid;
 
 	if (pdev == NULL || pdev->dev.bsddev == NULL || idx < 0)
 		return (-EINVAL);
-	if (bus_get_resource(pdev->dev.bsddev, SYS_RES_MEMORY, idx,
-	    &start, &count) != 0)
+
+	/*
+	 * ALLOCATE to get the address, do not read the resource list (#51).
+	 *
+	 * bus_get_resource() returns the resource list entry, which on a
+	 * simplebus child is the UNTRANSLATED child address. The ranges
+	 * translation happens in simplebus_alloc_resource(), so the list and
+	 * the real address differ whenever a bus has non-trivial ranges.
+	 *
+	 * On bcm2712 they differ by 4GB. soc@107c000000 has #address-cells 1
+	 * under a root with #address-cells 2, and
+	 *
+	 *	ranges = <0x00000000  0x00000010 0x00000000  0x80000000>
+	 *
+	 * so hdmi0's core bank at child 0x7c701400 really lives at
+	 * 0x107c701400. Reading the list gave 0x7c701400, devm_ioremap()
+	 * mapped that, and every access landed on an unbacked page: the whole
+	 * HDMI register window read as a floating bus, 0xffffffff with the odd
+	 * bit flipped, even while the firmware was driving the panel.
+	 *
+	 * lkpi_platform_ioremap_resource() never had this problem because it
+	 * allocates. This is the same fix for the by-name path.
+	 *
+	 * The resource is released immediately: the caller wants the physical
+	 * address to ioremap, not the allocation, and holding it would make
+	 * the driver's own later allocation of the same rid fail.
+	 */
+	rid = idx;
+	res = bus_alloc_resource_any(pdev->dev.bsddev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (res == NULL)
 		return (-ENOENT);
+	start = rman_get_start(res);
+	count = rman_get_size(res);
+	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
+
 	if (startp != NULL)
 		*startp = (uint64_t)start;
 	if (lenp != NULL)
