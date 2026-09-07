@@ -19,6 +19,11 @@
 # Deliberately NOT vendored:
 #   v3d_debugfs.c  -- CONFIG_DEBUG_FS is off here, same as vc4_kms
 #   v3d_sysfs.c    -- sysfs attribute groups; v3d_sysfs_init() is stubbed
+#   v3d_gemfs.c    -- a private huge-page tmpfs mount for GEM objects. Built on
+#                     get_fs_type()/vfs_kern_mount(); LinuxKPI has no VFS. The
+#                     NULL-mount path it leaves behind is upstream's own
+#                     no-huge-pages fallback, so this costs throughput on large
+#                     buffers and not correctness.
 #
 .include "../kconfig.mk"
 
@@ -34,7 +39,6 @@ SRCS=	\
 	v3d_drv.c \
 	v3d_bo.c \
 	v3d_gem.c \
-	v3d_gemfs.c \
 	v3d_irq.c \
 	v3d_mmu.c \
 	v3d_fence.c \
@@ -53,7 +57,8 @@ SRCS+=	\
 	lkpi_irq.c \
 	lkpi_rpi_firmware.c \
 	lkpi_rpi_firmware_mbox.c \
-	v3d_sysfs_stub.c
+	v3d_sysfs_stub.c \
+	v3d_gemfs_stub.c
 
 SRCS	+=			\
 	opt_acpi.h		\
@@ -105,6 +110,11 @@ CFLAGS+= -DCONFIG_RASPBERRYPI_FIRMWARE=1
 CFLAGS+= -DCONFIG_MMU=1
 
 CFLAGS+= -include ${.CURDIR:H}/lkpi/lkpi_drm.h
+
+# The 6.12-lts DRM gap: idr_init_base, platform_get_irq_optional and
+# drm_gem_shmem_create_with_mnt. See v3d_compat.h for why it is force-included
+# rather than shipped as a shadowing <drm/...> header.
+CFLAGS+= -include ${.CURDIR}/v3d_compat.h
 
 # These talk to newbus and busdma, so they need FreeBSD's struct resource from
 # sys/rman.h rather than LinuxKPI's identically named one that the force-include

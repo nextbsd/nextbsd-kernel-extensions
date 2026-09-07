@@ -816,6 +816,28 @@ jobs:
           path: /tmp/vc4kms-probe.log
           if-no-files-found: ignore
 
+      - name: Build bcm2712_pm.ko (V3D reset line, #66)
+        # v3d@2000000 takes "resets = <&pm 0>" and nothing could satisfy it.
+        # That is not cosmetic: v3d's probe falls back to mapping a "bridge"
+        # register bank when the reset does not resolve, and a 2712 device tree
+        # has no such bank, so probe fails outright.
+        if: matrix.target == 'arm64'
+        run: |
+          set -e
+          mkdir -p /tmp/drm-kmod
+          cp -R nbkm-tools/graphics/bcm2712_pm /tmp/drm-kmod/
+          NPROC=$(nproc)
+          cd /usr/src
+          ./tools/build/make.py \
+            --cross-bindir="${CROSS_BINDIR}" \
+            TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=NEXTBSD \
+            buildenv BUILDENV_SHELL="make -C /tmp/drm-kmod/bcm2712_pm -j${NPROC} SYSDIR=/usr/src/sys" \
+            > /tmp/pm-build.log 2>&1 || true
+          { echo "=== bcm2712_pm build ==="; cat /tmp/pm-build.log; } >> /tmp/v3d-probe.log 2>/dev/null || true
+          grep -E "error:" /tmp/pm-build.log | head -10 || true
+          cp /tmp/drm-kmod/bcm2712_pm/bcm2712_pm.ko /tmp/ko-out/ 2>/dev/null || true
+          test -f /tmp/ko-out/bcm2712_pm.ko
+
       - name: Build v3d.ko (BCM2712 GPU, #66)
         # A compile probe, exactly as vc4_kms started life: continue-on-error
         # with a gap summary, so an incomplete port reports WHAT is missing
@@ -1093,7 +1115,7 @@ jobs:
           # does not. A generator reading the driver would confidently emit a
           # personality that never matches the hardware it was generated for.
           # So the strings are checked in, and both spellings are listed.
-          for src in graphics/vc4_kms/VideoCore6KMS graphics/bcm_dvp/BcmDVP graphics/v3d/V3D; do
+          for src in graphics/vc4_kms/VideoCore6KMS graphics/bcm_dvp/BcmDVP graphics/v3d/V3D graphics/bcm2712_pm/BcmPM; do
             f="nbkm-tools/${src}.iokitpersonalities"
             [ -f "$f" ] && cp "$f" "pers/$(basename "$src").iokitpersonalities"
           done
@@ -1299,10 +1321,17 @@ jobs:
           # Also depends on RpiFirmwareClocks, which supplies rpifw-v3d, and
           # names it as a library so it is attached before this probe reads
           # the clock rate.
+          # BcmPM -- the V3D reset line (#66). Same shape as BcmDVP: a plain
+          # newbus OFW reset provider, no LinuxKPI, no kext dependencies.
+          if [ -f "$KO/bcm2712_pm.ko" ] && [ -f pers/BcmPM.iokitpersonalities ]; then
+            "$K" -o "$O" -p pers/BcmPM.iokitpersonalities \
+                 "$KO/bcm2712_pm.ko" BcmPM org.nextbsd.kext.bcmpm
+          fi
           if [ -f "$KO/v3d.ko" ] && [ -f pers/V3D.iokitpersonalities ]; then
             "$K" -o "$O" -l org.nextbsd.kext.iographics -l org.nextbsd.kext.dmabuf \
                  -l org.nextbsd.kext.iographicsshmem \
                  -l org.nextbsd.kext.rpifirmwareclocks \
+                 -l org.nextbsd.kext.bcmpm \
                  -p pers/V3D.iokitpersonalities \
                  "$KO/v3d.ko" V3D org.nextbsd.kext.v3d
           fi

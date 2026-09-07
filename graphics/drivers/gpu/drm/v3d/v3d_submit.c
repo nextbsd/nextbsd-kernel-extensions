@@ -229,8 +229,19 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	job->free = free;
 	job->file_priv = v3d_priv;
 
+	/*
+	 * DEVIATION from the vendored source (nextbsd-kernel-extensions#66).
+	 *
+	 * rpi-6.12.y carries a backport that adds a client_id argument to
+	 * drm_sched_job_init() for per-client fdinfo accounting. drm-kmod's
+	 * 6.12-lts scheduler -- the one this links against, in the DRM core --
+	 * still has the four-argument form, so the extra argument is dropped.
+	 *
+	 * What is lost is the attribution of GPU time to a client in fdinfo,
+	 * which nothing on FreeBSD reads. Scheduling itself does not use it.
+	 */
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
-				 1, v3d_priv, file_priv->client_id);
+				 1, v3d_priv);
 	if (ret)
 		return ret;
 
