@@ -825,6 +825,8 @@ static int vc4_hdmi_stop_packet(struct vc4_hdmi *vc4_hdmi,
 			 * a register that always reads 0xffffffff or 0 is not
 			 * a busy engine, it is an absent one.
 			 */
+			unsigned int off__;
+
 			printf("vc4: stop_packet id=%u timeout: CONFIG=%#x "
 			    "STATUS=%#x VID_CTL=%#x SCHED=%#x (#51)\n",
 			    packet_id,
@@ -832,6 +834,22 @@ static int vc4_hdmi_stop_packet(struct vc4_hdmi *vc4_hdmi,
 			    HDMI_READ(HDMI_RAM_PACKET_STATUS),
 			    HDMI_READ(HDMI_VID_CTL),
 			    HDMI_READ(HDMI_SCHEDULER_CONTROL));
+
+			/*
+			 * Sweep the core bank raw (#51).
+			 *
+			 * 0x0c4 reads back the 0x10000 the driver wrote while
+			 * 0x0cc and 0x0e8, in the SAME mapping, read all ones.
+			 * Reading a range says which it is: a bank that is
+			 * mostly 0xffffffff is not mapped where we think, and
+			 * one that is mostly sane with a few all-ones holes
+			 * means those particular registers are unimplemented
+			 * or unpowered. Those need different fixes, and the
+			 * two are indistinguishable from three registers.
+			 */
+			for (off__ = 0xb0; off__ <= 0x100; off__ += 4)
+				printf("vc4:   core+%#04x = %#010x (#51)\n",
+				    off__, readl(vc4_hdmi->hdmicore_regs + off__));
 		}
 	}
 
