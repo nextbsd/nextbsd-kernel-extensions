@@ -117,6 +117,30 @@ platform_get_resource_byname(struct platform_device *pdev, unsigned int type,
 }
 
 /*
+ * devm_platform_ioremap_resource_byname() (v3d, #66): resolve the bank name
+ * through reg-names, then map it by the index that lookup produced. The
+ * mapping itself is the existing index path -- this only translates the name,
+ * so the two spellings cannot map differently.
+ */
+void *
+lkpi_platform_ioremap_resource_byname(struct platform_device *pdev,
+    const char *name)
+{
+	struct device_node *dn;
+	int idx;
+
+	if (pdev == NULL || name == NULL)
+		return (ERR_PTR(-EINVAL));
+	dn = dev_of_node(&pdev->dev);
+	if (dn == NULL)
+		return (ERR_PTR(-ENODEV));
+	idx = of_property_match_string(dn, "reg-names", name);
+	if (idx < 0)
+		return (ERR_PTR(-ENOENT));
+	return (lkpi_platform_ioremap_resource(pdev, (unsigned int)idx));
+}
+
+/*
  * drm_print_regset32() -- register dump for debugfs (#51).
  *
  * drm-kmod's drm.ko does not export it, so the kext failed the resolution
