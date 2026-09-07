@@ -90,23 +90,35 @@
 #define	RPI_FW_TAG_SET_CLOCK_RATE	0x00038002
 #define	RPI_FW_TAG_GET_MAX_CLOCK_RATE	0x00030004
 
+/*
+ * Names are prefixed because clock names are GLOBAL in this framework, not
+ * per-domain. Registering the obvious ones panicked the machine outright:
+ *
+ *	panic: Duplicated clock registration: core
+ *
+ * measured on a Pi 500+ -- something else already owns "core", and probably
+ * "arm", "uart" and "emmc" too. Nothing resolves clocks by these names: the
+ * device tree specifier carries the firmware id and clk_get_by_ofw_index()
+ * matches on that, so the name is only for identification in sysctls and
+ * boot output.
+ */
 static const char *rpi_fw_clk_names[RPI_FW_CLK_MAX] = {
-	[RPI_FW_CLK_EMMC]	= "emmc",
-	[RPI_FW_CLK_UART]	= "uart",
-	[RPI_FW_CLK_ARM]	= "arm",
-	[RPI_FW_CLK_CORE]	= "core",
-	[RPI_FW_CLK_V3D]	= "v3d",
-	[RPI_FW_CLK_H264]	= "h264",
-	[RPI_FW_CLK_ISP]	= "isp",
-	[RPI_FW_CLK_SDRAM]	= "sdram",
-	[RPI_FW_CLK_PIXEL]	= "pixel",
-	[RPI_FW_CLK_PWM]	= "pwm",
-	[RPI_FW_CLK_HEVC]	= "hevc",
-	[RPI_FW_CLK_EMMC2]	= "emmc2",
-	[RPI_FW_CLK_M2MC]	= "m2mc",
-	[RPI_FW_CLK_PIXEL_BVB]	= "pixel-bvb",
-	[RPI_FW_CLK_VEC]	= "vec",
-	[RPI_FW_CLK_DISP]	= "disp",
+	[RPI_FW_CLK_EMMC]	= "rpifw-emmc",
+	[RPI_FW_CLK_UART]	= "rpifw-uart",
+	[RPI_FW_CLK_ARM]	= "rpifw-arm",
+	[RPI_FW_CLK_CORE]	= "rpifw-core",
+	[RPI_FW_CLK_V3D]	= "rpifw-v3d",
+	[RPI_FW_CLK_H264]	= "rpifw-h264",
+	[RPI_FW_CLK_ISP]	= "rpifw-isp",
+	[RPI_FW_CLK_SDRAM]	= "rpifw-sdram",
+	[RPI_FW_CLK_PIXEL]	= "rpifw-pixel",
+	[RPI_FW_CLK_PWM]	= "rpifw-pwm",
+	[RPI_FW_CLK_HEVC]	= "rpifw-hevc",
+	[RPI_FW_CLK_EMMC2]	= "rpifw-emmc2",
+	[RPI_FW_CLK_M2MC]	= "rpifw-m2mc",
+	[RPI_FW_CLK_PIXEL_BVB]	= "rpifw-pixel-bvb",
+	[RPI_FW_CLK_VEC]	= "rpifw-vec",
+	[RPI_FW_CLK_DISP]	= "rpifw-disp",
 };
 
 struct rpi_fw_clocks_softc {
