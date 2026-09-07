@@ -341,6 +341,20 @@ module_param(enable_fbdev, int, 0644);
 MODULE_PARM_DESC(enable_fbdev,
     "Run fbdev emulation's initial modeset (default on) (#51)");
 
+/*
+ * Whether to tell the firmware to let go of the display.
+ *
+ * On by default, which is what a driver taking over the display must do. It
+ * was briefly turned off to test whether the firmware powering down on release
+ * was what killed the HDMI register window; it was not -- the window read dead
+ * while the firmware was still driving the panel, which is what pointed at the
+ * address translation bug instead.
+ */
+static int notify_display_done = 1;
+module_param(notify_display_done, int, 0644);
+MODULE_PARM_DESC(notify_display_done,
+    "Tell the firmware to release the display (default on) (#51)");
+
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

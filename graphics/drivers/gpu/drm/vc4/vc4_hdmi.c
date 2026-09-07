@@ -3527,8 +3527,6 @@ vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
 		    VC4_FW_DISPLAY_HDMI1 : VC4_FW_DISPLAY_HDMI0,
 		.state = on ? 1 : 0,
 	};
-	int ret;
-
 	/*
 	 * runtime_resume runs from bind BEFORE vc4_hdmi_connector_init(), so
 	 * connector.dev is still NULL here and vc4 cannot be reached through
@@ -3546,7 +3544,7 @@ vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
 		return;
 	}
 
-	ret = rpi_firmware_property_list(fw, &pwr, sizeof(pwr));
+	(void)rpi_firmware_property_list(fw, &pwr, sizeof(pwr));
 }
 
 static int vc4_hdmi_runtime_resume(struct device *dev)
