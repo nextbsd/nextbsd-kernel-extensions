@@ -405,7 +405,10 @@ vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
 /*
  * Whether to tell the firmware to let go of the display (#51).
  *
- * DIAGNOSTIC DEFAULT: off, which is NOT what a finished driver should do.
+ * Back on by default. It was turned off to answer one question -- whether the
+ * firmware powering down on release was what killed the register window -- and
+ * the answer was no: the window read dead while the firmware was still driving
+ * the panel, which is what proved the mapping was wrong rather than the state.
  *
  * Essentially the whole HDMI register window is unresponsive: sweeping the
  * 0x300 core bank on a Pi 500+ finds 16 of 192 words on hdmi0 and 30 of 192 on
@@ -430,7 +433,7 @@ vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
  * shippable configuration -- both would be driving the same hardware. It is
  * here to answer one question: does the register window come alive?
  */
-static int notify_display_done = 0;
+static int notify_display_done = 1;
 module_param(notify_display_done, int, 0644);
 MODULE_PARM_DESC(notify_display_done,
     "Tell the firmware to release the display; off while diagnosing (#51)");
