@@ -710,6 +710,28 @@ jobs:
           # thing to a load test we get before hardware.
           cp /tmp/drm-kmod/vc4_fkms/vc4_fkms.ko /tmp/ko-out/ 2>/dev/null || true
 
+      - name: Build bcm_dvp.ko (DVP clocks and resets, #51)
+        # hdmi@7ef00700 takes "resets = <&dvp 1>" and nothing could satisfy it,
+        # so the HDMI block stayed in reset: register writes accepted, never
+        # ready, "Failed to wait for infoframe to go idle: -60", no signal.
+        #
+        # continue-on-error while it is brought up on hardware, so a failure
+        # cannot stop the vc4_kms steps from producing a testable kext.
+        if: matrix.target == 'arm64'
+        continue-on-error: true
+        run: |
+          set -e
+          mkdir -p /tmp/drm-kmod
+          cp -R nbkm-tools/graphics/bcm_dvp /tmp/drm-kmod/
+          NPROC=$(nproc)
+          cd /usr/src
+          ./tools/build/make.py \
+            --cross-bindir="${CROSS_BINDIR}" \
+            TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=NEXTBSD \
+            buildenv BUILDENV_SHELL="make -C /tmp/drm-kmod/bcm_dvp -j${NPROC} SYSDIR=/usr/src/sys"
+          cp /tmp/drm-kmod/bcm_dvp/bcm_dvp.ko /tmp/ko-out/
+          ls -l /tmp/ko-out/bcm_dvp.ko && echo "    *** bcm_dvp.ko BUILT ***"
+
       - name: Build rpi_fw_clocks.ko (firmware clock provider, #51)
         # Plain newbus/clkdev, nothing vendored. Provides the clocks that
         # /soc/firmware/clocks advertises and nothing implements -- without it
@@ -1238,6 +1260,14 @@ jobs:
           # No IOKitPersonalities and no kext dependencies -- plain newbus.
           # LOAD IT BEFORE VideoCore6KMS: clocks are resolved when vc4_hdmi
           # attaches, so the provider has to be registered first.
+          # BcmDVP -- display video path clocks and resets (#51). Provides the
+          # reset line hdmi names in "resets = <&dvp 1>". Without it the HDMI
+          # block never leaves reset and emits nothing.
+          #
+          # LOAD IT BEFORE VideoCore6KMS, alongside RpiFirmwareClocks.
+          if [ -f "$KO/bcm_dvp.ko" ]; then
+            "$K" -o "$O" "$KO/bcm_dvp.ko" BcmDVP org.nextbsd.kext.bcmdvp
+          fi
           if [ -f "$KO/rpi_fw_clocks.ko" ]; then
             "$K" -o "$O" "$KO/rpi_fw_clocks.ko" RpiFirmwareClocks org.nextbsd.kext.rpifirmwareclocks
           fi
