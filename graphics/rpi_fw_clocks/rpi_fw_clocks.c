@@ -86,9 +86,15 @@
 #define	RPI_FW_CLK_DISP		16
 #define	RPI_FW_CLK_MAX		17
 
+#define	RPI_FW_TAG_GET_CLOCK_STATE	0x00030001
+#define	RPI_FW_TAG_SET_CLOCK_STATE	0x00038001
 #define	RPI_FW_TAG_GET_CLOCK_RATE	0x00030002
 #define	RPI_FW_TAG_SET_CLOCK_RATE	0x00038002
 #define	RPI_FW_TAG_GET_MAX_CLOCK_RATE	0x00030004
+
+/* SET/GET_CLOCK_STATE state bits. */
+#define	RPI_FW_CLOCK_STATE_ON		(1u << 0)
+#define	RPI_FW_CLOCK_STATE_NOT_FOUND	(1u << 1)
 
 /*
  * Names are prefixed because clock names are GLOBAL in this framework, not
@@ -219,15 +225,58 @@ rpi_fw_clknode_init(struct clknode *clk, device_t dev)
 }
 
 /*
- * No enable/disable method: the firmware exposes no per-clock gate through
- * this interface, so a clock is running whenever it has a rate. Omitting the
- * method makes clknode_enable() a no-op success, which is the honest answer --
- * an implementation that pretended to gate would be lying.
+ * Turn the clock on and off (#51).
+ *
+ * This driver previously had no gate method, on the stated grounds that "the
+ * firmware exposes no per-clock gate through this interface". That was an
+ * assumption written as a fact, and it is wrong: SET_CLOCK_STATE (0x00038001)
+ * is exactly that gate.
+ *
+ * The cost of the omission was total. vc4_drm_bind() sends
+ * NOTIFY_DISPLAY_DONE, after which the firmware stops the HDMI state machine
+ * clock; the driver then set a rate on it and called clk_prepare_enable(),
+ * which raised a refcount in the clock framework and reached no hardware,
+ * because there was no gate method for it to call. So the clock had a rate of
+ * 365872500 and was not running.
+ *
+ * That is what left the HDMI block half alive: registers the driver writes
+ * read back, because those are latches on the always-on side, while every
+ * register the state machine generates read 0xffffffff -- HDMI_HOTPLUG,
+ * HDMI_SCHEDULER_CONTROL, HDMI_RAM_PACKET_STATUS -- measured on a Pi 500+
+ * before the reset, after the reset, before and after phy_init, all identical.
  */
+static int
+rpi_fw_clknode_set_gate(struct clknode *clk, bool enable)
+{
+	struct rpi_fw_clknode_sc *sc = clknode_get_softc(clk);
+	struct rpi_fw_clk_msg msg;
+	int error;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.id = sc->id;
+	msg.rate = enable ? RPI_FW_CLOCK_STATE_ON : 0;	/* the state word */
+	error = bcm2835_firmware_property(sc->fwdev,
+	    RPI_FW_TAG_SET_CLOCK_STATE, &msg, sizeof(uint32_t) * 2);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * The firmware replies in the same buffer and sets NOT_FOUND for an id
+	 * it does not have. Reporting that as success would hand out a clock
+	 * that silently does nothing, which is the failure this whole change
+	 * exists to remove.
+	 */
+	if ((msg.rate & RPI_FW_CLOCK_STATE_NOT_FOUND) != 0)
+		return (ENXIO);
+
+	return (0);
+}
+
 static clknode_method_t rpi_fw_clknode_methods[] = {
 	CLKNODEMETHOD(clknode_init,		rpi_fw_clknode_init),
 	CLKNODEMETHOD(clknode_recalc_freq,	rpi_fw_clknode_recalc),
 	CLKNODEMETHOD(clknode_set_freq,		rpi_fw_clknode_set_freq),
+	CLKNODEMETHOD(clknode_set_gate,		rpi_fw_clknode_set_gate),
 	CLKNODEMETHOD_END
 };
 
