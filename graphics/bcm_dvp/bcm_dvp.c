@@ -160,6 +160,21 @@ bcm_dvp_reset_assert(device_t dev, intptr_t id, bool reset)
 	else
 		val &= ~(1u << id);
 	DVP_WR4(sc, DVP_SW_INIT, val);
+
+	/*
+	 * Read both registers back (#51).
+	 *
+	 * Two polarities here were taken from Linux's clk-bcm2711-dvp.c and
+	 * never checked against the hardware: SW_INIT where a set bit holds a
+	 * line in reset, and MISC_CONFIG where the gate is SET_TO_DISABLE, so
+	 * a set bit stops the clock. Getting either backwards does the exact
+	 * opposite of what is intended and looks like this bug -- the HDMI
+	 * block's state machine registers reading 0xffffffff while the
+	 * registers the driver writes read back fine.
+	 */
+	device_printf(dev, "reset %ju %s: SW_INIT=%#x MISC_CONFIG=%#x (#51)\n",
+	    (uintmax_t)id, reset ? "assert" : "deassert",
+	    DVP_RD4(sc, DVP_SW_INIT), DVP_RD4(sc, DVP_MISC_CONFIG));
 	mtx_unlock(&sc->mtx);
 	return (0);
 }
