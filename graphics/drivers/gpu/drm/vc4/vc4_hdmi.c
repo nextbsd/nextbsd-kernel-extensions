@@ -116,7 +116,24 @@
 #define HDMI_14_MAX_TMDS_CLK   (340 * 1000 * 1000)
 
 /* bit field to force hotplug detection. bit0 = HDMI0 */
-static int force_hotplug;
+/*
+ * DIAGNOSTIC DEFAULT (#51): bit 0 set, forcing HDMI0 connected.
+ *
+ * With the register mapping corrected, HDMI_HOTPLUG reads 0 on a Pi 500+ with
+ * a monitor plugged in, so vc5_hdmi_hp_detect() reports disconnected and the
+ * connector never probes for modes. The 57 modes seen earlier were an artifact
+ * of the same mapping bug: that register read 0xffffffff, which is non-zero,
+ * so the connector always looked plugged in.
+ *
+ * Forcing it separates two questions that are otherwise tangled together --
+ * whether HPD sensing works, and whether the display pipeline can drive a
+ * panel at all. EDID does not depend on HPD here; it comes over the firmware
+ * mailbox, which never went through the broken mapping.
+ *
+ * Not a fix and not shippable: a forced connector reports a monitor whether or
+ * not one is attached. It comes out once HPD reads correctly.
+ */
+static int force_hotplug = 1;
 module_param(force_hotplug, int, 0644);
 /*
  * DEVIATION (#51): upstream has no MODULE_PARM_DESC for this parameter, and
