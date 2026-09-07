@@ -1775,8 +1775,26 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 		goto err_disable_pixel_clock;
 	}
 
+	/*
+	 * Does the PHY come up, and does it change anything? (#51)
+	 *
+	 * HDMI_SCHEDULER_CONTROL reads 0xffffffff at this point, so the
+	 * read-modify-write below writes 0xffffffff back into it -- every
+	 * reserved bit set, on the register that controls the video
+	 * scheduler. That is not a benign consequence of a bad read; it is an
+	 * active corruption of the block, and worth knowing whether it happens
+	 * before or after the PHY is brought up.
+	 */
+	printf("vc4: pcc: tmds=%llu bvb=%lu SCHED_before=%#x phy_init=%p (#51)\n",
+	    (unsigned long long)tmds_char_rate, bvb_rate,
+	    HDMI_READ(HDMI_SCHEDULER_CONTROL),
+	    vc4_hdmi->variant->phy_init);
+
 	if (vc4_hdmi->variant->phy_init)
 		vc4_hdmi->variant->phy_init(vc4_hdmi, conn_state);
+
+	printf("vc4: pcc: after phy_init SCHED=%#x HOTPLUG=%#x (#51)\n",
+	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG));
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
