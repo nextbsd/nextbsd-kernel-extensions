@@ -447,9 +447,26 @@ static int vc4_drm_bind(struct device *dev)
 		rpi_firmware_put(firmware);
 	}
 
+	/*
+	 * STAGE MARKERS (#51). The machine panics somewhere in this tail with a
+	 * NULL dereference, and the kernel is stripped, so its own backtrace
+	 * stops at handle_el1h_sync and names no module symbol. These print the
+	 * stage reached, which the message buffer preserves inside the crash
+	 * dump -- the last marker before "panic:" is the failing step.
+	 *
+	 * The anchor prints a RUNTIME address for a symbol whose offset in
+	 * vc4_kms.ko is known, which is what makes the faulting elr
+	 * symbolisable at all: elr - anchor gives the offset to look up. The
+	 * module base moves between loads (it moved 0x200000 between the first
+	 * two crashes), so a fixed address cannot be assumed.
+	 */
+	drm_info(drm, "bind: anchor vc4_drm_bind=%p (#51)\n",
+	    (void *)(uintptr_t)vc4_drm_bind);
+
 	ret = component_bind_all(dev, drm);
 	if (ret)
 		goto err;
+	drm_info(drm, "bind: stage 1 component_bind_all ok (#51)\n");
 
 	ret = devm_add_action_or_reset(dev, vc4_component_unbind_all, vc4);
 	if (ret)
@@ -460,19 +477,26 @@ static int vc4_drm_bind(struct device *dev)
 		if (ret)
 			goto err;
 	}
+	drm_info(drm, "bind: stage 2 additional planes ok (#51)\n");
 
 	ret = vc4_kms_load(drm);
 	if (ret < 0)
 		goto err;
+	drm_info(drm, "bind: stage 3 vc4_kms_load ok (#51)\n");
 
 	if (!vc4->firmware_kms) {
-		drm_for_each_crtc(crtc, drm)
+		drm_for_each_crtc(crtc, drm) {
+			drm_info(drm, "bind: stage 4 disable_at_boot crtc %u "
+			    "(#51)\n", crtc->base.id);
 			vc4_crtc_disable_at_boot(crtc);
+		}
 	}
+	drm_info(drm, "bind: stage 4 disable_at_boot ok (#51)\n");
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto err;
+	drm_info(drm, "bind: stage 5 drm_dev_register ok (#51)\n");
 
 	if (enable_fbdev)
 		drm_fbdev_dma_setup(drm, 16);
