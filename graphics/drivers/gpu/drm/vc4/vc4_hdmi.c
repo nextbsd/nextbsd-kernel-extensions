@@ -973,12 +973,22 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 	unsigned long flags;
 	int idx;
 
+	/*
+	 * Markers (#51). printf(), not drm_info(), on purpose: drm here is
+	 * vc4_hdmi->connector.dev and whether it is NULL is exactly what is
+	 * being established -- logging through it would fault before saying so.
+	 */
+	printf("vc4: pcd: enter hdmi=%p drm=%p vc4=%p (#51)\n",
+	    vc4_hdmi, drm, vc4);
+
 	mutex_lock(&vc4_hdmi->mutex);
+	printf("vc4: pcd: mutex held (#51)\n");
 
 	vc4_hdmi->packet_ram_enabled = false;
 
 	if (!drm_dev_enter(drm, &idx))
 		goto out;
+	printf("vc4: pcd: drm_dev_enter ok (#51)\n");
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
@@ -991,6 +1001,7 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 			   VC4_HD_VID_CTL_BLANKPIX);
 
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+	printf("vc4: pcd: register writes ok (#51)\n");
 
 	mdelay(1);
 
@@ -1006,12 +1017,15 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 	}
 
+	printf("vc4: pcd: calling disable_scrambling (#51)\n");
 	vc4_hdmi_disable_scrambling(encoder);
+	printf("vc4: pcd: disable_scrambling ok (#51)\n");
 
 	drm_dev_exit(idx);
 
 out:
 	mutex_unlock(&vc4_hdmi->mutex);
+	printf("vc4: pcd: done (#51)\n");
 }
 
 static void vc4_hdmi_encoder_post_crtc_powerdown(struct drm_encoder *encoder,
