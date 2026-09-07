@@ -3400,10 +3400,26 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	struct resource *res;
 	int ret;
 
+	/*
+	 * Print what each bank actually maps to (#51).
+	 *
+	 * Not releasing the display changed nothing: the core window reads
+	 * 0xffffffff while the firmware is still driving the panel, so the
+	 * block is demonstrably powered, clocked and working. A live block
+	 * cannot read as a floating bus, which means what is mapped here is
+	 * not that block -- and every clock, reset, gate and power theory
+	 * chased so far was aimed at a window that was never the right one.
+	 *
+	 * Print the physical address and size of each named bank, so the
+	 * mapping is a fact rather than something inferred from reg-names
+	 * ordering.
+	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi");
 	if (!res)
 		return -ENODEV;
 
+	printf("vc4: bank hdmi -> %#jx size %#jx (#51)\n",
+	    (uintmax_t)res->start, (uintmax_t)resource_size(res));
 	vc4_hdmi->hdmicore_regs = devm_ioremap(dev, res->start,
 					       resource_size(res));
 	if (!vc4_hdmi->hdmicore_regs)
@@ -3413,6 +3429,8 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	if (!res)
 		return -ENODEV;
 
+	printf("vc4: bank hd -> %#jx size %#jx (#51)\n",
+	    (uintmax_t)res->start, (uintmax_t)resource_size(res));
 	vc4_hdmi->hd_regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!vc4_hdmi->hd_regs)
 		return -ENOMEM;
