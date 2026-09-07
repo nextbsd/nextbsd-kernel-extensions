@@ -3537,6 +3537,52 @@ static int vc4_hdmi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+/*
+ * Ask the firmware to power the display on (#51).
+ *
+ * DEVIATION: upstream never does this, because on Linux the firmware has the
+ * display powered when the driver takes over. Here vc4_drm_bind() sends
+ * NOTIFY_DISPLAY_DONE to tell the firmware to let go, and after that a large
+ * part of the HDMI core bank reads 0xffffffff -- HDMI_SCHEDULER_CONTROL,
+ * HDMI_HOTPLUG, HDMI_RAM_PACKET_STATUS -- while the registers that do answer
+ * return plausible values, so the mapping and the register table are right and
+ * the block is simply not powered.
+ *
+ * Measured on a Pi 500+: dead before phy_init and still dead after it, so the
+ * PHY is not what powers them, and hdmi has no power-domains property so there
+ * is no device tree domain to enable either.
+ *
+ * vc4_firmware_kms.c does exactly this on every encoder enable, with the same
+ * display numbers this driver already uses for EDID (2 for HDMI0, 7 for
+ * HDMI1), and firmware KMS is the configuration that lights this panel today.
+ */
+struct vc4_hdmi_fw_pwr {
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					display;
+	u32					state;
+};
+
+static void
+vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(vc4_hdmi->connector.dev);
+	struct vc4_hdmi_fw_pwr pwr = {
+		.tag1 = { RPI_FIRMWARE_SET_DISPLAY_POWER, 8, 0 },
+		.display =
+		    vc4_hdmi->variant->encoder_type == VC4_ENCODER_TYPE_HDMI1 ?
+		    VC4_FW_DISPLAY_HDMI1 : VC4_FW_DISPLAY_HDMI0,
+		.state = on ? 1 : 0,
+	};
+	int ret;
+
+	if (vc4 == NULL || vc4->firmware == NULL)
+		return;
+
+	ret = rpi_firmware_property_list(vc4->firmware, &pwr, sizeof(pwr));
+	printf("vc4: fw display %u power %s -> ret %d state %u (#51)\n",
+	    pwr.display, on ? "on" : "off", ret, pwr.state);
+}
+
 static int vc4_hdmi_runtime_resume(struct device *dev)
 {
 	struct vc4_hdmi *vc4_hdmi = dev_get_drvdata(dev);
@@ -3599,6 +3645,12 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 
 	printf("vc4: rr: rate=%lu audio_clk=%p reset=%p (#51)\n", rate,
 	    vc4_hdmi->audio_clock, vc4_hdmi->variant->reset);
+
+	/*
+	 * Power the block before the reset hook touches its registers. See the
+	 * note on vc4_hdmi_fw_display_power().
+	 */
+	vc4_hdmi_fw_display_power(vc4_hdmi, true);
 
 	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
 	printf("vc4: rr: audio enable -> %d (#51)\n", ret);
