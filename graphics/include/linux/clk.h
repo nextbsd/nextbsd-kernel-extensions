@@ -87,6 +87,15 @@ devm_clk_get(struct device *dev, const char *id)
 		return (ERR_PTR(-error));
 	}
 
+	/*
+	 * Report what the name resolved TO, not just that it resolved. The DVP
+	 * gate stayed at enable_cnt 0 while its lookup reported success, which
+	 * only makes sense if the name is landing on a different clock than
+	 * expected -- and that cannot be seen without printing both ends (#51).
+	 */
+	printf("vc4: clk_get(%s) -> %s (#51)\n",
+	    id != NULL ? id : "<index 0>", clk_get_name(clk));
+
 	return ((struct clk *)clk);
 }
 
