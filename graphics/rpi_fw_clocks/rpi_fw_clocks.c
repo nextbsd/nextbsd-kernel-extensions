@@ -284,6 +284,78 @@ static clknode_method_t rpi_fw_clknode_methods[] = {
 DEFINE_CLASS_1(rpi_fw_clknode, rpi_fw_clknode_class, rpi_fw_clknode_methods,
     sizeof(struct rpi_fw_clknode_sc), clknode_class);
 
+/*
+ * Take the node back from FreeBSD's generic ofw_clkbus (#65).
+ *
+ * ofw_clkbus matches on the node NAME alone -- strcmp(name, "clocks") -- at
+ * BUS_PROBE_GENERIC, and it is compiled into the kernel, so at boot it claims
+ * /soc/firmware/clocks before any kext exists. It then enumerates the node's
+ * children, of which there are none: this node is a provider with
+ * #clock-cells = 1, not a bus. It ends up owning the node and supplying
+ * nothing, which is why every clk_get_by_ofw_name() against it returns NULL.
+ *
+ * rpi_fw_clocks_probe() returns BUS_PROBE_SPECIFIC and would win that contest
+ * outright -- but only if it were ever run. bus_generic_driver_added() probes
+ * a bus's children only when they are DS_NOTPRESENT, and the incumbent has
+ * left this one DS_ATTACHED, so a driver arriving later never gets a look.
+ * That is what forced the manual step this replaces:
+ *
+ *	devctl detach ofw_clkbus1
+ *	kextload .../RpiFirmwareClocks.kext
+ *
+ * DEVICE_IDENTIFY is the hook that makes it automatic. bus_generic_driver_added()
+ * calls it BEFORE the DS_NOTPRESENT sweep, so detaching the incumbent here puts
+ * the child back in DS_NOTPRESENT in time for the sweep that follows to offer
+ * it to us. device_detach() clears the driver and sets that state; the topology
+ * lock it asserts is already held, since the same function goes on to call
+ * device_probe_and_attach(), which asserts it too.
+ *
+ * Deliberately narrow. It only touches a node this driver would itself claim,
+ * identified by compatible rather than by the incumbent's name, and it never
+ * touches one already ours. A node whose owner refuses to detach is left alone
+ * and reported -- that is a driver holding a resource, not something to force.
+ */
+static void
+rpi_fw_clocks_identify(driver_t *driver, device_t parent)
+{
+	device_t *kids;
+	int i, nkids;
+
+	if (device_get_children(parent, &kids, &nkids) != 0)
+		return;
+
+	for (i = 0; i < nkids; i++) {
+		char who[32];
+
+		if (device_get_driver(kids[i]) == NULL)
+			continue;	/* unowned: the sweep will offer it */
+		if (device_get_driver(kids[i]) == driver)
+			continue;	/* already ours */
+		if (!ofw_bus_is_compatible(kids[i],
+		    "raspberrypi,firmware-clocks"))
+			continue;
+
+		/*
+		 * Copied BEFORE the detach, not after: device_detach() calls
+		 * devclass_delete_device(), which frees the nameunit string.
+		 * Reading it afterwards to name the loser would be a
+		 * use-after-free.
+		 */
+		strlcpy(who, device_get_nameunit(kids[i]), sizeof(who));
+
+		if (device_detach(kids[i]) != 0) {
+			device_printf(kids[i], "will not release the firmware "
+			    "clocks node; clocks stay unavailable\n");
+			continue;
+		}
+		if (bootverbose)
+			printf("rpi_fw_clocks: reclaimed the firmware clocks "
+			    "node from %s\n", who);
+	}
+
+	free(kids, M_TEMP);
+}
+
 static int
 rpi_fw_clocks_probe(device_t dev)
 {
@@ -391,6 +463,7 @@ rpi_fw_clocks_detach(device_t dev)
 }
 
 static device_method_t rpi_fw_clocks_methods[] = {
+	DEVMETHOD(device_identify,	rpi_fw_clocks_identify),
 	DEVMETHOD(device_probe,		rpi_fw_clocks_probe),
 	DEVMETHOD(device_attach,	rpi_fw_clocks_attach),
 	DEVMETHOD(device_detach,	rpi_fw_clocks_detach),
@@ -420,14 +493,17 @@ static driver_t rpi_fw_clocks_driver = {
  * ofw_clkbus claims the node at boot. It enumerates CHILD clock nodes, and
  * this node has none -- it is a provider with #clock-cells = 1 -- so it owns
  * the node and supplies nothing. BUS_PROBE_SPECIFIC below outranks it, but
- * newbus does not re-probe a device that is already attached, so as a module
- * loaded after boot this driver still has to be given the node:
+ * newbus does not re-probe a device that is already attached, so this driver
+ * used to have to be handed the node by hand:
  *
  *	devctl detach ofw_clkbus1
  *	kextload .../RpiFirmwareClocks.kext
  *
- * Compiled into a kernel the priority alone would settle it. That is the
- * argument for this eventually living in nextbsd-kernel rather than here.
+ * rpi_fw_clocks_identify() now does that detach itself (#65), which is what
+ * lets this load unattended. Compiling it into the kernel would settle the
+ * contest on priority alone and make even that unnecessary -- still the
+ * argument for this eventually living in nextbsd-kernel rather than here, but
+ * no longer something the display depends on.
  */
 EARLY_DRIVER_MODULE(rpi_fw_clocks, bcm2835_firmware, rpi_fw_clocks_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

@@ -1006,6 +1006,29 @@ jobs:
             "$T/gen-virtio-gpu-personalities.sh" nbkm-tools/graphics/include/linux/virtio_ids.h \
                 org.nextbsd.kext.virtiographics VirtIOGraphics > pers/VirtIOGraphics.iokitpersonalities
           fi
+          # vc4 / BCM2712 (#65). These two are checked into the repo instead of
+          # being generated, which is the opposite of every generator above, and
+          # the reason is worth writing down.
+          #
+          # Those generators read the driver's own PCI id table, so the kext's
+          # match table and the driver can never drift apart. An FDT personality
+          # cannot be derived that way. The in-kernel matcher tests exactly ONE
+          # string -- the FIRST entry of the device-tree node's "compatible" --
+          # and that is a property of the board's DT, not of the driver. The gpu
+          # node on a Pi 500+ reads
+          #
+          #     compatible = "brcm,bcm2712d0-vc6", "brcm,bcm2712-vc6";
+          #
+          # so the string the matcher sees is the d0 one, which appears nowhere
+          # in vc4_drv.c: the driver matches the generic SECOND entry, because
+          # ofw_bus_is_compatible() searches the whole list while the matcher
+          # does not. A generator reading the driver would confidently emit a
+          # personality that never matches the hardware it was generated for.
+          # So the strings are checked in, and both spellings are listed.
+          for src in graphics/vc4_kms/VideoCore6KMS graphics/bcm_dvp/BcmDVP; do
+            f="nbkm-tools/${src}.iokitpersonalities"
+            [ -f "$f" ] && cp "$f" "pers/$(basename "$src").iokitpersonalities"
+          done
           echo "=== device-id counts ==="
           for f in pers/IntelGraphics AMDGraphics RadeonGraphics; do : ; done
           for f in pers/*.iokitpersonalities; do
@@ -1148,14 +1171,23 @@ jobs:
           # which is retired in #64. It is now the only display driver here, so
           # there is no longer a pair that must not both be loaded.
           #
-          # Still carries no IOKitPersonalities, so it is loaded by hand along
-          # with BcmDVP and RpiFirmwareClocks, in that order (#65).
+          # Autoloads (#65). Its personality matches the gpu node's compatible,
+          # and the two -l dependencies below are what fix the load ORDER that
+          # matching alone cannot express: BcmDVP supplies the HDMI reset lines
+          # and the 108MHz gates, RpiFirmwareClocks the clocks vc4_hdmi resolves
+          # at attach. Attach first and it gets NULL clocks and no reset, and
+          # the display stays dark while reporting no error. OSKextLoad() walks
+          # OSBundleLibraries and loads them first, so naming them here is what
+          # makes the order hold -- for kextd's autoload and kextload alike.
           #
           # arm64 only: this is a BCM2712 part.
-          if [ -f "$KO/vc4_kms.ko" ]; then
+          if [ -f "$KO/vc4_kms.ko" ] && [ -f pers/VideoCore6KMS.iokitpersonalities ]; then
             "$K" -o "$O" -l org.nextbsd.kext.iographics -l org.nextbsd.kext.dmabuf \
                  -l org.nextbsd.kext.iographicsdma \
                  -l org.nextbsd.kext.iographicsextras \
+                 -l org.nextbsd.kext.bcmdvp \
+                 -l org.nextbsd.kext.rpifirmwareclocks \
+                 -p pers/VideoCore6KMS.iokitpersonalities \
                  "$KO/vc4_kms.ko" VideoCore6KMS org.nextbsd.kext.videocore6kms
           fi
           # RpiFirmwareClocks -- the provider for /soc/firmware/clocks (#51).
@@ -1164,16 +1196,25 @@ jobs:
           # come from the firmware mailbox, and with no provider they resolve
           # to NULL and every rate set is silently dropped.
           #
-          # No IOKitPersonalities and no kext dependencies -- plain newbus.
-          # LOAD IT BEFORE VideoCore6KMS: clocks are resolved when vc4_hdmi
-          # attaches, so the provider has to be registered first.
+          # Deliberately NO IOKitPersonalities, and it is the one kext here
+          # that cannot have one. A personality only ever fires for a node no
+          # driver claimed, and this node is claimed at boot: FreeBSD's generic
+          # ofw_clkbus matches /soc/firmware/clocks on the node NAME alone and
+          # is compiled into the kernel, so the node never goes unmatched and
+          # the matcher never looks at it. It is pulled in as a dependency of
+          # VideoCore6KMS instead, and takes the node back in its own
+          # DEVICE_IDENTIFY -- see rpi_fw_clocks_identify().
           # BcmDVP -- display video path clocks and resets (#51). Provides the
           # reset line hdmi names in "resets = <&dvp 1>". Without it the HDMI
           # block never leaves reset and emits nothing.
           #
-          # LOAD IT BEFORE VideoCore6KMS, alongside RpiFirmwareClocks.
-          if [ -f "$KO/bcm_dvp.ko" ]; then
-            "$K" -o "$O" "$KO/bcm_dvp.ko" BcmDVP org.nextbsd.kext.bcmdvp
+          # Autoloads on its own too -- unlike the clocks node, nothing in the
+          # kernel claims clock@7c700000, so it goes unmatched and the matcher
+          # sees it. VideoCore6KMS still names it as a dependency, which is
+          # what guarantees it is attached BEFORE vc4_hdmi looks for resets.
+          if [ -f "$KO/bcm_dvp.ko" ] && [ -f pers/BcmDVP.iokitpersonalities ]; then
+            "$K" -o "$O" -p pers/BcmDVP.iokitpersonalities \
+                 "$KO/bcm_dvp.ko" BcmDVP org.nextbsd.kext.bcmdvp
           fi
           if [ -f "$KO/rpi_fw_clocks.ko" ]; then
             "$K" -o "$O" "$KO/rpi_fw_clocks.ko" RpiFirmwareClocks org.nextbsd.kext.rpifirmwareclocks
