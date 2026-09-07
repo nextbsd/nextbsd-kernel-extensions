@@ -728,7 +728,13 @@ jobs:
           ./tools/build/make.py \
             --cross-bindir="${CROSS_BINDIR}" \
             TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=NEXTBSD \
-            buildenv BUILDENV_SHELL="make -C /tmp/drm-kmod/bcm_dvp -j${NPROC} SYSDIR=/usr/src/sys"
+            buildenv BUILDENV_SHELL="make -C /tmp/drm-kmod/bcm_dvp -j${NPROC} SYSDIR=/usr/src/sys" \
+            > /tmp/dvp-build.log 2>&1 || true
+          # Append to the probe log, which IS uploaded as an artifact. The job
+          # log is not readable until the whole run completes, so a failure here
+          # was otherwise invisible for as long as the slowest leg took.
+          { echo "=== bcm_dvp build ==="; cat /tmp/dvp-build.log; } >> /tmp/vc4kms-probe.log 2>/dev/null || true
+          grep -E "error:" /tmp/dvp-build.log | head -10 || true
           cp /tmp/drm-kmod/bcm_dvp/bcm_dvp.ko /tmp/ko-out/
           ls -l /tmp/ko-out/bcm_dvp.ko && echo "    *** bcm_dvp.ko BUILT ***"
 

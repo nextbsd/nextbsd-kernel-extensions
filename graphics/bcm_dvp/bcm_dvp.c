@@ -209,8 +209,6 @@ bcm_dvp_attach(device_t dev)
 {
 	struct bcm_dvp_softc *sc = device_get_softc(dev);
 	struct clk_gate_def def;
-	const char *pnames[1];
-	phandle_t node;
 	int rid, i, error;
 	static const struct {
 		const char	*name;
@@ -221,7 +219,6 @@ bcm_dvp_attach(device_t dev)
 	};
 
 	sc->dev = dev;
-	node = ofw_bus_get_node(dev);
 	mtx_init(&sc->mtx, "bcm_dvp", NULL, MTX_DEF);
 
 	rid = 0;
@@ -240,11 +237,9 @@ bcm_dvp_attach(device_t dev)
 	}
 
 	/*
-	 * The parent is whatever the device tree says feeds this block. If it
-	 * names none, the gates still work -- gating does not need to know the
-	 * rate, and vc4 asks these clocks to be enabled, never retuned.
+	 * No parent is named. Gating does not need to know the rate, and vc4
+	 * asks these clocks to be enabled, never retuned.
 	 */
-	pnames[0] = NULL;
 	for (i = 0; i < DVP_NCLOCKS; i++) {
 		memset(&def, 0, sizeof(def));
 		def.clkdef.id = i;
