@@ -3688,6 +3688,42 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
+	/*
+	 * DEVIATION (#51): bring the device up by hand, because nothing else
+	 * will.
+	 *
+	 * The comment above is exact -- the device has to be powered up here
+	 * for the reset hook -- and upstream gets that from runtime PM calling
+	 * vc4_hdmi_runtime_resume(). LinuxKPI has no runtime PM: every entry
+	 * point in linux/pm_runtime.h is a no-op,
+	 *
+	 *	#define pm_runtime_resume(x) (void)(x)
+	 *	static inline int pm_runtime_resume_and_get(...) { return 0; }
+	 *
+	 * so the callback registered at the bottom of this file is never
+	 * invoked, and everything it does is simply skipped. That is both the
+	 * enable of the audio clock -- which is why the DVP gate sat at
+	 * enable_cnt 0 with a lookup that plainly succeeded -- and
+	 * variant->reset(), which is why the block was never reset even after
+	 * bcm_dvp made its reset line available, and why its packet RAM never
+	 * went idle:
+	 *
+	 *	vc40: [drm] *ERROR* Failed to wait for infoframe to go idle: -60
+	 *
+	 * measured on a Pi 500+, with markers inside vc4_hdmi_runtime_resume()
+	 * proving it never ran.
+	 *
+	 * Calling it directly is the narrow fix. Implementing runtime PM in
+	 * LinuxKPI is the broad one, and it would change behaviour for every
+	 * other consumer of these headers, so it is not something to do from
+	 * inside a display bring-up.
+	 */
+	ret = vc4_hdmi_runtime_resume(dev);
+	if (ret) {
+		drm_err(drm, "Failed to resume HDMI: %d\n", ret);
+		return ret;
+	}
+
 	if ((of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi0") ||
 	     of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi1") ||
 	     of_device_is_compatible(dev_of_node(dev), "brcm,bcm2712-hdmi0") ||
