@@ -510,11 +510,9 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int idx, ret;
 
-	drm_info(dev, "cd: enter, encoder %p state %p (#51)\n", encoder, state);
 
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
-	drm_info(dev, "cd: drm_dev_enter ok (#51)\n");
 
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
@@ -539,20 +537,14 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	 */
 	mdelay(20);
 
-	drm_info(dev, "cd: mdelay done, post_crtc_disable=%p (#51)\n",
-	    vc4_encoder ? vc4_encoder->post_crtc_disable : NULL);
 	if (vc4_encoder && vc4_encoder->post_crtc_disable)
 		vc4_encoder->post_crtc_disable(encoder, state);
-	drm_info(dev, "cd: post_crtc_disable ok (#51)\n");
 
 	vc4_crtc_pixelvalve_reset(crtc);
-	drm_info(dev, "cd: pixelvalve reset ok (#51)\n");
 	vc4_hvs_stop_channel(vc4->hvs, channel);
-	drm_info(dev, "cd: hvs_stop_channel ok (#51)\n");
 
 	if (vc4_encoder && vc4_encoder->post_crtc_powerdown)
 		vc4_encoder->post_crtc_powerdown(encoder, state);
-	drm_info(dev, "cd: post_crtc_powerdown ok (#51)\n");
 
 	drm_dev_exit(idx);
 
@@ -582,19 +574,16 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 				      "brcm,bcm2712-pixelvalve1")))
 		return 0;
 
-	drm_info(drm, "dab: compatible ok (#51)\n");
 
 	if (!(CRTC_READ(PV_CONTROL) & PV_CONTROL_EN))
 		return 0;
 
 	if (!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN))
 		return 0;
-	drm_info(drm, "dab: pv enabled, reading fifo (#51)\n");
 
 	channel = vc4_hvs_get_fifo_from_output(vc4->hvs, vc4_crtc->data->hvs_output);
 	if (channel < 0)
 		return 0;
-	drm_info(drm, "dab: channel %d (#51)\n", channel);
 
 	encoder_sel = VC4_GET_FIELD(CRTC_READ(PV_CONTROL), PV_CONTROL_CLK_SELECT);
 	if (WARN_ON(encoder_sel != 0))
@@ -606,13 +595,11 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	if (WARN_ON(!encoder))
 		return 0;
 
-	drm_info(drm, "dab: encoder found, type %d (#51)\n", encoder_type);
 
 	vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
 	if (ret)
 		return ret;
-	drm_info(drm, "dab: runtime pm up, disabling (#51)\n");
 
 	ret = vc4_crtc_disable(crtc, encoder, NULL, channel);
 	if (ret)
@@ -712,31 +699,6 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
 
-	/*
-	 * Is the pixelvalve actually running here? (#51)
-	 *
-	 * By this point the HDMI block's status registers read as all ones --
-	 * HDMI_RAM_PACKET_STATUS and HDMI_SCHEDULER_CONTROL both 0xffffffff,
-	 * while HDMI_RAM_PACKET_CONFIG in the SAME bank eight bytes away reads
-	 * back the 0x10000 the driver wrote. Latched config surviving while
-	 * generated status floats is what an unclocked block looks like, and
-	 * the HDMI block's clock comes from here.
-	 *
-	 * So read the pixelvalve back after enabling it, rather than assuming
-	 * the writes took. A PV_CONTROL that does not show PV_CONTROL_EN, or a
-	 * PV_V_CONTROL without PV_VCONTROL_VIDEN, means the pixelvalve is not
-	 * running and nothing downstream of it can be.
-	 */
-	{
-		struct vc4_dev *vc4__ = to_vc4_dev(dev);
-		struct vc4_hvs *hvs = vc4__->hvs;
-
-		printf("vc4: pv[crtc %u] after enable: PV_CONTROL=%#x "
-		    "PV_V_CONTROL=%#x HVS_EN=%#x (#51)\n", crtc->base.id,
-		    CRTC_READ(PV_CONTROL), CRTC_READ(PV_V_CONTROL),
-		    vc4__->gen >= VC4_GEN_6_C ?
-		    HVS_READ(SCALER6_CONTROL) : HVS_READ(SCALER_DISPCTRL));
-	}
 
 	if (vc4_encoder->post_crtc_enable)
 		vc4_encoder->post_crtc_enable(encoder, state);

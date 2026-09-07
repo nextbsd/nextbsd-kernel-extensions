@@ -341,103 +341,6 @@ module_param(enable_fbdev, int, 0644);
 MODULE_PARM_DESC(enable_fbdev,
     "Run fbdev emulation's initial modeset (default on) (#51)");
 
-/*
- * Diagnostic (#51): what displays does the firmware actually have, and does
- * NOTIFY_DISPLAY_DONE stop it answering EDID?
- *
- * vc4_hdmi.c asks for display 2 and 7, hardcoded. vc4_firmware_kms.c does not
- * hardcode: it reads FRAMEBUFFER_GET_NUM_DISPLAYS and then asks
- * FRAMEBUFFER_GET_DISPLAY_ID for each index. If the ids on this board are not
- * 2 and 7 then every EDID request names a display that does not exist, which
- * the firmware answers successfully with an empty buffer -- exactly the
- * "EDID block 0 is all zeroes" being seen.
- *
- * Reading before and after the notify also settles whether the firmware stops
- * serving EDID once it has been told to let go of the display. That was
- * assumed either way earlier without being measured.
- */
-struct vc4_fw_edid_probe {
-	struct rpi_firmware_property_tag_header	tag1;
-	u32					block;
-	u32					display_number;
-	u8					edid[128];
-};
-
-static void
-vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
-    const char *when)
-{
-	struct vc4_fw_edid_probe mb;
-	u32 num_displays, display_id, i;
-	int ret;
-
-	num_displays = 0;
-	ret = rpi_firmware_property(fw, RPI_FIRMWARE_FRAMEBUFFER_GET_NUM_DISPLAYS,
-	    &num_displays, sizeof(num_displays));
-	drm_info(drm, "fwprobe(%s): num_displays=%u ret=%d (#51)\n",
-	    when, num_displays, ret);
-
-	for (i = 0; i < num_displays && i < 8; i++) {
-		display_id = i;
-		ret = rpi_firmware_property(fw,
-		    RPI_FIRMWARE_FRAMEBUFFER_GET_DISPLAY_ID,
-		    &display_id, sizeof(display_id));
-		if (ret != 0) {
-			drm_info(drm, "fwprobe(%s): idx %u id FAILED %d (#51)\n",
-			    when, i, ret);
-			continue;
-		}
-
-		memset(&mb, 0, sizeof(mb));
-		mb.tag1.tag = RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY;
-		mb.tag1.buf_size = 128 + 8;
-		mb.block = 0;
-		mb.display_number = display_id;
-		ret = rpi_firmware_property_list(fw, &mb, sizeof(mb));
-		drm_info(drm, "fwprobe(%s): idx %u id %u edid ret=%d "
-		    "hdr %02x %02x %02x %02x %02x %02x %02x %02x (#51)\n",
-		    when, i, display_id, ret,
-		    mb.edid[0], mb.edid[1], mb.edid[2], mb.edid[3],
-		    mb.edid[4], mb.edid[5], mb.edid[6], mb.edid[7]);
-	}
-}
-
-/*
- * Whether to tell the firmware to let go of the display (#51).
- *
- * Back on by default. It was turned off to answer one question -- whether the
- * firmware powering down on release was what killed the register window -- and
- * the answer was no: the window read dead while the firmware was still driving
- * the panel, which is what proved the mapping was wrong rather than the state.
- *
- * Essentially the whole HDMI register window is unresponsive: sweeping the
- * 0x300 core bank on a Pi 500+ finds 16 of 192 words on hdmi0 and 30 of 192 on
- * hdmi1 not reading 0xffffffff, and nearly all of those are 0xffffffff with a
- * single bit cleared -- a floating bus, not data. The only structured values
- * are a small island at 0x07c-0x104 on hdmi0 alone, which is the timing the
- * firmware programmed for the panel it was driving.
- *
- * Everything else has been measured and excluded: the register table matches
- * upstream, the variant is right, the pixelvalve and HVS run, the DVP resets
- * release and its gates are open, the firmware clocks are rated AND now
- * actually gated on with the firmware acknowledging each one, the PHY runs,
- * there is no device tree power domain, and SET_DISPLAY_POWER succeeds and
- * changes nothing.
- *
- * What has never been tested is the one thing this driver does that firmware
- * KMS never does: it tells the firmware to release the display. If the
- * firmware powers the block down when it lets go, the window would go dead
- * exactly as observed, and nothing on the OS side could revive it.
- *
- * Skipping it means the firmware still owns the display, so this is not a
- * shippable configuration -- both would be driving the same hardware. It is
- * here to answer one question: does the register window come alive?
- */
-static int notify_display_done = 1;
-module_param(notify_display_done, int, 0644);
-MODULE_PARM_DESC(notify_display_done,
-    "Tell the firmware to release the display; off while diagnosing (#51)");
-
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -547,7 +450,6 @@ static int vc4_drm_bind(struct device *dev)
 	if (firmware) {
 		vc4->firmware = firmware;
 
-		vc4_fw_probe_displays(drm, firmware, "before-notify");
 
 		if (!firmware_kms() && notify_display_done) {
 			ret = rpi_firmware_property(firmware,
@@ -560,26 +462,11 @@ static int vc4_drm_bind(struct device *dev)
 		}
 	}
 
-	/*
-	 * STAGE MARKERS (#51). The machine panics somewhere in this tail with a
-	 * NULL dereference, and the kernel is stripped, so its own backtrace
-	 * stops at handle_el1h_sync and names no module symbol. These print the
-	 * stage reached, which the message buffer preserves inside the crash
-	 * dump -- the last marker before "panic:" is the failing step.
-	 *
-	 * The anchor prints a RUNTIME address for a symbol whose offset in
-	 * vc4_kms.ko is known, which is what makes the faulting elr
-	 * symbolisable at all: elr - anchor gives the offset to look up. The
-	 * module base moves between loads (it moved 0x200000 between the first
-	 * two crashes), so a fixed address cannot be assumed.
-	 */
-	drm_info(drm, "bind: anchor vc4_drm_bind=%p (#51)\n",
-	    (void *)(uintptr_t)vc4_drm_bind);
+
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
 		goto err;
-	drm_info(drm, "bind: stage 1 component_bind_all ok (#51)\n");
 
 	ret = devm_add_action_or_reset(dev, vc4_component_unbind_all, vc4);
 	if (ret)
@@ -590,31 +477,23 @@ static int vc4_drm_bind(struct device *dev)
 		if (ret)
 			goto err;
 	}
-	drm_info(drm, "bind: stage 2 additional planes ok (#51)\n");
 
 	ret = vc4_kms_load(drm);
 	if (ret < 0)
 		goto err;
-	drm_info(drm, "bind: stage 3 vc4_kms_load ok (#51)\n");
 
 	if (!vc4->firmware_kms) {
-		drm_for_each_crtc(crtc, drm) {
-			drm_info(drm, "bind: stage 4 disable_at_boot crtc %u "
-			    "(#51)\n", crtc->base.id);
+		drm_for_each_crtc(crtc, drm)
 			vc4_crtc_disable_at_boot(crtc);
-		}
 	}
-	drm_info(drm, "bind: stage 4 disable_at_boot ok (#51)\n");
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto err;
-	drm_info(drm, "bind: stage 5 drm_dev_register ok (#51)\n");
 
 	if (enable_fbdev) {
 		struct drm_connector_list_iter conn_iter;
 		struct drm_connector *conn;
-		int nmodes;
 
 		drm_fbdev_dma_setup(drm, 16);
 
@@ -636,12 +515,9 @@ static int vc4_drm_bind(struct device *dev)
 		 */
 		mutex_lock(&drm->mode_config.mutex);
 		drm_connector_list_iter_begin(drm, &conn_iter);
-		drm_for_each_connector_iter(conn, &conn_iter) {
-			nmodes = drm_helper_probe_single_connector_modes(conn,
+		drm_for_each_connector_iter(conn, &conn_iter)
+			(void)drm_helper_probe_single_connector_modes(conn,
 			    4096, 4096);
-			drm_info(drm, "fbdev: probed %s -> %d modes (#51)\n",
-			    conn->name != NULL ? conn->name : "?", nmodes);
-		}
 		drm_connector_list_iter_end(&conn_iter);
 		mutex_unlock(&drm->mode_config.mutex);
 
@@ -665,7 +541,6 @@ static int vc4_drm_bind(struct device *dev)
 		 * that the firmware can answer.
 		 */
 		drm_kms_helper_hotplug_event(drm);
-		drm_info(drm, "fbdev: hotplug event delivered (#51)\n");
 	} else
 		drm_info(drm, "fbdev emulation off by request (#51)\n");
 

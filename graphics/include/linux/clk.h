@@ -75,26 +75,8 @@ devm_clk_get(struct device *dev, const char *id)
 	else
 		error = clk_get_by_ofw_name(dev->bsddev, node, id, &clk);
 	if (error != 0) {
-		/*
-		 * Say which name failed and why. devm_clk_get_optional()
-		 * turns every failure into NULL, and a NULL clock makes every
-		 * later clk_set_rate()/clk_prepare_enable() a silent no-op --
-		 * which is how a missing provider presented as "the modeset
-		 * works but the display is dark" (#51).
-		 */
-		printf("vc4: clk_get(%s): error %d (#51)\n",
-		    id != NULL ? id : "<index 0>", error);
 		return (ERR_PTR(-error));
 	}
-
-	/*
-	 * Report what the name resolved TO, not just that it resolved. The DVP
-	 * gate stayed at enable_cnt 0 while its lookup reported success, which
-	 * only makes sense if the name is landing on a different clock than
-	 * expected -- and that cannot be seen without printing both ends (#51).
-	 */
-	printf("vc4: clk_get(%s) -> %s (#51)\n",
-	    id != NULL ? id : "<index 0>", clk_get_name(clk));
 
 	return ((struct clk *)clk);
 }

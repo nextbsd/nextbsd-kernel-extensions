@@ -266,8 +266,6 @@ rpi_fw_clknode_set_gate(struct clknode *clk, bool enable)
 	 * that silently does nothing, which is the failure this whole change
 	 * exists to remove.
 	 */
-	printf("rpi_fw_clocks: gate id %u %s -> ret %d state %#x (#51)\n",
-	    sc->id, enable ? "on" : "off", error, msg.rate);
 
 	if ((msg.rate & RPI_FW_CLOCK_STATE_NOT_FOUND) != 0)
 		return (ENXIO);

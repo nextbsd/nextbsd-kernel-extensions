@@ -718,7 +718,7 @@ jobs:
         # continue-on-error while it is brought up on hardware, so a failure
         # cannot stop the vc4_kms steps from producing a testable kext.
         if: matrix.target == 'arm64'
-        continue-on-error: true
+        # proven on hardware: a failure here is a real regression
         run: |
           set -e
           mkdir -p /tmp/drm-kmod
@@ -749,7 +749,7 @@ jobs:
         # cannot stop the vc4_kms steps below from producing a testable kext.
         # Flip to a hard failure once it has attached.
         if: matrix.target == 'arm64'
-        continue-on-error: true
+        # proven on hardware: a failure here is a real regression
         run: |
           set -e
           mkdir -p /tmp/drm-kmod

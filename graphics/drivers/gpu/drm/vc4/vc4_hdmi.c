@@ -492,18 +492,10 @@ vc4_hdmi_fw_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 	 * work here -- it is what the disable_scrambling markers used (#51).
 	 */
 	if (vc4 == NULL || vc4->firmware == NULL || len > sizeof(mb.edid)) {
-		printf("vc4: fwedid: REFUSED vc4=%p fw=%p len=%zu disp=%u (#51)\n",
-		    vc4, vc4 != NULL ? vc4->firmware : NULL, len,
-		    mb.display_number);
 		return (-ENODEV);
 	}
 
 	ret = rpi_firmware_property_list(vc4->firmware, &mb, sizeof(mb));
-	printf("vc4: fwedid: disp=%u block=%u len=%zu ret=%d "
-	    "hdr %02x %02x %02x %02x %02x %02x %02x %02x (#51)\n",
-	    mb.display_number, block, len, ret,
-	    mb.edid[0], mb.edid[1], mb.edid[2], mb.edid[3],
-	    mb.edid[4], mb.edid[5], mb.edid[6], mb.edid[7]);
 	if (ret != 0)
 		return (ret);
 	memcpy(buf, mb.edid, len);
@@ -650,14 +642,10 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	cec_s_phys_addr(vc4_hdmi->cec_adap,
 			connector->display_info.source_physical_address, false);
 	if (!drm_edid) {
-		printf("vc4: get_modes(%s): no EDID, 0 modes (#51)\n",
-		    connector->name != NULL ? connector->name : "?");
 		return 0;
 	}
 
 	ret = drm_edid_connector_add_modes(connector);
-	printf("vc4: get_modes(%s): %d modes from EDID (#51)\n",
-	    connector->name != NULL ? connector->name : "?", ret);
 	drm_edid_free(drm_edid);
 
 	if (!vc4->hvs->vc5_hdmi_enable_hdmi_20) {
@@ -830,44 +818,6 @@ static int vc4_hdmi_stop_packet(struct vc4_hdmi *vc4_hdmi,
 	if (poll) {
 		ret = wait_for(!(HDMI_READ(HDMI_RAM_PACKET_STATUS) &
 				 BIT(packet_id)), 100);
-		if (ret) {
-			/*
-			 * Print what the block actually says (#51). The
-			 * packet RAM is enabled -- the WARN_ONCE above never
-			 * fires -- the block is clocked and reset, and the
-			 * status bit still does not clear. Reading the
-			 * registers back distinguishes "hardware is not
-			 * running" from "these reads are not reaching the
-			 * hardware at all", which look identical from here:
-			 * a register that always reads 0xffffffff or 0 is not
-			 * a busy engine, it is an absent one.
-			 */
-			unsigned int off__;
-
-			printf("vc4: stop_packet id=%u timeout: CONFIG=%#x "
-			    "STATUS=%#x VID_CTL=%#x SCHED=%#x (#51)\n",
-			    packet_id,
-			    HDMI_READ(HDMI_RAM_PACKET_CONFIG),
-			    HDMI_READ(HDMI_RAM_PACKET_STATUS),
-			    HDMI_READ(HDMI_VID_CTL),
-			    HDMI_READ(HDMI_SCHEDULER_CONTROL));
-
-			/*
-			 * Sweep the core bank raw (#51).
-			 *
-			 * 0x0c4 reads back the 0x10000 the driver wrote while
-			 * 0x0cc and 0x0e8, in the SAME mapping, read all ones.
-			 * Reading a range says which it is: a bank that is
-			 * mostly 0xffffffff is not mapped where we think, and
-			 * one that is mostly sane with a few all-ones holes
-			 * means those particular registers are unimplemented
-			 * or unpowered. Those need different fixes, and the
-			 * two are indistinguishable from three registers.
-			 */
-			for (off__ = 0xb0; off__ <= 0x100; off__ += 4)
-				printf("vc4:   core+%#04x = %#010x (#51)\n",
-				    off__, readl(vc4_hdmi->hdmicore_regs + off__));
-		}
 	}
 
 	drm_dev_exit(idx);
@@ -1104,22 +1054,13 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 	unsigned long flags;
 	int idx;
 
-	/*
-	 * Markers (#51). printf(), not drm_info(), on purpose: drm here is
-	 * vc4_hdmi->connector.dev and whether it is NULL is exactly what is
-	 * being established -- logging through it would fault before saying so.
-	 */
-	printf("vc4: pcd: enter hdmi=%p drm=%p vc4=%p (#51)\n",
-	    vc4_hdmi, drm, vc4);
 
 	mutex_lock(&vc4_hdmi->mutex);
-	printf("vc4: pcd: mutex held (#51)\n");
 
 	vc4_hdmi->packet_ram_enabled = false;
 
 	if (!drm_dev_enter(drm, &idx))
 		goto out;
-	printf("vc4: pcd: drm_dev_enter ok (#51)\n");
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
@@ -1132,7 +1073,6 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 			   VC4_HD_VID_CTL_BLANKPIX);
 
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
-	printf("vc4: pcd: register writes ok (#51)\n");
 
 	mdelay(1);
 
@@ -1148,15 +1088,12 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 	}
 
-	printf("vc4: pcd: calling disable_scrambling (#51)\n");
 	vc4_hdmi_disable_scrambling(encoder);
-	printf("vc4: pcd: disable_scrambling ok (#51)\n");
 
 	drm_dev_exit(idx);
 
 out:
 	mutex_unlock(&vc4_hdmi->mutex);
-	printf("vc4: pcd: done (#51)\n");
 }
 
 static void vc4_hdmi_encoder_post_crtc_powerdown(struct drm_encoder *encoder,
@@ -1792,26 +1729,10 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 		goto err_disable_pixel_clock;
 	}
 
-	/*
-	 * Does the PHY come up, and does it change anything? (#51)
-	 *
-	 * HDMI_SCHEDULER_CONTROL reads 0xffffffff at this point, so the
-	 * read-modify-write below writes 0xffffffff back into it -- every
-	 * reserved bit set, on the register that controls the video
-	 * scheduler. That is not a benign consequence of a bad read; it is an
-	 * active corruption of the block, and worth knowing whether it happens
-	 * before or after the PHY is brought up.
-	 */
-	printf("vc4: pcc: tmds=%llu bvb=%lu SCHED_before=%#x phy_init=%p (#51)\n",
-	    (unsigned long long)tmds_char_rate, bvb_rate,
-	    HDMI_READ(HDMI_SCHEDULER_CONTROL),
-	    vc4_hdmi->variant->phy_init);
 
 	if (vc4_hdmi->variant->phy_init)
 		vc4_hdmi->variant->phy_init(vc4_hdmi, conn_state);
 
-	printf("vc4: pcc: after phy_init SCHED=%#x HOTPLUG=%#x (#51)\n",
-	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG));
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
@@ -3435,8 +3356,6 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	if (!res)
 		return -ENODEV;
 
-	printf("vc4: bank hdmi -> %#jx size %#jx (#51)\n",
-	    (uintmax_t)res->start, (uintmax_t)resource_size(res));
 	vc4_hdmi->hdmicore_regs = devm_ioremap(dev, res->start,
 					       resource_size(res));
 	if (!vc4_hdmi->hdmicore_regs)
@@ -3446,8 +3365,6 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 	if (!res)
 		return -ENODEV;
 
-	printf("vc4: bank hd -> %#jx size %#jx (#51)\n",
-	    (uintmax_t)res->start, (uintmax_t)resource_size(res));
 	vc4_hdmi->hd_regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!vc4_hdmi->hd_regs)
 		return -ENOMEM;
@@ -3626,13 +3543,10 @@ vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
 	if (fw == NULL)
 		fw = rpi_firmware_get(rpi_firmware_find_node());
 	if (fw == NULL) {
-		printf("vc4: fw display power: no firmware handle (#51)\n");
 		return;
 	}
 
 	ret = rpi_firmware_property_list(fw, &pwr, sizeof(pwr));
-	printf("vc4: fw display %u power %s -> ret %d state %u (#51)\n",
-	    pwr.display, on ? "on" : "off", ret, pwr.state);
 }
 
 static int vc4_hdmi_runtime_resume(struct device *dev)
@@ -3688,15 +3602,12 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 		    HSM_MIN_CLOCK_FREQ);
 		if (ret == 0)
 			rate = clk_get_rate(vc4_hdmi->hsm_clock);
-		printf("vc4: hsm clock was 0, set to %lu Hz (#51)\n", rate);
 		if (!rate) {
 			ret = -EINVAL;
 			goto err_disable_clk;
 		}
 	}
 
-	printf("vc4: rr: rate=%lu audio_clk=%p reset=%p (#51)\n", rate,
-	    vc4_hdmi->audio_clock, vc4_hdmi->variant->reset);
 
 	/*
 	 * Power the block before the reset hook touches its registers. See the
@@ -3705,15 +3616,11 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 	vc4_hdmi_fw_display_power(vc4_hdmi, true);
 
 	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
-	printf("vc4: rr: audio enable -> %d (#51)\n", ret);
 	if (ret)
 		goto err_disable_clk;
 
-	if (vc4_hdmi->variant->reset) {
-		printf("vc4: rr: calling variant->reset (#51)\n");
+	if (vc4_hdmi->variant->reset)
 		vc4_hdmi->variant->reset(vc4_hdmi);
-		printf("vc4: rr: reset done (#51)\n");
-	}
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
@@ -3878,48 +3785,6 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	 * other consumer of these headers, so it is not something to do from
 	 * inside a display bring-up.
 	 */
-	/*
-	 * What do these registers look like BEFORE we touch anything? (#51)
-	 *
-	 * The claim "writes read back, so the bank base is right" does not
-	 * hold: any writable region would read back. If SCHEDULER_CONTROL and
-	 * HOTPLUG are 0xffffffff here too -- before the reset, before the
-	 * clocks are touched, before any modeset -- then they were never alive
-	 * and the base is wrong. If they read something sane here and
-	 * 0xffffffff later, then something this driver does kills them, and
-	 * the difference says which.
-	 */
-	printf("vc4: pre-resume: SCHED=%#x HOTPLUG=%#x RAM_CFG=%#x "
-	    "HORZA=%#x (#51)\n",
-	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG),
-	    HDMI_READ(HDMI_RAM_PACKET_CONFIG), HDMI_READ(HDMI_HORZA));
-
-	/*
-	 * Map the whole core bank once (#51).
-	 *
-	 * Which registers in this window respond has been guessed from three
-	 * or four samples several times now, and each guess has been wrong.
-	 * Print every word that is not 0xffffffff, before this driver has
-	 * written anything, so the live set is a fact rather than an
-	 * inference. hdmi0 still holds the firmware's timing at this point,
-	 * so whatever answers here answers on a block the firmware was
-	 * driving minutes ago.
-	 */
-	{
-		unsigned int o__, live__ = 0;
-		uint32_t v__;
-
-		for (o__ = 0; o__ < 0x300; o__ += 4) {
-			v__ = readl(vc4_hdmi->hdmicore_regs + o__);
-			if (v__ == 0xffffffffu)
-				continue;
-			live__++;
-			printf("vc4:   live core+%#05x = %#010x (#51)\n",
-			    o__, v__);
-		}
-		printf("vc4: core bank: %u of %u words respond (#51)\n",
-		    live__, 0x300 / 4);
-	}
 
 	ret = vc4_hdmi_runtime_resume(dev);
 	if (ret) {
@@ -3927,10 +3792,6 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	printf("vc4: post-resume: SCHED=%#x HOTPLUG=%#x RAM_CFG=%#x "
-	    "HORZA=%#x (#51)\n",
-	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG),
-	    HDMI_READ(HDMI_RAM_PACKET_CONFIG), HDMI_READ(HDMI_HORZA));
 
 	if ((of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi0") ||
 	     of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi1") ||
