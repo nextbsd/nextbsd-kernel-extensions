@@ -271,11 +271,8 @@ bcm_dvp_attach(device_t dev)
 		goto fail;
 	}
 
-	if (hwreset_register_ofw_provider(dev) != 0) {
-		device_printf(dev, "could not register the reset provider\n");
-		error = ENXIO;
-		goto fail;
-	}
+	/* Returns void -- it has no failure path to report. */
+	hwreset_register_ofw_provider(dev);
 
 	device_printf(dev, "%d clocks, %d resets (#51)\n", DVP_NCLOCKS,
 	    DVP_NRESETS);
