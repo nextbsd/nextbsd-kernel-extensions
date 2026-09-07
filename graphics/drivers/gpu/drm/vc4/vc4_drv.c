@@ -402,6 +402,39 @@ vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
 	}
 }
 
+/*
+ * Whether to tell the firmware to let go of the display (#51).
+ *
+ * DIAGNOSTIC DEFAULT: off, which is NOT what a finished driver should do.
+ *
+ * Essentially the whole HDMI register window is unresponsive: sweeping the
+ * 0x300 core bank on a Pi 500+ finds 16 of 192 words on hdmi0 and 30 of 192 on
+ * hdmi1 not reading 0xffffffff, and nearly all of those are 0xffffffff with a
+ * single bit cleared -- a floating bus, not data. The only structured values
+ * are a small island at 0x07c-0x104 on hdmi0 alone, which is the timing the
+ * firmware programmed for the panel it was driving.
+ *
+ * Everything else has been measured and excluded: the register table matches
+ * upstream, the variant is right, the pixelvalve and HVS run, the DVP resets
+ * release and its gates are open, the firmware clocks are rated AND now
+ * actually gated on with the firmware acknowledging each one, the PHY runs,
+ * there is no device tree power domain, and SET_DISPLAY_POWER succeeds and
+ * changes nothing.
+ *
+ * What has never been tested is the one thing this driver does that firmware
+ * KMS never does: it tells the firmware to release the display. If the
+ * firmware powers the block down when it lets go, the window would go dead
+ * exactly as observed, and nothing on the OS side could revive it.
+ *
+ * Skipping it means the firmware still owns the display, so this is not a
+ * shippable configuration -- both would be driving the same hardware. It is
+ * here to answer one question: does the register window come alive?
+ */
+static int notify_display_done = 0;
+module_param(notify_display_done, int, 0644);
+MODULE_PARM_DESC(notify_display_done,
+    "Tell the firmware to release the display; off while diagnosing (#51)");
+
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -513,14 +546,14 @@ static int vc4_drm_bind(struct device *dev)
 
 		vc4_fw_probe_displays(drm, firmware, "before-notify");
 
-		if (!firmware_kms()) {
+		if (!firmware_kms() && notify_display_done) {
 			ret = rpi_firmware_property(firmware,
 						    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
 						    NULL, 0);
 			if (ret)
 				drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
-
-			vc4_fw_probe_displays(drm, firmware, "after-notify");
+		} else if (!firmware_kms()) {
+			drm_info(drm, "NOT sending NOTIFY_DISPLAY_DONE (#51)\n");
 		}
 	}
 
