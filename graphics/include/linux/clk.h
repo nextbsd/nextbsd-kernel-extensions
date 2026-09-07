@@ -27,6 +27,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/limits.h>	/* INT_MAX, for the ownership claim below */
 
 #include <dev/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
@@ -126,6 +127,67 @@ clk_get_rate(struct clk *clk)
 }
 
 /*
+ * Set a rate the way Linux does (#51).
+ *
+ * FreeBSD refuses to retune a clock whose enable_cnt exceeds the count the
+ * caller claims to hold -- clk_set_freq() asserts exactly one reference -- so
+ * that one consumer cannot move a rate out from under another. vc4_hdmi holds
+ * TWO references on the HDMI state machine clock, one taken in
+ * vc5_hdmi_init_resources() and one in runtime resume, and then asks for a
+ * rate. The guard fires and the modeset fails:
+ *
+ *	vc40: [drm] *ERROR* Failed to set HSM clock rate: -16
+ *
+ * with hw.clock.rpifw-m2mc.enable_cnt reading 2, measured on a Pi 500+. The
+ * rate then stays 0, the HDMI PHY never gets a pixel clock, and the display
+ * stays dark while everything else reports success.
+ *
+ * Linux has no such rule: clk_set_rate() simply sets the rate, and a driver
+ * wanting the strict behaviour asks for it explicitly with
+ * clk_set_rate_exclusive(). So the Linux contract is the permissive one, and
+ * these are LinuxKPI entry points.
+ *
+ * The normal path is left exactly as it was -- clk_set_freq() first, one
+ * reference asserted. Only EBUSY is handled, by reissuing through
+ * clknode_set_freq() with an ownership count that covers every outstanding
+ * reference. That is safe here because the references belong to one driver:
+ * vc4 is the only consumer of these display clocks. It would NOT be safe on a
+ * clock genuinely shared between drivers, which is what the guard is for, so
+ * this deliberately does not lift the guard globally -- it only declines to
+ * apply it to a caller that already holds everything.
+ */
+static inline int
+lkpi_clk_set_freq(struct clk *clk, unsigned long rate, int flags)
+{
+	struct clknode *node;
+	const char *name;
+	int error;
+
+	if (clk == NULL)
+		return (0);
+
+	error = clk_set_freq((clk_t)clk, (uint64_t)rate, flags);
+	if (error != EBUSY)
+		return (-error);
+
+	name = clk_get_name((clk_t)clk);
+	if (name == NULL)
+		return (-error);
+	node = clknode_find_by_name(name);
+	if (node == NULL)
+		return (-error);
+
+	/*
+	 * INT_MAX rather than a read of enable_cnt: the framework exposes no
+	 * getter for it, and the test is "enable_cnt > enablecnt", so this
+	 * says "however many references exist, they are mine" -- which is the
+	 * claim being made, and it is true here.
+	 */
+	error = clknode_set_freq(node, (uint64_t)rate, flags, INT_MAX);
+	return (-error);
+}
+
+/*
  * clk_set_min_rate() -- "at least this fast".
  *
  * Linux's version records a floor on a shared clock and lets the framework
@@ -142,18 +204,14 @@ static inline int
 clk_set_min_rate(struct clk *clk, unsigned long rate)
 {
 
-	if (clk == NULL)
-		return (0);
-	return (-clk_set_freq((clk_t)clk, (uint64_t)rate, CLK_SET_ROUND_UP));
+	return (lkpi_clk_set_freq(clk, rate, CLK_SET_ROUND_UP));
 }
 
 static inline int
 clk_set_rate(struct clk *clk, unsigned long rate)
 {
 
-	if (clk == NULL)
-		return (0);
-	return (-clk_set_freq((clk_t)clk, (uint64_t)rate, CLK_SET_ROUND_ANY));
+	return (lkpi_clk_set_freq(clk, rate, CLK_SET_ROUND_ANY));
 }
 
 static inline void

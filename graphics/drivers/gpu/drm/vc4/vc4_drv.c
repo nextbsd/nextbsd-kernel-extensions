@@ -35,6 +35,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include <soc/bcm2835/raspberrypi-firmware.h>
@@ -319,6 +320,88 @@ static bool firmware_kms(void)
 	       "raspberrypi,rpi-firmware-kms-2711"));
 }
 
+/*
+ * The initial modeset can be switched off (#51).
+ *
+ * This gate was added while the machine was panicking on every kextload and
+ * drm_fbdev_dma_setup() was the suspect. It was not the cause: the panic was
+ * vc4_hdmi_disable_scrambling() driving SCDC over a NULL DDC adapter, from
+ * vc4_crtc_disable_at_boot(), and it is fixed. So the default is on, which is
+ * upstream behaviour.
+ *
+ * The knob stays because it is the one switch that separates "the driver binds"
+ * from "the driver programs the display", and those fail differently. Set
+ * compat.linuxkpi.vc4_kms.enable_fbdev=0 to bind without touching the display.
+ *
+ * Note it is a sysctl, not a loader tunable: LinuxKPI's module_param() does not
+ * register one, so setting it with kenv before kextload does nothing.
+ */
+static int enable_fbdev = 1;
+module_param(enable_fbdev, int, 0644);
+MODULE_PARM_DESC(enable_fbdev,
+    "Run fbdev emulation's initial modeset (default on) (#51)");
+
+/*
+ * Diagnostic (#51): what displays does the firmware actually have, and does
+ * NOTIFY_DISPLAY_DONE stop it answering EDID?
+ *
+ * vc4_hdmi.c asks for display 2 and 7, hardcoded. vc4_firmware_kms.c does not
+ * hardcode: it reads FRAMEBUFFER_GET_NUM_DISPLAYS and then asks
+ * FRAMEBUFFER_GET_DISPLAY_ID for each index. If the ids on this board are not
+ * 2 and 7 then every EDID request names a display that does not exist, which
+ * the firmware answers successfully with an empty buffer -- exactly the
+ * "EDID block 0 is all zeroes" being seen.
+ *
+ * Reading before and after the notify also settles whether the firmware stops
+ * serving EDID once it has been told to let go of the display. That was
+ * assumed either way earlier without being measured.
+ */
+struct vc4_fw_edid_probe {
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					block;
+	u32					display_number;
+	u8					edid[128];
+};
+
+static void
+vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
+    const char *when)
+{
+	struct vc4_fw_edid_probe mb;
+	u32 num_displays, display_id, i;
+	int ret;
+
+	num_displays = 0;
+	ret = rpi_firmware_property(fw, RPI_FIRMWARE_FRAMEBUFFER_GET_NUM_DISPLAYS,
+	    &num_displays, sizeof(num_displays));
+	drm_info(drm, "fwprobe(%s): num_displays=%u ret=%d (#51)\n",
+	    when, num_displays, ret);
+
+	for (i = 0; i < num_displays && i < 8; i++) {
+		display_id = i;
+		ret = rpi_firmware_property(fw,
+		    RPI_FIRMWARE_FRAMEBUFFER_GET_DISPLAY_ID,
+		    &display_id, sizeof(display_id));
+		if (ret != 0) {
+			drm_info(drm, "fwprobe(%s): idx %u id FAILED %d (#51)\n",
+			    when, i, ret);
+			continue;
+		}
+
+		memset(&mb, 0, sizeof(mb));
+		mb.tag1.tag = RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY;
+		mb.tag1.buf_size = 128 + 8;
+		mb.block = 0;
+		mb.display_number = display_id;
+		ret = rpi_firmware_property_list(fw, &mb, sizeof(mb));
+		drm_info(drm, "fwprobe(%s): idx %u id %u edid ret=%d "
+		    "hdr %02x %02x %02x %02x %02x %02x %02x %02x (#51)\n",
+		    when, i, display_id, ret,
+		    mb.edid[0], mb.edid[1], mb.edid[2], mb.edid[3],
+		    mb.edid[4], mb.edid[5], mb.edid[6], mb.edid[7]);
+	}
+}
+
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -406,19 +489,61 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto err;
 
-	if (firmware && !firmware_kms()) {
-		ret = rpi_firmware_property(firmware,
-					    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
-					    NULL, 0);
-		if (ret)
-			drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
+	/*
+	 * DEVIATION (#51): keep the firmware handle.
+	 *
+	 * vc4->firmware is only ever assigned by vc4_firmware_kms.c, so on the
+	 * full KMS path it stayed NULL and vc4_hdmi_fw_get_edid_block() failed
+	 * -ENODEV on its first check -- every time. That is why both connectors
+	 * came up "connected" with no EDID and no modes at all:
+	 *
+	 *	"EDID" (immutable): blob = 0
+	 *	(no Modes section)
+	 *
+	 * from drm_info on the running system. No modes means fbdev has nothing
+	 * to pick, so nothing is ever programmed and the screen keeps whatever
+	 * the firmware left. The EDID has to come from the mailbox here,
+	 * because there is no DDC adapter on this board.
+	 *
+	 * The reference is deliberately NOT put: the mailbox is needed for as
+	 * long as connectors can be probed, which is the life of the driver.
+	 */
+	if (firmware) {
+		vc4->firmware = firmware;
 
-		rpi_firmware_put(firmware);
+		vc4_fw_probe_displays(drm, firmware, "before-notify");
+
+		if (!firmware_kms()) {
+			ret = rpi_firmware_property(firmware,
+						    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
+						    NULL, 0);
+			if (ret)
+				drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
+
+			vc4_fw_probe_displays(drm, firmware, "after-notify");
+		}
 	}
+
+	/*
+	 * STAGE MARKERS (#51). The machine panics somewhere in this tail with a
+	 * NULL dereference, and the kernel is stripped, so its own backtrace
+	 * stops at handle_el1h_sync and names no module symbol. These print the
+	 * stage reached, which the message buffer preserves inside the crash
+	 * dump -- the last marker before "panic:" is the failing step.
+	 *
+	 * The anchor prints a RUNTIME address for a symbol whose offset in
+	 * vc4_kms.ko is known, which is what makes the faulting elr
+	 * symbolisable at all: elr - anchor gives the offset to look up. The
+	 * module base moves between loads (it moved 0x200000 between the first
+	 * two crashes), so a fixed address cannot be assumed.
+	 */
+	drm_info(drm, "bind: anchor vc4_drm_bind=%p (#51)\n",
+	    (void *)(uintptr_t)vc4_drm_bind);
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
 		goto err;
+	drm_info(drm, "bind: stage 1 component_bind_all ok (#51)\n");
 
 	ret = devm_add_action_or_reset(dev, vc4_component_unbind_all, vc4);
 	if (ret)
@@ -429,21 +554,84 @@ static int vc4_drm_bind(struct device *dev)
 		if (ret)
 			goto err;
 	}
+	drm_info(drm, "bind: stage 2 additional planes ok (#51)\n");
 
 	ret = vc4_kms_load(drm);
 	if (ret < 0)
 		goto err;
+	drm_info(drm, "bind: stage 3 vc4_kms_load ok (#51)\n");
 
 	if (!vc4->firmware_kms) {
-		drm_for_each_crtc(crtc, drm)
+		drm_for_each_crtc(crtc, drm) {
+			drm_info(drm, "bind: stage 4 disable_at_boot crtc %u "
+			    "(#51)\n", crtc->base.id);
 			vc4_crtc_disable_at_boot(crtc);
+		}
 	}
+	drm_info(drm, "bind: stage 4 disable_at_boot ok (#51)\n");
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto err;
+	drm_info(drm, "bind: stage 5 drm_dev_register ok (#51)\n");
 
-	drm_fbdev_dma_setup(drm, 16);
+	if (enable_fbdev) {
+		struct drm_connector_list_iter conn_iter;
+		struct drm_connector *conn;
+		int nmodes;
+
+		drm_fbdev_dma_setup(drm, 16);
+
+		/*
+		 * DEVIATION (#51): probe the connectors explicitly.
+		 *
+		 * Nothing else does. The poll worker only calls detect(), and
+		 * raises a hotplug event on a CHANGE of status -- the status
+		 * here is "connected" from the first probe onwards, so no
+		 * event is ever raised. Measured: vc4_hdmi_read_edid() is
+		 * called over and over by the poll's detect path, while
+		 * vc4_hdmi_connector_get_modes() is never called once.
+		 *
+		 * get_modes() is the only thing that turns an EDID into modes,
+		 * and it runs from drm_helper_probe_single_connector_modes().
+		 * Without this the connector holds a complete EDID -- the
+		 * panel is identified by name -- and still has no modes, so
+		 * the CRTC is never programmed (ACTIVE = 0, MODE_ID = 0).
+		 */
+		mutex_lock(&drm->mode_config.mutex);
+		drm_connector_list_iter_begin(drm, &conn_iter);
+		drm_for_each_connector_iter(conn, &conn_iter) {
+			nmodes = drm_helper_probe_single_connector_modes(conn,
+			    4096, 4096);
+			drm_info(drm, "fbdev: probed %s -> %d modes (#51)\n",
+			    conn->name != NULL ? conn->name : "?", nmodes);
+		}
+		drm_connector_list_iter_end(&conn_iter);
+		mutex_unlock(&drm->mode_config.mutex);
+
+		/*
+		 * DEVIATION (#51): kick the clients once, after setup.
+		 *
+		 * drm_fbdev_dma_setup() configures from whatever modes the
+		 * connectors have at that instant, and here they have none:
+		 * the first successful EDID read does not happen during bind
+		 * at all, it happens later on the connector poll. Measured --
+		 * no vc4_hdmi_fw_get_edid_block() call appears in the log
+		 * until seconds after the load completes.
+		 *
+		 * By the time the EDID arrives the connector is already
+		 * "connected", so the poll sees no change in status, raises no
+		 * hotplug event, and nothing ever asks fbdev to reconsider.
+		 * The result is a connector with a full EDID and a CRTC that
+		 * was never programmed: ACTIVE = 0, MODE_ID = 0.
+		 *
+		 * One explicit hotplug event makes the client re-probe now
+		 * that the firmware can answer.
+		 */
+		drm_kms_helper_hotplug_event(drm);
+		drm_info(drm, "fbdev: hotplug event delivered (#51)\n");
+	} else
+		drm_info(drm, "fbdev emulation off by request (#51)\n");
 
 	return 0;
 

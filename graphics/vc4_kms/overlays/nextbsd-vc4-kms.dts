@@ -13,6 +13,8 @@
  *	simplebus0: <hdmi@7ef05700>    irq 37,38,39,40,41
  *	simplebus1: <gpu>              (the vc6 master)
  *	simplebus0: <i2c@7d508200>     irq 28   (ddc0)
+ *	simplebus0: <interrupt-controller@7c502000>  (disp_intr, hvs/vblank)
+ *	simplebus0: <interrupt-controller@7d510600>  (aon_intr, hdmi0+hdmi1)
  *
  * NOT the same thing as nextbsd-fkms. That enables the firmware-KMS node,
  * where the VideoCore firmware owns modesetting and the driver asks it over a
@@ -45,6 +47,49 @@
 
 / {
 	compatible = "brcm,bcm2712";
+
+	/*
+	 * The interrupt controllers the display blocks hang off, BOTH disabled
+	 * in the base tree. Enabling the consumers without these is what every
+	 * "irq 65535" in the vc4 probe output was reporting -- that is
+	 * LINUX_IRQ_INVALID, from bus_alloc_resource_any() returning NULL,
+	 * because an interrupt cannot be routed through a controller that never
+	 * attached:
+	 *
+	 *	simplebus0: <interrupt-controller@7d510600> ... disabled
+	 *	            compat brcm,bcm2711-l2-intc (no driver attached)
+	 *	simplebus0: <interrupt-controller@7c502000> ... disabled
+	 *	            compat brcm,bcm2711-l2-intc (no driver attached)
+	 *
+	 * read off the live tree on a Pi 500+, together with the disabled
+	 * status on both nodes.
+	 *
+	 * Which block needs which, from the interrupt-parent phandles:
+	 *
+	 *	hvs   -> 0x10 -> disp_intr (7c502000)
+	 *	hdmi0 -> 0x14 -> aon_intr  (7d510600)
+	 *	hdmi1 -> 0x14 -> aon_intr  (7d510600)
+	 *
+	 * so disp_intr is the one that matters most: the HVS end-of-frame
+	 * interrupts ARE vblank on gen6. The pixelvalves are unaffected either
+	 * way, which is why vc4_crtc0/1 already got real irqs (23 and 24) while
+	 * everything else got 65535 -- their interrupts go straight to the GIC.
+	 *
+	 * No driver is needed for these. The running kernel (kernel8.img,
+	 * NEXTBSD-RPI5) already carries bcm2712_l2intc, "Broadcom STB L2
+	 * interrupt controller", matching brcm,l2-intc -- the fallback
+	 * compatible both nodes carry -- and it is already bound to
+	 * intc@7d503000 on this board. They only needed enabling.
+	 */
+	fragment@100 {
+		target = <&disp_intr>;
+		__overlay__ { status = "okay"; };
+	};
+
+	fragment@101 {
+		target = <&aon_intr>;
+		__overlay__ { status = "okay"; };
+	};
 
 	/* The master. */
 	fragment@0 {
