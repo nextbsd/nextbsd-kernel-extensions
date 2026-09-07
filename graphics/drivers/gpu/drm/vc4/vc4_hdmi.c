@@ -468,23 +468,27 @@ vc4_hdmi_fw_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 	};
 	int ret;
 
+	/*
+	 * printf(), not pr_warn_once(): the earlier version of this used
+	 * pr_warn_once and printed nothing at all, which left it unclear
+	 * whether the guard below was even being hit. printf is known to
+	 * work here -- it is what the disable_scrambling markers used (#51).
+	 */
 	if (vc4 == NULL || vc4->firmware == NULL || len > sizeof(mb.edid)) {
-		/*
-		 * Say which of the three it was. A silent -ENODEV here is how
-		 * the missing vc4->firmware handle stayed invisible: it looks
-		 * exactly like a display with no EDID (#51).
-		 */
-		pr_warn_once("vc4: firmware EDID unavailable: vc4=%p firmware=%p len=%zu (#51)\n",
-		    vc4, vc4 != NULL ? vc4->firmware : NULL, len);
+		printf("vc4: fwedid: REFUSED vc4=%p fw=%p len=%zu disp=%u (#51)\n",
+		    vc4, vc4 != NULL ? vc4->firmware : NULL, len,
+		    mb.display_number);
 		return (-ENODEV);
 	}
 
 	ret = rpi_firmware_property_list(vc4->firmware, &mb, sizeof(mb));
-	if (ret != 0) {
-		pr_warn_once("vc4: firmware EDID block %u failed: %d (#51)\n",
-		    block, ret);
+	printf("vc4: fwedid: disp=%u block=%u len=%zu ret=%d "
+	    "hdr %02x %02x %02x %02x %02x %02x %02x %02x (#51)\n",
+	    mb.display_number, block, len, ret,
+	    mb.edid[0], mb.edid[1], mb.edid[2], mb.edid[3],
+	    mb.edid[4], mb.edid[5], mb.edid[6], mb.edid[7]);
+	if (ret != 0)
 		return (ret);
-	}
 	memcpy(buf, mb.edid, len);
 	return (0);
 }
