@@ -51,8 +51,14 @@ lkpi_reset_control_get(struct device *dev, const char *id, bool optional)
 		error = hwreset_get_by_ofw_idx(dev->bsddev,
 		    ofw_bus_get_node(dev->bsddev), 0, &rst);
 	else
+		/*
+		 * __DECONST because hwreset_get_by_ofw_name() takes a
+		 * char *, while every Linux caller passes a string literal
+		 * through a const char *. It only reads the name.
+		 */
 		error = hwreset_get_by_ofw_name(dev->bsddev,
-		    ofw_bus_get_node(dev->bsddev), id, &rst);
+		    ofw_bus_get_node(dev->bsddev), __DECONST(char *, id),
+		    &rst);
 	if (error != 0)
 		return (optional ? NULL : ERR_PTR(-error));
 
