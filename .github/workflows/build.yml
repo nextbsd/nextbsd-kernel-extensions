@@ -710,6 +710,31 @@ jobs:
           # thing to a load test we get before hardware.
           cp /tmp/drm-kmod/vc4_fkms/vc4_fkms.ko /tmp/ko-out/ 2>/dev/null || true
 
+      - name: Build bcm_l2intc.ko (Broadcom L2 interrupt controller, #51)
+        # Plain newbus/INTRNG: no LinuxKPI, no DRM, nothing vendored. This is
+        # the driver for interrupt-controller@7d510600, whose absence is what
+        # every "irq 65535" in the vc4 probe output reports -- the HVS and both
+        # HDMI controllers hang off it, and the HVS end-of-frame interrupts are
+        # vblank on gen6.
+        #
+        # continue-on-error while it is being brought up on hardware, so a
+        # failure here cannot stop the vc4_kms steps below from producing a
+        # testable kext. Flip it to a hard failure once it has bound once.
+        if: matrix.target == 'arm64'
+        continue-on-error: true
+        run: |
+          set -e
+          mkdir -p /tmp/drm-kmod
+          cp -R nbkm-tools/graphics/bcm_l2intc /tmp/drm-kmod/
+          NPROC=$(nproc)
+          cd /usr/src
+          ./tools/build/make.py \
+            --cross-bindir="${CROSS_BINDIR}" \
+            TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=NEXTBSD \
+            buildenv BUILDENV_SHELL="make -C /tmp/drm-kmod/bcm_l2intc -j${NPROC} SYSDIR=/usr/src/sys"
+          cp /tmp/drm-kmod/bcm_l2intc/bcm_l2intc.ko /tmp/ko-out/
+          ls -l /tmp/ko-out/bcm_l2intc.ko && echo "    *** bcm_l2intc.ko BUILT ***"
+
       - name: Build vc4_kms.ko (full KMS display pipeline, #51)
         # Still continue-on-error: the port is incomplete and this is expected
         # to fail for now. The gap summary below is what makes the failure
@@ -1203,6 +1228,18 @@ jobs:
                  -l org.nextbsd.kext.iographicsdma \
                  -l org.nextbsd.kext.iographicsextras \
                  "$KO/vc4_kms.ko" VideoCore6KMS org.nextbsd.kext.videocore6kms
+          fi
+          # BcmL2Intc -- the Broadcom L2 interrupt controller (#51). Not a
+          # graphics driver at all, but it is what makes the vc4 display
+          # interrupts resolvable: hvs, hdmi0 and hdmi1 all hang off
+          # interrupt-controller@7d510600 and FreeBSD has no driver for it.
+          #
+          # No IOKitPersonalities and no kext dependencies -- it is plain
+          # newbus. LOAD IT BEFORE VideoCore6KMS: INTRNG resolves a device-tree
+          # interrupt when the resource is activated, so the PIC has to be
+          # registered before vc4 asks for its lines.
+          if [ -f "$KO/bcm_l2intc.ko" ]; then
+            "$K" -o "$O" "$KO/bcm_l2intc.ko" BcmL2Intc org.nextbsd.kext.bcml2intc
           fi
           if [ -f "$KO/virtio_gpu_drm.ko" ] && [ -f pers/VirtIOGraphics.iokitpersonalities ]; then
             "$K" -o "$O" -l org.nextbsd.kext.iographics -l org.nextbsd.kext.dmabuf \
