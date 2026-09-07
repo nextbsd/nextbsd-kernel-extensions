@@ -632,10 +632,15 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	drm_edid_connector_update(connector, drm_edid);
 	cec_s_phys_addr(vc4_hdmi->cec_adap,
 			connector->display_info.source_physical_address, false);
-	if (!drm_edid)
+	if (!drm_edid) {
+		printf("vc4: get_modes(%s): no EDID, 0 modes (#51)\n",
+		    connector->name != NULL ? connector->name : "?");
 		return 0;
+	}
 
 	ret = drm_edid_connector_add_modes(connector);
+	printf("vc4: get_modes(%s): %d modes from EDID (#51)\n",
+	    connector->name != NULL ? connector->name : "?", ret);
 	drm_edid_free(drm_edid);
 
 	if (!vc4->hvs->vc5_hdmi_enable_hdmi_20) {

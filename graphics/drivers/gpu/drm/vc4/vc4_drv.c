@@ -35,6 +35,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include <soc/bcm2835/raspberrypi-firmware.h>
@@ -574,9 +575,30 @@ static int vc4_drm_bind(struct device *dev)
 		goto err;
 	drm_info(drm, "bind: stage 5 drm_dev_register ok (#51)\n");
 
-	if (enable_fbdev)
+	if (enable_fbdev) {
 		drm_fbdev_dma_setup(drm, 16);
-	else
+
+		/*
+		 * DEVIATION (#51): kick the clients once, after setup.
+		 *
+		 * drm_fbdev_dma_setup() configures from whatever modes the
+		 * connectors have at that instant, and here they have none:
+		 * the first successful EDID read does not happen during bind
+		 * at all, it happens later on the connector poll. Measured --
+		 * no vc4_hdmi_fw_get_edid_block() call appears in the log
+		 * until seconds after the load completes.
+		 *
+		 * By the time the EDID arrives the connector is already
+		 * "connected", so the poll sees no change in status, raises no
+		 * hotplug event, and nothing ever asks fbdev to reconsider.
+		 * The result is a connector with a full EDID and a CRTC that
+		 * was never programmed: ACTIVE = 0, MODE_ID = 0.
+		 *
+		 * One explicit hotplug event makes the client re-probe now
+		 * that the firmware can answer.
+		 */
+		drm_kms_helper_hotplug_event(drm);
+	} else
 		drm_info(drm, "fbdev emulation off by request (#51)\n");
 
 	return 0;
