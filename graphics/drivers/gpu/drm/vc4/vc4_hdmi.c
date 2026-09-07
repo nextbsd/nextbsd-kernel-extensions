@@ -3859,6 +3859,33 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG),
 	    HDMI_READ(HDMI_RAM_PACKET_CONFIG), HDMI_READ(HDMI_HORZA));
 
+	/*
+	 * Map the whole core bank once (#51).
+	 *
+	 * Which registers in this window respond has been guessed from three
+	 * or four samples several times now, and each guess has been wrong.
+	 * Print every word that is not 0xffffffff, before this driver has
+	 * written anything, so the live set is a fact rather than an
+	 * inference. hdmi0 still holds the firmware's timing at this point,
+	 * so whatever answers here answers on a block the firmware was
+	 * driving minutes ago.
+	 */
+	{
+		unsigned int o__, live__ = 0;
+		uint32_t v__;
+
+		for (o__ = 0; o__ < 0x300; o__ += 4) {
+			v__ = readl(vc4_hdmi->hdmicore_regs + o__);
+			if (v__ == 0xffffffffu)
+				continue;
+			live__++;
+			printf("vc4:   live core+%#05x = %#010x (#51)\n",
+			    o__, v__);
+		}
+		printf("vc4: core bank: %u of %u words respond (#51)\n",
+		    live__, 0x300 / 4);
+	}
+
 	ret = vc4_hdmi_runtime_resume(dev);
 	if (ret) {
 		drm_err(drm, "Failed to resume HDMI: %d\n", ret);
