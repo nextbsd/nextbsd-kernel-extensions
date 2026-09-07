@@ -3565,7 +3565,9 @@ struct vc4_hdmi_fw_pwr {
 static void
 vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(vc4_hdmi->connector.dev);
+	struct drm_device *drm = vc4_hdmi->connector.dev;
+	struct vc4_dev *vc4 = drm != NULL ? to_vc4_dev(drm) : NULL;
+	struct rpi_firmware *fw;
 	struct vc4_hdmi_fw_pwr pwr = {
 		.tag1 = { RPI_FIRMWARE_SET_DISPLAY_POWER, 8, 0 },
 		.display =
@@ -3575,10 +3577,25 @@ vc4_hdmi_fw_display_power(struct vc4_hdmi *vc4_hdmi, bool on)
 	};
 	int ret;
 
-	if (vc4 == NULL || vc4->firmware == NULL)
+	/*
+	 * runtime_resume runs from bind BEFORE vc4_hdmi_connector_init(), so
+	 * connector.dev is still NULL here and vc4 cannot be reached through
+	 * it. Deriving the firmware handle from the connector made this
+	 * function return silently and do nothing -- which looked exactly like
+	 * the call failing, and cost a cycle to tell apart.
+	 *
+	 * Find the firmware node directly instead. It does not depend on how
+	 * far bind has got.
+	 */
+	fw = vc4 != NULL ? vc4->firmware : NULL;
+	if (fw == NULL)
+		fw = rpi_firmware_get(rpi_firmware_find_node());
+	if (fw == NULL) {
+		printf("vc4: fw display power: no firmware handle (#51)\n");
 		return;
+	}
 
-	ret = rpi_firmware_property_list(vc4->firmware, &pwr, sizeof(pwr));
+	ret = rpi_firmware_property_list(fw, &pwr, sizeof(pwr));
 	printf("vc4: fw display %u power %s -> ret %d state %u (#51)\n",
 	    pwr.display, on ? "on" : "off", ret, pwr.state);
 }
