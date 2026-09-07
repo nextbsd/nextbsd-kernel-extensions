@@ -340,6 +340,67 @@ module_param(enable_fbdev, int, 0644);
 MODULE_PARM_DESC(enable_fbdev,
     "Run fbdev emulation's initial modeset (default on) (#51)");
 
+/*
+ * Diagnostic (#51): what displays does the firmware actually have, and does
+ * NOTIFY_DISPLAY_DONE stop it answering EDID?
+ *
+ * vc4_hdmi.c asks for display 2 and 7, hardcoded. vc4_firmware_kms.c does not
+ * hardcode: it reads FRAMEBUFFER_GET_NUM_DISPLAYS and then asks
+ * FRAMEBUFFER_GET_DISPLAY_ID for each index. If the ids on this board are not
+ * 2 and 7 then every EDID request names a display that does not exist, which
+ * the firmware answers successfully with an empty buffer -- exactly the
+ * "EDID block 0 is all zeroes" being seen.
+ *
+ * Reading before and after the notify also settles whether the firmware stops
+ * serving EDID once it has been told to let go of the display. That was
+ * assumed either way earlier without being measured.
+ */
+struct vc4_fw_edid_probe {
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					block;
+	u32					display_number;
+	u8					edid[128];
+};
+
+static void
+vc4_fw_probe_displays(struct drm_device *drm, struct rpi_firmware *fw,
+    const char *when)
+{
+	struct vc4_fw_edid_probe mb;
+	u32 num_displays, display_id, i;
+	int ret;
+
+	num_displays = 0;
+	ret = rpi_firmware_property(fw, RPI_FIRMWARE_FRAMEBUFFER_GET_NUM_DISPLAYS,
+	    &num_displays, sizeof(num_displays));
+	drm_info(drm, "fwprobe(%s): num_displays=%u ret=%d (#51)\n",
+	    when, num_displays, ret);
+
+	for (i = 0; i < num_displays && i < 8; i++) {
+		display_id = i;
+		ret = rpi_firmware_property(fw,
+		    RPI_FIRMWARE_FRAMEBUFFER_GET_DISPLAY_ID,
+		    &display_id, sizeof(display_id));
+		if (ret != 0) {
+			drm_info(drm, "fwprobe(%s): idx %u id FAILED %d (#51)\n",
+			    when, i, ret);
+			continue;
+		}
+
+		memset(&mb, 0, sizeof(mb));
+		mb.tag1.tag = RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY;
+		mb.tag1.buf_size = 128 + 8;
+		mb.block = 0;
+		mb.display_number = display_id;
+		ret = rpi_firmware_property_list(fw, &mb, sizeof(mb));
+		drm_info(drm, "fwprobe(%s): idx %u id %u edid ret=%d "
+		    "hdr %02x %02x %02x %02x %02x %02x %02x %02x (#51)\n",
+		    when, i, display_id, ret,
+		    mb.edid[0], mb.edid[1], mb.edid[2], mb.edid[3],
+		    mb.edid[4], mb.edid[5], mb.edid[6], mb.edid[7]);
+	}
+}
+
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -449,12 +510,16 @@ static int vc4_drm_bind(struct device *dev)
 	if (firmware) {
 		vc4->firmware = firmware;
 
+		vc4_fw_probe_displays(drm, firmware, "before-notify");
+
 		if (!firmware_kms()) {
 			ret = rpi_firmware_property(firmware,
 						    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
 						    NULL, 0);
 			if (ret)
 				drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
+
+			vc4_fw_probe_displays(drm, firmware, "after-notify");
 		}
 	}
 
