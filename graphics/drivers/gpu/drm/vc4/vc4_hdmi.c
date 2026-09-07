@@ -813,6 +813,26 @@ static int vc4_hdmi_stop_packet(struct vc4_hdmi *vc4_hdmi,
 	if (poll) {
 		ret = wait_for(!(HDMI_READ(HDMI_RAM_PACKET_STATUS) &
 				 BIT(packet_id)), 100);
+		if (ret) {
+			/*
+			 * Print what the block actually says (#51). The
+			 * packet RAM is enabled -- the WARN_ONCE above never
+			 * fires -- the block is clocked and reset, and the
+			 * status bit still does not clear. Reading the
+			 * registers back distinguishes "hardware is not
+			 * running" from "these reads are not reaching the
+			 * hardware at all", which look identical from here:
+			 * a register that always reads 0xffffffff or 0 is not
+			 * a busy engine, it is an absent one.
+			 */
+			printf("vc4: stop_packet id=%u timeout: CONFIG=%#x "
+			    "STATUS=%#x VID_CTL=%#x SCHED=%#x (#51)\n",
+			    packet_id,
+			    HDMI_READ(HDMI_RAM_PACKET_CONFIG),
+			    HDMI_READ(HDMI_RAM_PACKET_STATUS),
+			    HDMI_READ(HDMI_VID_CTL),
+			    HDMI_READ(HDMI_SCHEDULER_CONTROL));
+		}
 	}
 
 	drm_dev_exit(idx);
