@@ -24,7 +24,7 @@
 
 SRCDIR=	${.CURDIR:H}/drivers/gpu/drm/vc4
 
-.PATH:	${SRCDIR} ${.CURDIR} ${.CURDIR:H}/lkpi ${.CURDIR:H}/vc4_fkms
+.PATH:	${SRCDIR} ${.CURDIR} ${.CURDIR:H}/lkpi
 
 KMOD=	vc4_kms
 
@@ -56,7 +56,7 @@ SRCS+=	\
 	lkpi_platform.c \
 	lkpi_irq.c \
 	lkpi_rpi_firmware.c \
-	vc4_fkms_freebsd.c
+	lkpi_rpi_firmware_mbox.c
 
 # The GEN_4 render path is not built -- vc5_drm_driver registers no ioctls and
 # no DRIVER_RENDER, so vc4_gem.c/vc4_fence.c and the v3d, validate, render_cl
@@ -176,7 +176,7 @@ CFLAGS+= -include ${.CURDIR:H}/lkpi/lkpi_drm.h
 # One definition per translation unit; see the comment in lkpi_drm.h.
 # vc4_kms gets vc4_ioremap_regs() from upstream vc4_drv.c; the fkms copy of
 # it would be a duplicate symbol at link time.
-CFLAGS.vc4_fkms_freebsd.c+=	-DLKPI_NO_VC4_IOREMAP
+CFLAGS.lkpi_rpi_firmware_mbox.c+=	-DLKPI_NO_VC4_IOREMAP
 
 CFLAGS.lkpi_of.c+=		-DLKPI_NO_IOPORT
 CFLAGS.lkpi_platform.c+=	-DLKPI_NO_IOPORT

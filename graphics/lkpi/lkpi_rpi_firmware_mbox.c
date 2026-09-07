@@ -1,18 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * FreeBSD glue for vc4_firmware_kms (nextbsd-kernel#176).
+ * The Raspberry Pi firmware mailbox, FreeBSD side (nextbsd-kernel-extensions#51).
  *
- * The driver talks to the VideoCore firmware over the property mailbox, which
- * FreeBSD already implements -- this maps the three rpi_firmware_* entry
- * points onto it. Same mailbox, same tags, different spelling.
+ * rpi_firmware_property(), rpi_firmware_property_list() and
+ * devm_rpi_firmware_get(), implemented over bcm2835_firmware(4). Everything
+ * <soc/bcm2835/raspberrypi-firmware.h> declares and Linux implements in a
+ * driver we do not have.
  *
- * Worth recording why this file has to exist at all rather than the driver
- * just working: the vendored raspberrypi-firmware.h gates its declarations on
- * IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE), and with that undefined the header
- * supplies static inlines returning -ENOSYS. The compile probe therefore went
- * green on all 11 rpi_firmware_* call sites while binding them to stubs. The
- * Makefile now defines CONFIG_RASPBERRYPI_FIRMWARE, which is what makes these
- * definitions the ones that get used.
+ * This was vc4_fkms/vc4_fkms_freebsd.c and moved here when firmware KMS was
+ * retired (#64). It never belonged to that driver: it is LinuxKPI glue, and
+ * vc4_kms depends on it for EDID -- the panel on a Pi 500+ has no DDC adapter,
+ * so GET_EDID_BLOCK_DISPLAY over this mailbox is the only source of an EDID.
+ * It is also how the firmware clocks are read and set.
  */
 
 #include <sys/param.h>
