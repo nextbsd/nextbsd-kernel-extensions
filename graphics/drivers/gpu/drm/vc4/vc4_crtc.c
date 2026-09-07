@@ -510,8 +510,11 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int idx, ret;
 
+	drm_info(dev, "cd: enter, encoder %p state %p (#51)\n", encoder, state);
+
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
+	drm_info(dev, "cd: drm_dev_enter ok (#51)\n");
 
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
@@ -536,14 +539,20 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	 */
 	mdelay(20);
 
+	drm_info(dev, "cd: mdelay done, post_crtc_disable=%p (#51)\n",
+	    vc4_encoder ? vc4_encoder->post_crtc_disable : NULL);
 	if (vc4_encoder && vc4_encoder->post_crtc_disable)
 		vc4_encoder->post_crtc_disable(encoder, state);
+	drm_info(dev, "cd: post_crtc_disable ok (#51)\n");
 
 	vc4_crtc_pixelvalve_reset(crtc);
+	drm_info(dev, "cd: pixelvalve reset ok (#51)\n");
 	vc4_hvs_stop_channel(vc4->hvs, channel);
+	drm_info(dev, "cd: hvs_stop_channel ok (#51)\n");
 
 	if (vc4_encoder && vc4_encoder->post_crtc_powerdown)
 		vc4_encoder->post_crtc_powerdown(encoder, state);
+	drm_info(dev, "cd: post_crtc_powerdown ok (#51)\n");
 
 	drm_dev_exit(idx);
 
@@ -573,15 +582,19 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 				      "brcm,bcm2712-pixelvalve1")))
 		return 0;
 
+	drm_info(drm, "dab: compatible ok (#51)\n");
+
 	if (!(CRTC_READ(PV_CONTROL) & PV_CONTROL_EN))
 		return 0;
 
 	if (!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN))
 		return 0;
+	drm_info(drm, "dab: pv enabled, reading fifo (#51)\n");
 
 	channel = vc4_hvs_get_fifo_from_output(vc4->hvs, vc4_crtc->data->hvs_output);
 	if (channel < 0)
 		return 0;
+	drm_info(drm, "dab: channel %d (#51)\n", channel);
 
 	encoder_sel = VC4_GET_FIELD(CRTC_READ(PV_CONTROL), PV_CONTROL_CLK_SELECT);
 	if (WARN_ON(encoder_sel != 0))
@@ -593,10 +606,13 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	if (WARN_ON(!encoder))
 		return 0;
 
+	drm_info(drm, "dab: encoder found, type %d (#51)\n", encoder_type);
+
 	vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
 	if (ret)
 		return ret;
+	drm_info(drm, "dab: runtime pm up, disabling (#51)\n");
 
 	ret = vc4_crtc_disable(crtc, encoder, NULL, channel);
 	if (ret)
