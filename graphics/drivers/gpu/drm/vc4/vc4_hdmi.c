@@ -433,12 +433,25 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 #define	VC4_FW_DISPLAY_HDMI0	2
 #define	VC4_FW_DISPLAY_HDMI1	7
 
+/*
+ * Layout copied from vc4_firmware_kms.c's mailbox_get_edid (#51), which is the
+ * one that demonstrably works -- firmware KMS reads EDID from this same tag on
+ * this same board.
+ *
+ * This struct used to carry an extra u32 "status" between display_number and
+ * edid. There is no such field: it pushed edid[] four bytes past where the
+ * firmware writes it and made sizeof(*this) disagree with the declared
+ * buf_size of 128 + 8, so every read came back as
+ *
+ *	EDID block 0 is all zeroes
+ *
+ * measured on a Pi 500+, which looks exactly like a display that has no EDID.
+ */
 struct vc4_hdmi_fw_edid {
-	u32	tag1, tag1_size, tag1_flags;
-	u32	block;
-	u32	display_number;
-	u32	status;
-	u8	edid[128];
+	struct rpi_firmware_property_tag_header	tag1;
+	u32					block;
+	u32					display_number;
+	u8					edid[128];
 };
 
 static int
@@ -447,8 +460,7 @@ vc4_hdmi_fw_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 	struct vc4_hdmi *vc4_hdmi = data;
 	struct vc4_dev *vc4 = to_vc4_dev(vc4_hdmi->connector.dev);
 	struct vc4_hdmi_fw_edid mb = {
-		.tag1 = RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY,
-		.tag1_size = 128 + 8,
+		.tag1 = { RPI_FIRMWARE_GET_EDID_BLOCK_DISPLAY, 128 + 8, 0 },
 		.block = block,
 		.display_number =
 		    vc4_hdmi->variant->encoder_type == VC4_ENCODER_TYPE_HDMI1 ?
