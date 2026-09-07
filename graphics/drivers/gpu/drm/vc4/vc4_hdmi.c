@@ -3843,11 +3843,32 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	 * other consumer of these headers, so it is not something to do from
 	 * inside a display bring-up.
 	 */
+	/*
+	 * What do these registers look like BEFORE we touch anything? (#51)
+	 *
+	 * The claim "writes read back, so the bank base is right" does not
+	 * hold: any writable region would read back. If SCHEDULER_CONTROL and
+	 * HOTPLUG are 0xffffffff here too -- before the reset, before the
+	 * clocks are touched, before any modeset -- then they were never alive
+	 * and the base is wrong. If they read something sane here and
+	 * 0xffffffff later, then something this driver does kills them, and
+	 * the difference says which.
+	 */
+	printf("vc4: pre-resume: SCHED=%#x HOTPLUG=%#x RAM_CFG=%#x "
+	    "HORZA=%#x (#51)\n",
+	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG),
+	    HDMI_READ(HDMI_RAM_PACKET_CONFIG), HDMI_READ(HDMI_HORZA));
+
 	ret = vc4_hdmi_runtime_resume(dev);
 	if (ret) {
 		drm_err(drm, "Failed to resume HDMI: %d\n", ret);
 		return ret;
 	}
+
+	printf("vc4: post-resume: SCHED=%#x HOTPLUG=%#x RAM_CFG=%#x "
+	    "HORZA=%#x (#51)\n",
+	    HDMI_READ(HDMI_SCHEDULER_CONTROL), HDMI_READ(HDMI_HOTPLUG),
+	    HDMI_READ(HDMI_RAM_PACKET_CONFIG), HDMI_READ(HDMI_HORZA));
 
 	if ((of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi0") ||
 	     of_device_is_compatible(dev_of_node(dev), "brcm,bcm2711-hdmi1") ||
