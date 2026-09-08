@@ -891,10 +891,13 @@ jobs:
           grep -oE "incomplete type '[^']+'" "$L" | sort -u | head -30
           echo "=== undefined symbols at link ==="
           grep -oE "undefined (reference to |symbol: )[^ ]+" "$L" | sort -u | head -40
+          # BOTH spellings. A missing header is reported as ": fatal error:",
+          # which ": error:" does not match -- so a run whose every file died
+          # at the first #include counted zero errors and read as success.
           echo "=== error count ==="
-          grep -c ': error:' "$L"
+          grep -cE ': (fatal )?error:' "$L"
           echo "============== FIRST 60 RAW ERRORS =============="
-          grep 'error:' "$L" | head -60
+          grep -E ': (fatal )?error:' "$L" | head -60
           exit 0
 
       - name: Upload v3d probe log (#66)
