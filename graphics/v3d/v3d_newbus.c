@@ -187,3 +187,34 @@ EARLY_DRIVER_MODULE(v3d, simplebus, v3d_newbus_driver, 0, 0,
     BUS_PASS_SUPPORTDEV);
 EARLY_DRIVER_MODULE(v3d_ofwbus, ofwbus, v3d_newbus_driver, 0, 0,
     BUS_PASS_SUPPORTDEV);
+
+/*
+ * MODULE_DEPEND is DEPTH-1 (#66). The kernel linker searches only a module's
+ * OWN declared dependencies, so a module being loaded and exporting a symbol is
+ * not the same as being able to link against it. This module shipped without a
+ * single declaration and failed exactly as vc4 already recorded twice:
+ *
+ *	link_elf: symbol drm_read undefined
+ *
+ * with IOGraphics resident and exporting drm_read as a GLOBAL. Same trap as
+ * "symbol drm_gem_fb_create undefined" and "symbol dma_resv_get_singleton
+ * undefined" in vc4_master_newbus.c; third time on this hardware.
+ *
+ * The set below is not copied from another driver, it is measured: every
+ * undefined symbol in v3d.ko resolved against the shipped kexts.
+ *
+ *	drmn                45 symbols, incl. the whole drm_sched_* scheduler
+ *	                    that this port was scoped around as missing
+ *	drm_shmem_helpers   12, drm_gem_shmem_create and friends -- v3d's BOs
+ *	                    are shmem, not TTM and not the DMA helper
+ *	dmabuf              11, the dma_fence_* the scheduler signals through
+ *
+ * drm_extra_helpers is deliberately ABSENT: it satisfies zero of v3d's
+ * symbols. virtio_gpu declares it and v3d does not need it -- it is a KMS
+ * framebuffer helper, and v3d is render-only, with no framebuffer of its own.
+ */
+MODULE_DEPEND(v3d, drmn, 2, 2, 2);
+MODULE_DEPEND(v3d, drm_shmem_helpers, 1, 1, 1);
+MODULE_DEPEND(v3d, dmabuf, 1, 1, 1);
+MODULE_DEPEND(v3d, linuxkpi, 1, 1, 1);
+MODULE_VERSION(v3d, 1);
