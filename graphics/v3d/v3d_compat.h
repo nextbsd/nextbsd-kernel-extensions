@@ -14,6 +14,33 @@
 
 #include <linux/idr.h>
 #include <drm/drm_gem_shmem_helper.h>
+#include <sys/sysctl.h>
+
+/*
+ * linuxkpi's module_param() expands to a tunable under sysctl _hw_<module> and
+ * declares that node in no translation unit. v3d_drv.c has three of them
+ * (debug_mmu and friends), so the node has to be visible here -- this header
+ * is force-included into every v3d file -- and DEFINED exactly once, which
+ * v3d_newbus.c does. Two definitions is a duplicate symbol at link time rather
+ * than a warning, which bochs found the hard way.
+ */
+SYSCTL_DECL(_hw_v3d);
+
+/*
+ * module_platform_driver() (v3d_drv.c).
+ *
+ * Upstream this expands to a module_init/module_exit pair that registers the
+ * platform driver with the Linux platform bus. There is no platform bus here:
+ * v3d_newbus.c attaches to the device-tree node and calls the vendored probe
+ * itself, so registration would have nothing to register with.
+ *
+ * It expands to a redundant declaration rather than to nothing, so that the
+ * trailing semicolon at file scope stays legal C and the macro still names the
+ * driver it is given -- expanding to empty leaves a stray ";" that
+ * -Wextra-semi rejects.
+ */
+#define	module_platform_driver(__drv)	extern struct platform_driver __drv
+
 
 /*
  * idr_init_base() (v3d_perfmon.c). LinuxKPI has idr_init(), which is

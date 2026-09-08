@@ -27,6 +27,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -37,6 +38,16 @@
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
 
+/*
+ * Defined here, exactly once: linuxkpi's module_param() in v3d_drv.c refers to
+ * sysctl___hw_v3d and declares it nowhere. v3d_compat.h carries the matching
+ * SYSCTL_DECL for every other file. Two definitions would be a duplicate
+ * symbol at link time.
+ */
+SYSCTL_NODE(_hw, OID_AUTO, v3d, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Broadcom V3D GPU");
+
+/* Non-static in the vendored v3d_drv.c -- see the note there. */
 extern struct platform_driver v3d_platform_driver;
 
 struct v3d_newbus_softc {

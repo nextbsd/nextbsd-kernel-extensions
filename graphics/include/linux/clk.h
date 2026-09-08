@@ -128,6 +128,33 @@ clk_get_rate(struct clk *clk)
 }
 
 /*
+ * clk_get_parent() (v3d, #66).
+ *
+ * The two spellings collide: Linux returns the parent, FreeBSD returns an
+ * error and writes the parent through an out-parameter, and both are called
+ * clk_get_parent. FreeBSD's prototype comes in with <dev/clk/clk.h> at the top
+ * of this file, so the wrapper cannot reuse the name -- it is defined under its
+ * own name and the macro below renames later call sites. The macro is placed
+ * AFTER the body deliberately, so the body still reaches the real function.
+ *
+ * NULL for a clock with no parent is Linux's own answer, and v3d handles it:
+ * clk_get_rate(NULL) is 0, which makes its clk_down_rate calculation fall back
+ * to the +10000 floor rather than misbehave.
+ */
+static inline struct clk *
+lkpi_clk_get_parent(struct clk *clk)
+{
+	clk_t parent;
+
+	if (clk == NULL)
+		return (NULL);
+	if (clk_get_parent((clk_t)clk, &parent) != 0)
+		return (NULL);
+	return ((struct clk *)parent);
+}
+#define	clk_get_parent(c)	lkpi_clk_get_parent(c)
+
+/*
  * Set a rate the way Linux does (#51).
  *
  * FreeBSD refuses to retune a clock whose enable_cnt exceeds the count the
