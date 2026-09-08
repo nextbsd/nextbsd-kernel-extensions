@@ -4,6 +4,15 @@
 # display; on 2712 the 3D core is a separate device with its own driver, unlike
 # BCM2711 and earlier where "vc4" meant both.
 #
+# It builds, links, loads and registers a render node on a Pi 500+:
+#
+#	v3d0: <Broadcom V3D GPU> ... irq 70,71 on simplebus1
+#	[drm] Initialized v3d 1.0.0 for v3d.0 on minor 1
+#	/dev/dri/renderD128
+#
+# GL on top of it still needs Mesa built with v3d in GALLIUM_DRIVERS
+# (nextbsd#427). This is the kernel half.
+#
 # THE SCHEDULER IS NOT VENDORED HERE, and that is the main thing to know about
 # this module. v3d submits work through drm_sched, and drm-kmod 6.12-lts
 # already compiles the DRM scheduler into the DRM core -- 84 GLOBAL drm_sched_*

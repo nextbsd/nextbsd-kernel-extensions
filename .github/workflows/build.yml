@@ -839,13 +839,13 @@ jobs:
           test -f /tmp/ko-out/bcm2712_pm.ko
 
       - name: Build v3d.ko (BCM2712 GPU, #66)
-        # A compile probe, exactly as vc4_kms started life: continue-on-error
-        # with a gap summary, so an incomplete port reports WHAT is missing
-        # instead of a bare red X. Flip to a hard failure once it links.
+        # No longer a probe. It builds, links, loads and registers a render
+        # node on a Pi 500+, so a missing v3d.ko is a regression rather than a
+        # measurement -- the gate below is what catches that. The gap summary
+        # stays because it is what makes a failure diagnosable.
         #
         # arm64 only -- this is a BCM2712 part.
         if: matrix.target == 'arm64'
-        continue-on-error: true
         run: |
           set +e
           mkdir -p /tmp/drm-kmod/drivers/gpu/drm/v3d
@@ -867,7 +867,10 @@ jobs:
             > /tmp/v3d-probe.log 2>&1
           echo "build exit: $?"
           cp /tmp/drm-kmod/v3d/v3d.ko /tmp/ko-out/ 2>/dev/null || true
-          exit 0
+          # The gate. Deliberately after the copy, so the artifact still carries
+          # whatever was produced, and after `set +e`, so the gap summary below
+          # runs and says WHY rather than the job dying on a bare exit code.
+          test -f /tmp/ko-out/v3d.ko
 
       - name: PROBE v3d gap summary (#66)
         if: matrix.target == 'arm64'
