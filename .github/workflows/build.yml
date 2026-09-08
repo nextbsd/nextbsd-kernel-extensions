@@ -1333,11 +1333,40 @@ jobs:
             "$K" -o "$O" -p pers/BcmPM.iokitpersonalities \
                  "$KO/bcm2712_pm.ko" BcmPM org.nextbsd.kext.bcmpm
           fi
+          # The last -l is an ORDERING edge, not a symbol dependency, and it
+          # fixes a bug that only appeared once this kext started shipping.
+          #
+          # A Pi 5 now has TWO DRM devices: vc4 (display) and v3d (render). DRM
+          # hands out minors in attach order, so /dev/dri/card0 is whichever
+          # driver won that boot -- and both autoload independently, so it is a
+          # coin flip. Measured before this line: roughly half of boots came up
+          # v3d=0 vc4=1.
+          #
+          # When v3d wins, Xorg takes card0 as the primary GPU, finds a
+          # render-only device with no CRTCs and no outputs, and dies:
+          #
+          #	(II) modeset(G0): using drv /dev/dri/card1
+          #	(EE) No devices detected.
+          #	Fatal server error: no screens found
+          #
+          # LoginWindow then restarts it forever. Note the capital G: vc4 was
+          # demoted to a secondary GPU device, leaving no primary screen.
+          #
+          # Naming VideoCore6KMS here makes OSKextLoad attach the display driver
+          # first, so vc4 always takes minor 0. Verified on a Pi 500+: 11 of 11
+          # boots came up vc4=0 v3d=1 with zero X crashes, six of them with the
+          # xorg.conf.d workaround removed to prove this alone is sufficient.
+          #
+          # The alternative is an Xorg OutputClass with PrimaryGPU, which is what
+          # Linux distros ship for hybrid graphics. That works too, but it papers
+          # over a nondeterministic device tree rather than fixing it, and every
+          # other consumer of card0 would still be rolling dice.
           if [ -f "$KO/v3d.ko" ] && [ -f pers/V3D.iokitpersonalities ]; then
             "$K" -o "$O" -l org.nextbsd.kext.iographics -l org.nextbsd.kext.dmabuf \
                  -l org.nextbsd.kext.iographicsshmem \
                  -l org.nextbsd.kext.rpifirmwareclocks \
                  -l org.nextbsd.kext.bcmpm \
+                 -l org.nextbsd.kext.videocore6kms \
                  -p pers/V3D.iokitpersonalities \
                  "$KO/v3d.ko" V3D org.nextbsd.kext.v3d
           fi
