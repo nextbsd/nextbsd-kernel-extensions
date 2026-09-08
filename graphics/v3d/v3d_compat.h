@@ -53,6 +53,16 @@ platform_get_irq_optional(struct platform_device *pdev, unsigned int num)
 }
 
 /*
+ * Forward declaration at file scope, so the mnt parameter below does not
+ * declare the type inside its own prototype -- where it would be a distinct,
+ * function-local type and every caller passing v3d->gemfs would be a pointer
+ * mismatch. There is no LinuxKPI <linux/mount.h> to include, and nothing here
+ * ever dereferences it: it exists only so the NULL that v3d_gemfs_stub.c leaves
+ * in v3d->gemfs has a type to travel as.
+ */
+struct vfsmount;
+
+/*
  * drm_gem_shmem_create_with_mnt() (v3d_bo.c).
  *
  * Upstream v3d creates a private tmpfs mount with huge pages enabled and
