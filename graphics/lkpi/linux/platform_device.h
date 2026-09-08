@@ -110,6 +110,7 @@
 #define	lkpi_platform_get_irq	LKPI_SYM(lkpi_platform_get_irq)
 #define	lkpi_platform_get_irq_byname	LKPI_SYM(lkpi_platform_get_irq_byname)
 #define	lkpi_platform_ioremap_resource	LKPI_SYM(lkpi_platform_ioremap_resource)
+#define	lkpi_platform_ioremap_resource_byname	LKPI_SYM(lkpi_platform_ioremap_resource_byname)
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -301,6 +302,22 @@ devm_platform_ioremap_resource(struct platform_device *pdev, unsigned int index)
 {
 
 	return (lkpi_platform_ioremap_resource(pdev, index));
+}
+
+/*
+ * The same, but naming the bank instead of counting it (v3d, #66). v3d maps
+ * "hub", "core0" and "sms" by name and never by index, and the indices differ
+ * per generation, so counting is not an option.
+ */
+void	*lkpi_platform_ioremap_resource_byname(struct platform_device *pdev,
+	    const char *name);
+
+static __inline void __iomem *
+devm_platform_ioremap_resource_byname(struct platform_device *pdev,
+    const char *name)
+{
+
+	return (lkpi_platform_ioremap_resource_byname(pdev, name));
 }
 
 /*

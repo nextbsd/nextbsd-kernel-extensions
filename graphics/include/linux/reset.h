@@ -72,6 +72,19 @@ devm_reset_control_get(struct device *dev, const char *id)
 	return (lkpi_reset_control_get(dev, id, false));
 }
 
+/*
+ * The "exclusive" spelling (v3d, #66). Upstream distinguishes exclusive from
+ * shared resets so two drivers cannot both drive one line; FreeBSD's hwreset
+ * has no shared mode at all, so every reset here is already exclusive and this
+ * is the same call under the name v3d asks for.
+ */
+static inline struct reset_control *
+devm_reset_control_get_exclusive(struct device *dev, const char *id)
+{
+
+	return (lkpi_reset_control_get(dev, id, false));
+}
+
 static inline struct reset_control *
 devm_reset_control_get_optional(struct device *dev, const char *id)
 {
