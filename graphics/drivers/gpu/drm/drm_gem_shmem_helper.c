@@ -34,6 +34,85 @@
 
 MODULE_IMPORT_NS(DMA_BUF);
 
+#ifdef __FreeBSD__
+/*
+ * DEVIATION from the vendored source (nextbsd-kernel-extensions#72).
+ *
+ * FreeBSD's LinuxKPI cannot DMA-map a scatterlist with more than one entry,
+ * and reports the failure as success.
+ *
+ * linux_dma_map_sg_attrs() creates one busdma map on the *first* sg entry and
+ * loads every entry into it; measured on a Pi 500+, a 1-entry list maps and
+ * anything larger does not. Its failure return is 0, but dma_map_sgtable()
+ * only tests for < 0, so it stores sgt->nents = 0 and returns success. The
+ * caller then gets a BO that was never mapped, and the GPU faults on its own
+ * page tables ("write violation, pte invalid") the first time it touches it.
+ *
+ * Map and unmap one entry at a time instead -- the case that does work -- and
+ * treat a failure as a failure. The unmap has to be per-entry too:
+ * linux_dma_unmap_sg_attrs() ignores its nents argument and only touches
+ * sgl->dma_map, so the stock unmap would leak every map but the first.
+ *
+ * This is a workaround at the call site, not a fix. The bug is in base
+ * LinuxKPI (sys/compat/linuxkpi/common/src/linux_pci.c and
+ * common/include/linux/dma-mapping.h) and affects every dma_map_sgtable()
+ * user. It is worked around here because this is the only caller in this
+ * tree, which keeps the blast radius to drm_gem_shmem consumers (v3d,
+ * virtio_gpu, drm_fbdev_shmem) instead of changing shared semantics for
+ * i915, amdgpu and radeonkms too.
+ */
+static int
+nextbsd_shmem_dma_map_sgtable(struct device *dev, struct sg_table *sgt,
+    enum dma_data_direction dir, unsigned long attrs)
+{
+	struct scatterlist *sg;
+	unsigned int i, j, mapped;
+	int ret;
+
+	mapped = 0;
+	ret = 0;
+
+	for_each_sgtable_sg(sgt, sg, i) {
+		if (dma_map_sg_attrs(dev, sg, 1, dir, attrs) != 1) {
+			ret = -ENOMEM;
+			break;
+		}
+		mapped++;
+	}
+
+	if (ret != 0) {
+		for_each_sgtable_sg(sgt, sg, j) {
+			if (j >= mapped)
+				break;
+			dma_unmap_sg_attrs(dev, sg, 1, dir, attrs);
+		}
+		sgt->nents = 0;
+		return (ret);
+	}
+
+	/* Each entry mapped to exactly one segment. */
+	sgt->nents = sgt->orig_nents;
+	return (0);
+}
+
+static void
+nextbsd_shmem_dma_unmap_sgtable(struct device *dev, struct sg_table *sgt,
+    enum dma_data_direction dir, unsigned long attrs)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+
+	if (sgt == NULL || sgt->nents == 0)
+		return;
+
+	for_each_sgtable_sg(sgt, sg, i)
+		dma_unmap_sg_attrs(dev, sg, 1, dir, attrs);
+
+	sgt->nents = 0;
+}
+#endif /* __FreeBSD__ */
+
+
 /**
  * DOC: overview
  *
@@ -169,8 +248,14 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 		drm_WARN_ON(obj->dev, shmem->vmap_use_count);
 
 		if (shmem->sgt) {
+#ifdef __FreeBSD__
+			/* DEVIATION (#72): per-entry, to match the map. */
+			nextbsd_shmem_dma_unmap_sgtable(obj->dev->dev,
+			    shmem->sgt, DMA_BIDIRECTIONAL, 0);
+#else
 			dma_unmap_sgtable(obj->dev->dev, shmem->sgt,
 					  DMA_BIDIRECTIONAL, 0);
+#endif
 			sg_free_table(shmem->sgt);
 			kfree(shmem->sgt);
 		}
@@ -472,7 +557,13 @@ void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
 
 	drm_WARN_ON(obj->dev, !drm_gem_shmem_is_purgeable(shmem));
 
+#ifdef __FreeBSD__
+	/* DEVIATION (#72): per-entry, to match the map. */
+	nextbsd_shmem_dma_unmap_sgtable(dev->dev, shmem->sgt,
+	    DMA_BIDIRECTIONAL, 0);
+#else
 	dma_unmap_sgtable(dev->dev, shmem->sgt, DMA_BIDIRECTIONAL, 0);
+#endif
 	sg_free_table(shmem->sgt);
 	kfree(shmem->sgt);
 	shmem->sgt = NULL;
@@ -785,7 +876,13 @@ static struct sg_table *drm_gem_shmem_get_pages_sgt_locked(struct drm_gem_shmem_
 		goto err_put_pages;
 	}
 	/* Map the pages for use by the h/w. */
+#ifdef __FreeBSD__
+	/* DEVIATION (#72): see nextbsd_shmem_dma_map_sgtable() above. */
+	ret = nextbsd_shmem_dma_map_sgtable(obj->dev->dev, sgt,
+	    DMA_BIDIRECTIONAL, 0);
+#else
 	ret = dma_map_sgtable(obj->dev->dev, sgt, DMA_BIDIRECTIONAL, 0);
+#endif
 	if (ret)
 		goto err_free_sgt;
 
