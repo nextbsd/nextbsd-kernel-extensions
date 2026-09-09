@@ -168,6 +168,37 @@ if {$gfx_test} {
         puts "\nFAIL: GFX-AUTOLOAD -- no card0 within 60s of reaching a shell"
         diag "tail -15 /var/log/kextd.log 2>&1"
     }
+
+    # GFX-BUSID (nextbsd/nextbsd#448). hw.dri.<N>.busid is the ONLY channel by
+    # which X learns a DRM device's PCI address on FreeBSD: libudev-devd reads
+    # it, rewrites a "pci:" prefix to "pci-" and publishes ID_PATH; xorg turns
+    # that into attribs->busid and then pd->pdev. When it reads anything else,
+    # pd->pdev stays NULL, xf86_check_platform_slot() cannot see that the PCI
+    # entity is already claimed, the card is claimed a SECOND time as a GPU
+    # screen, and drmSetMaster returns EBUSY on a device the primary screen
+    # already holds master on -- fatal, and the desktop never appears.
+    #
+    # The guest's GPU here is -device virtio-gpu-pci, a PCI function, so the
+    # correct answer is a pci: triple. It read "platform:drmn0" for weeks
+    # because dev_is_pci() tests the devclass of the DRM device ITSELF, which
+    # is "drmn" and never "pci" -- a constant false for every LinuxKPI DRM
+    # device, so every PCI GPU took the platform branch.
+    #
+    # This is cheap and it is the exact bit that broke, so assert it rather
+    # than trusting that the fix stays fixed. Only meaningful once card0
+    # exists, hence the guard.
+    if {$autoload_ok} {
+        send "sysctl -n hw.dri.0.busid 2>/dev/null | grep -q '^pci:' && echo BUSID''_PCI || echo BUSID''_BAD\r"
+        expect {
+            timeout      { puts "\nFAIL: GFX-BUSID -- no answer from hw.dri.0.busid" }
+            "BUSID_PCI"  { puts "\nOK: GFX-BUSID -- hw.dri.0.busid names a PCI address" }
+            "BUSID_BAD"  {
+                puts "\nFAIL: GFX-BUSID -- hw.dri.0.busid is not a pci: address on a PCI GPU (nextbsd/nextbsd#448)"
+                diag "sysctl hw.dri.0.busid 2>&1"
+                diag "sysctl dev.drm 2>&1 | head -5"
+            }
+        }
+    }
 }
 
 # Stage 3: kextload the bundle. Its ": loaded"/"already loaded" output cannot
