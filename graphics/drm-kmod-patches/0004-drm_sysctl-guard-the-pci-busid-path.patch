@@ -1,38 +1,115 @@
-drm_sysctl: do not assume every DRM device is a PCI function
+drm_sysctl: detect PCI by ancestry, not dev_is_pci()
 
-drm_add_busid_modesetting() opens with
+The guard added to drm_add_busid_modesetting() fixed a real panic -- to_pci_dev()
+is a container_of and vc4_firmware_kms was dereferencing it on a device-tree
+device -- but it guards on a predicate that is never true, so it took every PCI
+GPU down the platform path with it.
 
-    struct pci_dev *pdev = to_pci_dev(dev->dev);
-    domain = pci_domain_nr(pdev->bus);
+dev_is_pci() tests the devclass of the device ITSELF:
 
-and to_pci_dev() is a container_of. On a DRM device whose parent is not a PCI
-function that yields a pointer into whatever precedes the caller's struct
-device, and the next line dereferences it. It is unconditional and it sits on
-the drm_dev_register() path, so it is an immediate panic for any non-PCI DRM
-driver.
+	device_get_devclass(dev->bsddev) == devclass_find("pci")
 
-Measured on a Raspberry Pi 5 (BCM2712) bringing up vc4_firmware_kms, whose
-parent is a device-tree node (nextbsd-kernel#176):
+and a LinuxKPI DRM device is never in the "pci" devclass. i915, amdgpu, radeon,
+bochs and vboxvideo all set their pci_driver name to "drmn" so LinuxKPI routes
+them to the vgapci devclass, and lkpifill_pci_dev() points bsddev at that drmn
+child. The test is a constant false for every DRM device on FreeBSD.
 
-    panic: vm_fault failed: 0xffff000125cc8600 error 1
-    #5  sysctl_add_oid+0x238
-    #6  drm_sysctl_init+0x22c
-    #7  drm_debugfs_register+0x6c
-    #8  drm_minor_register+0xa8
-    #9  drm_dev_register+0xf8
-    #10 vc4_fkms_attach+0x338
+So hw.dri.0.busid shipped as "platform:drmn0" for an Intel GPU at 0000:00:02.0.
 
-Guard it the way drm_file.c already guards the same cast, using the
-dev_is_pci() that tests the newbus devclass rather than a stub. A device-tree
-or platform device has no domain:bus:slot.func to report, so name it by its
-unique string, which drm_dev_init() has already set from dev_name(parent).
+That sysctl is the only channel by which X learns a DRM device's PCI address on
+FreeBSD. libudev-devd reads hw.dri.<N>.busid, rewrites a "pci:" prefix to
+"pci-" and publishes it as ID_PATH; xorg's config/udev.c looks for "pci-",
+finds none, and leaves attribs->busid NULL -- and its !value fallback does not
+fire either, because the value is non-NULL. pd->pdev stays NULL,
+xf86_check_platform_slot() cannot match the already-claimed PCI entity, the card
+is claimed a second time as a GPU screen, and drmSetMaster returns EBUSY on a
+device the primary screen already holds master on:
 
-hw.dri.0.busid then reads "platform:vc4_fkms" instead of a PCI triple, which
-is what Mesa and libdrm expect from a non-PCI device.
+	(EE) modeset(G0): drmSetMaster failed: Device busy
+	Fatal server error:
+	AddScreen/ScreenInit failed for gpu driver 0 -1
+
+LoginWindow's KeepAlive then restarts X forever.
+
+Measured on one ThinkPad T460s, same GPU, same xlibre-server-25.1.9:
+
+	stock FreeBSD 15.1:  hw.dri.0.busid = pci:0000:00:02.0
+	                     Platform device "/dev/dri/card0" at 0@0:2:0 can be claimed.
+	                     ... skipped because ... already been claimed   -> X starts
+	NextBSD:             hw.dri.0.busid = platform:drmn0
+	                     Platform device "/dev/dri/card0" can be claimed.
+	                     -> modeset(G0) -> drmSetMaster EBUSY -> fatal
+
+Everything else was held constant and cleared by experiment on that one machine:
+XLibre version, scfb and vesa being installed, AutoAddGPU, the GPU itself, and
+drm-kmod 6.12 (built from ports against the running kernel -- stock with 6.12
+starts X fine).
+
+What separates the two cases is ANCESTRY, not the device's own class:
+
+	amd64, i915:   pci0 -> vgapci0 -> drmn0
+	arm64, vc4:    ofwbus0 -> simplebus1 -> vc40
+
+both read off live machines. So walk up until a PCI bus turns up. A device-tree
+device never reaches one, which keeps the container_of out of reach for it and
+preserves the panic fix -- VideoCore6KMS and V3D are still non-PCI, so simply
+assuming PCI the way upstream drm-kmod does ("BSDFIXME: Assume it's PCI for
+now", drm_ioctl.c) would reintroduce the panic on the Pi.
+
+Blast radius of the bug being fixed: the patch applies to drm.ko itself on both
+arches, so the busid was wrong for i915, amdgpu, radeon, bochs and vboxvideo --
+and for anything else reading that sysctl, including libdrm/Mesa device
+enumeration and xf86-video-* BusID matching.
 
 --- a/drivers/gpu/drm/drm_sysctl_freebsd.c
 +++ b/drivers/gpu/drm/drm_sysctl_freebsd.c
-@@ -171,15 +171,35 @@
+@@ -165,21 +165,80 @@
+ 	return (-error);
+ }
+ 
++/*
++ * Does this DRM device hang off a PCI bus?
++ *
++ * dev_is_pci() cannot answer that. It tests the devclass of the device ITSELF,
++ *
++ *	device_get_devclass(dev->bsddev) == devclass_find("pci")
++ *
++ * and a LinuxKPI DRM device is never in the "pci" devclass. i915, amdgpu,
++ * radeon, bochs and vboxvideo all set their pci_driver name to "drmn" so that
++ * LinuxKPI routes them to the vgapci devclass (linux_pci.c: isdrm =
++ * strcmp(pdrv->name, "drmn") == 0), and lkpifill_pci_dev() then points bsddev
++ * at that drmn child. So dev_is_pci() is a constant false for every DRM device
++ * on FreeBSD, PCI or not.
++ *
++ * What separates the two cases is ANCESTRY, not the device's own class:
++ *
++ *	amd64, i915:   pci0 -> vgapci0 -> drmn0
++ *	arm64, vc4:    ofwbus0 -> simplebus1 -> vc40
++ *
++ * so walk up until a PCI bus turns up. A device-tree device never reaches one,
++ * which is what keeps the container_of below out of reach for it.
++ */
++static bool
++drm_dev_has_pci_parent(struct device *dev)
++{
++	device_t bsddev, parent;
++	devclass_t pci_dc;
++
++	if (dev == NULL || (bsddev = dev->bsddev) == NULL)
++		return (false);
++	if ((pci_dc = devclass_find("pci")) == NULL)
++		return (false);
++	for (parent = device_get_parent(bsddev); parent != NULL;
++	    parent = device_get_parent(parent)) {
++		if (device_get_devclass(parent) == pci_dc)
++			return (true);
++	}
++	return (false);
++}
++
+ static int
+ drm_add_busid_modesetting(struct drm_device *dev, struct sysctl_ctx_list *ctx,
+     struct sysctl_oid *top)
  {
  	struct sysctl_oid *oid;
  	int domain, bus, slot, func;
@@ -48,14 +125,13 @@ is what Mesa and libdrm expect from a non-PCI device.
 +	 * a PCI function yields a pointer into whatever precedes the caller's
 +	 * struct device, and the very next line dereferences it. That is an
 +	 * unconditional panic for any non-PCI DRM driver, on the
-+	 * drm_dev_register() path.
++	 * drm_dev_register() path -- measured on a Pi 5 bringing up vc4.
 +	 *
-+	 * Guard it the way drm_file.c already does. A device-tree or platform
-+	 * device has no domain:bus:slot.func to report, so name it by its
-+	 * unique string instead -- which drm_dev_init() has already set from
-+	 * dev_name(parent).
++	 * A device-tree or platform device has no domain:bus:slot.func to
++	 * report, so name it by its unique string instead, which
++	 * drm_dev_init() has already set from dev_name(parent).
 +	 */
-+	if (dev->dev != NULL && dev_is_pci(dev->dev)) {
++	if (drm_dev_has_pci_parent(dev->dev)) {
 +		pdev = to_pci_dev(dev->dev);
  
 -	snprintf(dev->busid_str, sizeof(dev->busid_str),
