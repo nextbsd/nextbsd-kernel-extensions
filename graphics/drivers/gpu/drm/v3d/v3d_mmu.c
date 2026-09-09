@@ -87,6 +87,37 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 	u32 page = bo->node.start;
 	struct scatterlist *sgl;
 	unsigned int count;
+	/*
+	 * DEVIATION from the vendored source (nextbsd-kernel-extensions#72):
+	 * temporary diagnostic + overrun guard, to be reverted once the cause
+	 * is understood.
+	 *
+	 * The WARN at the end of this function fires on a Pi 500+ and the box
+	 * then hard-resets with no panic string and no dump. Measured: a bare
+	 * CREATE_BO (no GPU work at all) survives at 4K and 8K and resets at
+	 * 16K, which puts the fault in this function rather than in submit.
+	 *
+	 * `page` advances by sum(sg_dma_len) over sgt->nents entries. If nents
+	 * overstates the real chain, this loop writes past the end of v3d->pt
+	 * and corrupts kernel memory -- which is consistent with a silent
+	 * reset. So: report the inputs BEFORE looping (so the numbers are out
+	 * even if we die), and clamp the write so it physically cannot leave
+	 * the page table. The clamp is a guard to keep the machine alive long
+	 * enough to be diagnosed, not a fix.
+	 */
+	u32 dbg_max_pages = shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT;
+	unsigned int dbg_nents = shmem_obj->sgt ? shmem_obj->sgt->nents : 0;
+	unsigned int dbg_orig_nents =
+	    shmem_obj->sgt ? shmem_obj->sgt->orig_nents : 0;
+	bool dbg_overrun = false;
+
+	/* 4K and 8K are known good; gate the entry trace so a Mesa run does not
+	 * flood the console with one line per BO. */
+	if (shmem_obj->base.size > 8192)
+		dev_err(v3d->drm.dev,
+		"v3d_mmu: enter size=%llu expect_pages=%u nents=%u orig_nents=%u start=%u\n",
+		(unsigned long long)shmem_obj->base.size, dbg_max_pages,
+		dbg_nents, dbg_orig_nents, (unsigned int)bo->node.start);
 
 	for_each_sgtable_dma_sg(shmem_obj->sgt, sgl, count) {
 		dma_addr_t dma_addr = sg_dma_address(sgl);
@@ -113,13 +144,36 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 			}
 
 			for (i = 0; i < page_size >> V3D_MMU_PAGE_SHIFT; i++) {
+				/* DIAG guard: never write outside the BO's slot */
+				if (page - bo->node.start >= dbg_max_pages) {
+					dbg_overrun = true;
+					break;
+				}
 				v3d->pt[page++] = page_address + i;
 				pfn++;
 			}
 
+			if (dbg_overrun)
+				break;
+
 			len -= page_size;
 		}
+
+		if (dbg_overrun)
+			break;
 	}
+
+	if (dbg_overrun)
+		dev_err(v3d->drm.dev,
+			"v3d_mmu: OVERRUN clamped: would have written past %u pages (size=%llu nents=%u orig_nents=%u)\n",
+			dbg_max_pages, (unsigned long long)shmem_obj->base.size,
+			dbg_nents, dbg_orig_nents);
+	else if (page - bo->node.start != dbg_max_pages)
+		dev_err(v3d->drm.dev,
+			"v3d_mmu: SHORT: wrote %u pages, expected %u (size=%llu nents=%u orig_nents=%u)\n",
+			(unsigned int)(page - bo->node.start), dbg_max_pages,
+			(unsigned long long)shmem_obj->base.size,
+			dbg_nents, dbg_orig_nents);
 
 	WARN_ON_ONCE(page - bo->node.start !=
 		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
