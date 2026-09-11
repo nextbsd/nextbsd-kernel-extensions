@@ -35,6 +35,8 @@
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/callout.h>
+#include <sys/kernel.h>
 
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -44,6 +46,8 @@
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"	/* register offsets: v3d_drv.h does not pull these in */
+
+extern unsigned long v3d_wd_kicks;
 
 int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
 
@@ -71,6 +75,7 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	    V3D_CORE_READ(0, V3D_CTL_INT_STS));
 	sbuf_printf(&sb, "ERR_STAT     0x%08x\n",
 	    V3D_CORE_READ(0, V3D_ERR_STAT));
+	sbuf_printf(&sb, "watchdog kicks %lu\n", v3d_wd_kicks);
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		struct v3d_queue_state *qs = &v3d->queue[q];
@@ -263,4 +268,111 @@ v3d_sysctl_kick(SYSCTL_HANDLER_ARGS)
 	printf("V3DKICK: unblocked all submit taskqueues\n");
 
 	return (0);
+}
+
+/*
+ * Watchdog for the lost taskqueue wakeup (nextbsd#450).
+ *
+ * Measured signature, captured live while wedged:
+ *
+ *   q1 render: jobs=80 dep=0 stop=0 credit=0 ready=1 paused=0 runwork=2/1
+ *   v3d_render taskqueue thread: IDLE in taskqueue_thread_loop
+ *
+ * runwork=2/1 is WORK_ST_TASK with ta_pending=1 -- drm_sched's submit work is
+ * genuinely enqueued and nothing ever dispatches it. It is self-perpetuating
+ * because taskqueue_enqueue_locked() only kicks the thread on the 0->1
+ * transition:
+ *
+ *	if (task->ta_pending) { task->ta_pending++; TQ_UNLOCK(queue); return (0); }
+ *
+ * so every later queue_work() bumps a counter and wakes nobody. And
+ * drm_sched_run_job_work() re-queues itself only while running, so the queue
+ * never restarts: one dropped wakeup starves the GPU permanently. Every
+ * downstream symptom -- unsignalled fences, X blocked forever in
+ * v3d_wait_bo_ioctl or drm_atomic_helper_wait_for_fences, frozen interrupt
+ * counters, no drm_sched timeout (it arms only for pending_list jobs, and the
+ * job never got that far), and total silence in dmesg -- follows from it.
+ *
+ * taskqueue_unblock() re-issues tq_enqueue() for a non-empty queue, which is
+ * exactly the missing wakeup. Verified on the hardware: a single kick drained
+ * 1137 render and 1062 bin jobs in four seconds and fired 2195 interrupts.
+ *
+ * This is a recovery mechanism for a kernel-level defect, not a fix for it --
+ * the lost wakeup itself still needs finding in the taskqueue dispatch path.
+ * It is deliberately loud so it can never rot into silently papering over the
+ * bug: every kick is printed and counted, and the count is in dev.v3d.0.state.
+ *
+ * A legitimately queued work item is dispatched in microseconds, so requiring
+ * the state to persist across three one-second samples cannot fire on a
+ * healthy system.
+ */
+#define	V3D_WORK_ST_TASK	2	/* enum is private to linux_work.c */
+#define	V3D_WD_STRIKES		3
+
+static struct callout	v3d_wd_callout;
+static struct device   *v3d_wd_dev;
+static int		v3d_wd_strikes[V3D_MAX_QUEUES];
+unsigned long		v3d_wd_kicks;
+
+static void
+v3d_watchdog(void *arg __unused)
+{
+	struct drm_device *drm;
+	struct v3d_dev *v3d;
+	int q;
+
+	if (v3d_wd_dev == NULL)
+		goto rearm;
+	drm = dev_get_drvdata(v3d_wd_dev);
+	if (drm == NULL)
+		goto rearm;
+	v3d = to_v3d_dev(drm);
+
+	for (q = 0; q < V3D_MAX_QUEUES; q++) {
+		struct v3d_queue_state *qs = &v3d->queue[q];
+		struct workqueue_struct *wq = qs->sched.submit_wq;
+
+		if (atomic_read(&qs->sched.work_run_job.state) !=
+		    V3D_WORK_ST_TASK ||
+		    qs->sched.work_run_job.work_task.ta_pending == 0) {
+			v3d_wd_strikes[q] = 0;
+			continue;
+		}
+
+		if (++v3d_wd_strikes[q] < V3D_WD_STRIKES)
+			continue;
+
+		v3d_wd_kicks++;
+		printf("V3DWD: q%d submit work queued (ta_pending=%d) with an idle "
+		    "taskqueue for %ds -- lost wakeup, re-kicking (kick #%lu)\n",
+		    q, qs->sched.work_run_job.work_task.ta_pending,
+		    v3d_wd_strikes[q], v3d_wd_kicks);
+
+		if (wq != NULL && wq->taskqueue != NULL)
+			taskqueue_unblock(wq->taskqueue);
+
+		v3d_wd_strikes[q] = 0;
+	}
+
+rearm:
+	callout_reset(&v3d_wd_callout, hz, v3d_watchdog, NULL);
+}
+
+void v3d_watchdog_start(struct device *dev);
+void v3d_watchdog_stop(void);
+
+void
+v3d_watchdog_start(struct device *dev)
+{
+	v3d_wd_dev = dev;
+	memset(v3d_wd_strikes, 0, sizeof(v3d_wd_strikes));
+	callout_init(&v3d_wd_callout, 1);
+	callout_reset(&v3d_wd_callout, hz, v3d_watchdog, NULL);
+}
+
+void
+v3d_watchdog_stop(void)
+{
+	v3d_wd_dev = NULL;
+	callout_drain(&v3d_wd_callout);
 }

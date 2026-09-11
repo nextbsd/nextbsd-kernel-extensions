@@ -57,6 +57,8 @@ extern struct platform_driver v3d_platform_driver;
  */
 int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
 int v3d_sysctl_kick(SYSCTL_HANDLER_ARGS);
+void v3d_watchdog_start(struct device *dev);
+void v3d_watchdog_stop(void);
 
 struct v3d_newbus_softc {
 	device_t		bsddev;
@@ -166,6 +168,14 @@ v3d_newbus_attach(device_t dev)
 	    v3d_sysctl_kick, "I",
 	    "write 1 to re-kick the scheduler submit taskqueues");
 
+	/*
+	 * Recovery for the lost taskqueue wakeup (nextbsd#450): drm_sched's
+	 * submit work can be left enqueued with ta_pending>0 while its
+	 * taskqueue thread sleeps, which starves the GPU permanently. See the
+	 * long comment in v3d_state.c.
+	 */
+	v3d_watchdog_start(&sc->pdev.dev);
+
 	return (0);
 }
 
@@ -174,6 +184,8 @@ v3d_newbus_detach(device_t dev)
 {
 	struct v3d_newbus_softc *sc = device_get_softc(dev);
 	struct platform_driver *drv = &v3d_platform_driver;
+
+	v3d_watchdog_stop();
 
 	if (drv->remove_new != NULL)
 		drv->remove_new(&sc->pdev);
