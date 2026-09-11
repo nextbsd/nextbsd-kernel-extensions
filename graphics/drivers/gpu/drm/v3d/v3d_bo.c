@@ -16,6 +16,9 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
+#include <linux/dma-fence.h>
+#include <drm/drm_gem.h>
 #include <linux/pfn_t.h>
 #include <linux/vmalloc.h>
 
@@ -273,6 +276,59 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/*
+ * Name every fence sitting on a BO we are stuck waiting for.
+ *
+ * The desktop wedges with a thread parked here forever while dev.v3d.0.state
+ * reports outstanding=0 on every queue -- i.e. every v3d job has completed, so
+ * whatever this is waiting on is not an outstanding v3d job. drm_sched never
+ * arms a timeout (nothing is pending), the GPU raises no interrupt (nothing is
+ * running) and nothing is logged, so the hang is completely silent.
+ *
+ * signalled=1 here would mean the fence fired and the waiter was never woken
+ * -- a lost wakeup, not a stuck GPU. A foreign driver/timeline name would say
+ * whose fence it actually is. "no fences" would mean the wait is timing out
+ * for some other reason entirely. Those need different fixes, and nothing
+ * short of printing it can tell them apart.
+ */
+static void
+v3d_report_stuck_bo(struct drm_device *dev, struct drm_file *file_priv,
+		    u32 handle, int secs)
+{
+	struct drm_gem_object *obj;
+	struct dma_resv_iter cursor;
+	struct dma_fence *f;
+	int n = 0;
+
+	obj = drm_gem_object_lookup(file_priv, handle);
+	if (obj == NULL) {
+		drm_err(dev, "wait_bo: handle %u stuck %ds, no such object\n",
+			handle, secs);
+		return;
+	}
+
+	dma_resv_iter_begin(&cursor, obj->resv, dma_resv_usage_rw(true));
+	dma_resv_for_each_fence_unlocked(&cursor, f) {
+		drm_err(dev,
+			"wait_bo: handle %u stuck %ds fence[%d] %s/%s ctx %llu seqno %llu signalled=%d\n",
+			handle, secs, n++,
+			(f->ops != NULL && f->ops->get_driver_name != NULL) ?
+			f->ops->get_driver_name(f) : "?",
+			(f->ops != NULL && f->ops->get_timeline_name != NULL) ?
+			f->ops->get_timeline_name(f) : "?",
+			(unsigned long long)f->context,
+			(unsigned long long)f->seqno,
+			dma_fence_is_signaled(f));
+	}
+	dma_resv_iter_end(&cursor);
+
+	if (n == 0)
+		drm_err(dev, "wait_bo: handle %u stuck %ds with NO fences on its resv\n",
+			handle, secs);
+
+	drm_gem_object_put(obj);
+}
+
 int
 v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
@@ -287,8 +343,35 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	ret = drm_gem_dma_resv_wait(file_priv, args->handle,
-				    true, timeout_jiffies);
+	/*
+	 * Wait in bounded slices instead of one unbounded sleep, and report
+	 * what we are stuck on each time a slice expires. A healthy wait pays
+	 * nothing for this -- the fence is already signalled or signals inside
+	 * the first slice -- while a wedge stops being silent.
+	 */
+	{
+		unsigned long remaining = timeout_jiffies;
+		int secs = 0;
+
+		for (;;) {
+			unsigned long slice = remaining;
+
+			if (slice > 5UL * HZ)
+				slice = 5UL * HZ;
+
+			ret = drm_gem_dma_resv_wait(file_priv, args->handle,
+						    true, slice);
+			if (ret != -ETIME)
+				break;
+			if (remaining != MAX_SCHEDULE_TIMEOUT) {
+				if (remaining <= slice)
+					break;	/* the caller's timeout really did expire */
+				remaining -= slice;
+			}
+			secs += 5;
+			v3d_report_stuck_bo(dev, file_priv, args->handle, secs);
+		}
+	}
 
 	/* Decrement the user's timeout, in case we got interrupted
 	 * such that the ioctl will be restarted.
