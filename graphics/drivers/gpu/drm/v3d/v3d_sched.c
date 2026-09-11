@@ -760,6 +760,19 @@ v3d_sched_skip_reset(struct drm_sched_job *sched_job)
 	spin_unlock(&sched->job_list_lock);
 }
 
+/*
+ * How many consecutive "the GPU still looks busy" timeouts to tolerate before
+ * resetting anyway. Upstream's heuristic below is unbounded, and its own
+ * comment allows for that failing "if the GPU got in an infinite loop in the
+ * CL". On a Pi 500+ it does fail, and unboundedness turns a recoverable hang
+ * into a permanently wedged desktop: v3d interrupts stop, the job's fence
+ * never signals, X blocks forever in an atomic commit, and because the skip
+ * path is silent there is not one line in dmesg to say so.
+ *
+ * 8 x the 500ms scheduler timeout, so a genuinely slow job still gets ~4s.
+ */
+#define V3D_MAX_TIMEOUT_SKIPS	8
+
 static enum drm_gpu_sched_stat
 v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 		    u32 *timedout_ctca, u32 *timedout_ctra)
@@ -778,8 +791,15 @@ v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 		*timedout_ctca = ctca;
 		*timedout_ctra = ctra;
 
-		v3d_sched_skip_reset(sched_job);
-		return DRM_GPU_SCHED_STAT_NOMINAL;
+		if (++job->timedout_skips <= V3D_MAX_TIMEOUT_SKIPS) {
+			v3d_sched_skip_reset(sched_job);
+			return DRM_GPU_SCHED_STAT_NOMINAL;
+		}
+
+		DRM_DEV_ERROR(v3d->drm.dev,
+			      "q%d: CTnCA/CTnRA still moving after %d timeouts "
+			      "(CTnCA 0x%08x CTnRA 0x%08x); resetting anyway\n",
+			      q, V3D_MAX_TIMEOUT_SKIPS, ctca, ctra);
 	}
 
 	return v3d_gpu_reset_for_timeout(v3d, sched_job);
