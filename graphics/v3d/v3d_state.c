@@ -70,10 +70,29 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		struct v3d_queue_state *qs = &v3d->queue[q];
 
-		sbuf_printf(&sb, "q%d emit=%llu active=%-3s pending=%s",
+		uint64_t done = qs->stats.jobs_completed;
+
+		/*
+		 * emit vs done is the number that matters. emit_seqno counts
+		 * jobs whose fence has been created (and attached to the BO's
+		 * dma_resv); jobs_completed counts those that finished. A gap
+		 * with pending=empty means the jobs are sitting UNSUBMITTED in
+		 * the scheduler's entity queue -- drm_sched only moves a job
+		 * to pending_list once its submit worker pushes it to the
+		 * hardware. That state produces exactly what we see: no
+		 * interrupts, no armed timeout (it only arms for pending
+		 * jobs), no messages, and a fence that never signals.
+		 */
+		sbuf_printf(&sb,
+		    "q%d emit=%llu done=%llu outstanding=%lld active=%-3s pending=%s",
 		    q, (unsigned long long)qs->emit_seqno,
+		    (unsigned long long)done,
+		    (long long)(qs->emit_seqno - done),
 		    qs->active_job != NULL ? "yes" : "no",
 		    list_empty(&qs->sched.pending_list) ? "empty" : "NONEMPTY");
+		sbuf_printf(&sb, " credit=%d ready=%d paused=%d",
+		    atomic_read(&qs->sched.credit_count),
+		    qs->sched.ready, qs->sched.pause_submit);
 		if (q == V3D_BIN || q == V3D_RENDER)
 			sbuf_printf(&sb, " CTnCA=0x%08x CTnRA=0x%08x",
 			    V3D_CORE_READ(0, V3D_CLE_CTNCA(q)),
