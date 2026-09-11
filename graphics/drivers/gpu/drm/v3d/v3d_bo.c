@@ -302,16 +302,16 @@ v3d_report_stuck_bo(struct drm_device *dev, struct drm_file *file_priv,
 
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (obj == NULL) {
-		drm_err(dev, "wait_bo: handle %u stuck %ds, no such object\n",
-			handle, secs);
+		printf("V3DSTUCK: wait_bo handle %u stuck %ds, no such object\n",
+		    handle, secs);
 		return;
 	}
 
 	dma_resv_iter_begin(&cursor, obj->resv, dma_resv_usage_rw(true));
 	dma_resv_for_each_fence_unlocked(&cursor, f) {
-		drm_err(dev,
-			"wait_bo: handle %u stuck %ds fence[%d] %s/%s ctx %llu seqno %llu signalled=%d\n",
-			handle, secs, n++,
+		printf(
+		    "V3DSTUCK: wait_bo handle %u stuck %ds fence[%d] %s/%s ctx %llu seqno %llu signalled=%d\n",
+		    handle, secs, n++,
 			(f->ops != NULL && f->ops->get_driver_name != NULL) ?
 			f->ops->get_driver_name(f) : "?",
 			(f->ops != NULL && f->ops->get_timeline_name != NULL) ?
@@ -323,8 +323,8 @@ v3d_report_stuck_bo(struct drm_device *dev, struct drm_file *file_priv,
 	dma_resv_iter_end(&cursor);
 
 	if (n == 0)
-		drm_err(dev, "wait_bo: handle %u stuck %ds with NO fences on its resv\n",
-			handle, secs);
+		printf("V3DSTUCK: wait_bo handle %u stuck %ds with NO fences on its resv\n",
+		    handle, secs);
 
 	drm_gem_object_put(obj);
 }
@@ -363,13 +363,20 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 						    true, slice);
 			if (ret != -ETIME)
 				break;
+			/*
+			 * Report on EVERY expiry, before deciding whether to
+			 * keep waiting. Userspace may pass a short timeout and
+			 * simply reissue the ioctl in a loop -- that looks
+			 * exactly like a hang while never tripping a
+			 * "waited a long time in one call" check.
+			 */
+			secs += 5;
+			v3d_report_stuck_bo(dev, file_priv, args->handle, secs);
 			if (remaining != MAX_SCHEDULE_TIMEOUT) {
 				if (remaining <= slice)
 					break;	/* the caller's timeout really did expire */
 				remaining -= slice;
 			}
-			secs += 5;
-			v3d_report_stuck_bo(dev, file_priv, args->handle, secs);
 		}
 	}
 

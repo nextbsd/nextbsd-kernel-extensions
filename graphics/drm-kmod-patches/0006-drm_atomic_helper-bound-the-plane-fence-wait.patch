@@ -1,64 +1,31 @@
 drm_atomic_helper: bound the plane fence wait and name what it is stuck on
 
-drm_atomic_helper_wait_for_fences() calls dma_fence_wait(), which is unbounded.
-On a Pi 500+ it never returns: the desktop wedges with X parked in
-
-  drm_atomic_helper_disable_plane -> drm_atomic_commit
-    -> drm_atomic_helper_commit -> drm_atomic_helper_wait_for_fences
-    -> dma_fence_wait -> dma_fence_default_wait   [forever]
-
-while dev.v3d.0.state reports, on every queue, emit == done, outstanding=0,
-pending=empty, credit=0, ready=1, paused=0. Every v3d job ever submitted has
-completed, so the fence being waited on is not an outstanding GPU job and
-nothing will ever come along to complete or reset it.
-
-The hang is completely silent: drm_sched never arms a timeout (nothing is
-pending), the GPU raises no interrupt (nothing is running), and an unbounded
-wait is not an error to anything in this path. That silence is most of why
-this has been so hard to pin down -- there are two doors into it,
-v3d_wait_bo_ioctl and this one, and which one a given wedge comes through
-varies, so instrumenting only one lets the other pass straight through.
-
-Wait in bounded 5s slices instead, and on each expiry print the fence's driver
-name, timeline name, context, seqno and signalled state. A healthy commit pays
-nothing -- the fence is already signalled, or signals well inside the first
-slice -- and the caller's semantics are unchanged.
-
-What the output distinguishes, which nothing else can:
-
-  signalled=1        the fence fired and the waiter was never woken: a lost
-                     wakeup, not a stuck GPU
-  foreign driver     the fence belongs to vc4, a dma_fence_array/chain
-                     container or a syncobj stub rather than to v3d
-  neither            the model of this path is wrong and needs revisiting
-
-FreeBSD-only; the Linux build keeps the original unbounded call.
+Same diagnostic as the v3d wait_bo side, for the other door into the hang.
+Uses plain printf() rather than drm_err(): drm_err output has never once
+reached dmesg on this platform -- zero "[drm] *ERROR*" lines across every
+boot today -- so a diagnostic built on drm_err is silently mute, which is
+exactly what happened on the first attempt.
 
 diff --git a/drivers/gpu/drm/drm_atomic_helper.c b/drivers/gpu/drm/drm_atomic_helper.c
-index 40e4e1b..8ca0aa8 100644
+index 40e4e1b..f860f44 100644
 --- a/drivers/gpu/drm/drm_atomic_helper.c
 +++ b/drivers/gpu/drm/drm_atomic_helper.c
-@@ -1643,7 +1643,53 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
+@@ -1643,7 +1643,47 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
  		 * still interrupt the operation. Instead of blocking until the
  		 * timer expires, make the wait interruptible.
  		 */
 +#ifdef __FreeBSD__
 +		/*
-+		 * dma_fence_wait() is unbounded, and on a Pi 500+ it never
++		 * dma_fence_wait() is unbounded and on a Pi 500+ it never
 +		 * returns: the desktop wedges with a thread parked in
-+		 * dma_fence_default_wait() forever. dev.v3d.0.state shows every
-+		 * v3d queue at emit == done, outstanding=0 -- so the fence is
-+		 * not an outstanding GPU job and nothing will come along to
-+		 * complete or reset it. Nothing is logged either, because an
-+		 * unbounded wait is not an error to anything in this path.
++		 * dma_fence_default_wait() while dev.v3d.0.state reports every
++		 * queue at emit == done, outstanding=0. So the fence is not an
++		 * outstanding GPU job and nothing will complete or reset it.
 +		 *
-+		 * Wait in bounded slices and name what we are waiting on. A
-+		 * healthy commit pays nothing: the fence is already signalled
-+		 * or signals well inside the first slice.
-+		 *
-+		 *   signalled=1     the fence fired and the waiter was never
-+		 *                   woken -- a lost wakeup, not a stuck GPU
-+		 *   foreign driver  the fence is not v3d's at all
++		 * Wait in bounded slices and name what we are stuck on.
++		 * Deliberately plain printf(): drm_err() output has never once
++		 * reached dmesg on this platform (zero "[drm] *ERROR*" lines
++		 * across every boot), so a diagnostic built on it is mute.
 +		 */
 +		{
 +			struct dma_fence *f = new_plane_state->fence;
@@ -71,8 +38,7 @@ index 40e4e1b..8ca0aa8 100644
 +				if (rem != 0)
 +					break;
 +				secs += 5;
-+				drm_err(dev,
-+				    "[PLANE:%d] commit stuck %ds on fence %s/%s ctx %llu seqno %llu signalled=%d\n",
++				printf("V3DSTUCK: [PLANE:%d] commit stuck %ds fence %s/%s ctx %llu seqno %llu signalled=%d\n",
 +				    plane->base.id, secs,
 +				    (f->ops != NULL &&
 +				     f->ops->get_driver_name != NULL) ?
