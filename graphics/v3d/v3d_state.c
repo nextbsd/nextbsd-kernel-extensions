@@ -37,6 +37,9 @@
 
 #include <linux/device.h>
 
+#include <drm/gpu_scheduler.h>
+#include <drm/spsc_queue.h>
+
 #include "v3d_drv.h"
 #include "v3d_regs.h"	/* register offsets: v3d_drv.h does not pull these in */
 
@@ -49,7 +52,7 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	struct drm_device *drm;
 	struct v3d_dev *v3d;
 	struct sbuf sb;
-	int error, q;
+	int error, q, i;
 
 	if (dev == NULL)
 		return (ENXIO);
@@ -93,6 +96,51 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(&sb, " credit=%d ready=%d paused=%d",
 		    atomic_read(&qs->sched.credit_count),
 		    qs->sched.ready, qs->sched.pause_submit);
+
+		/*
+		 * Walk the run-queues.
+		 *
+		 * The captured wedge shows an UNSIGNALLED drm_sched fence whose
+		 * seqno is ahead of anything v3d has emitted to hardware: the
+		 * job was armed (fence created and attached to the BOs, so
+		 * every waiter blocks) but never submitted. pending_list is
+		 * therefore empty, no interrupt fires, and drm_sched arms no
+		 * timeout -- which is why the hang is completely silent.
+		 *
+		 * drm_sched_run_job_work() returns WITHOUT re-queueing itself
+		 * when drm_sched_select_entity() yields NULL, so one entity
+		 * holding jobs while invisible to the run-queue stalls the
+		 * scheduler forever.
+		 *
+		 * "rq[i] ents=N jobs=M" is the discriminator: jobs>0 with the
+		 * scheduler idle means they are queued and not being picked up.
+		 * ents=0 while a fence is unsignalled means the entity fell out
+		 * of the run-queue entirely.
+		 */
+		for (i = 0; i < qs->sched.num_rqs; i++) {
+			struct drm_sched_rq *rq = qs->sched.sched_rq[i];
+			struct drm_sched_entity *ent;
+			int nents = 0;
+			unsigned int njobs = 0;
+			int ndep = 0, nstop = 0;
+
+			if (rq == NULL)
+				continue;
+			spin_lock(&rq->lock);
+			list_for_each_entry(ent, &rq->entities, list) {
+				nents++;
+				njobs += spsc_queue_count(&ent->job_queue);
+				if (ent->dependency != NULL)
+					ndep++;
+				if (ent->stopped)
+					nstop++;
+			}
+			spin_unlock(&rq->lock);
+			if (nents != 0 || njobs != 0)
+				sbuf_printf(&sb,
+				    " rq[%d]{ents=%d jobs=%u dep=%d stop=%d}",
+				    i, nents, njobs, ndep, nstop);
+		}
 		if (q == V3D_BIN || q == V3D_RENDER)
 			sbuf_printf(&sb, " CTnCA=0x%08x CTnRA=0x%08x",
 			    V3D_CORE_READ(0, V3D_CLE_CTNCA(q)),
