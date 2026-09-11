@@ -98,6 +98,33 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 		    qs->sched.ready, qs->sched.pause_submit);
 
 		/*
+		 * The state of the scheduler's own submit work item. This is
+		 * THE discriminator for the captured wedge, where the render
+		 * queue sits at jobs=107 dep=0 stop=0 credit=0 ready=1
+		 * paused=0 -- i.e. drm_sched_select_entity() would return that
+		 * entity at once, so the only remaining explanation is that
+		 * drm_sched_run_job_work() is never invoked.
+		 *
+		 * LinuxKPI work states (linux_work.c):
+		 *   0 IDLE   not queued, not running
+		 *   1 TIMER  delayed work timer pending
+		 *   2 TASK   queued on the taskqueue
+		 *   3 EXEC   callback executing
+		 *   4 CANCEL cancel requested
+		 *
+		 * With jobs waiting:
+		 *   IDLE -> the queue_work() wakeup was dropped; drm_sched is
+		 *           correct and LinuxKPI lost it. drm_sched_run_job_work()
+		 *           re-queues itself only while running, so one lost
+		 *           wakeup stalls the queue permanently.
+		 *   TASK -> queued but the taskqueue thread never ran it.
+		 *   EXEC -> the worker is stuck inside the callback.
+		 */
+		sbuf_printf(&sb, " runwork=%d freework=%d",
+		    atomic_read(&qs->sched.work_run_job.state),
+		    atomic_read(&qs->sched.work_free_job.state));
+
+		/*
 		 * Walk the run-queues.
 		 *
 		 * The captured wedge shows an UNSIGNALLED drm_sched fence whose
