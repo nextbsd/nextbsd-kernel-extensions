@@ -50,6 +50,13 @@ SYSCTL_NODE(_hw, OID_AUTO, v3d, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 /* Non-static in the vendored v3d_drv.c -- see the note there. */
 extern struct platform_driver v3d_platform_driver;
 
+/*
+ * Lives in v3d_state.c, which includes v3d_drv.h. This file cannot: it handles
+ * newbus resources and so sees FreeBSD's struct resource, while v3d_drv.h
+ * pulls in <linux/ioport.h> and a different struct of the same name.
+ */
+int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
+
 struct v3d_newbus_softc {
 	device_t		bsddev;
 	struct platform_device	pdev;
@@ -145,6 +152,13 @@ v3d_newbus_attach(device_t dev)
 		device_printf(dev, "v3d probe failed: %d\n", error);
 		return (ENXIO);
 	}
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "state",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
+	    v3d_sysctl_state, "A",
+	    "V3D scheduler queues and GPU registers");
+
 	return (0);
 }
 
