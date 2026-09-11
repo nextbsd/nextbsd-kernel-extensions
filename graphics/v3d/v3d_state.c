@@ -34,8 +34,10 @@
 #include <sys/systm.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <linux/device.h>
+#include <linux/workqueue.h>
 
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
@@ -193,4 +195,72 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error);
+}
+
+/*
+ * dev.v3d.0.kick -- re-kick the scheduler submit taskqueues.
+ *
+ * The wedge is: drm_sched's submit work item sits on its taskqueue with
+ * ta_pending=1 while the dedicated thread is idle -- i.e. the work is
+ * genuinely queued and the wakeup that should have dispatched it was lost.
+ * It is self-perpetuating, because taskqueue_enqueue_locked() only kicks the
+ * thread on the 0->1 transition:
+ *
+ *	if (task->ta_pending) { task->ta_pending++; TQ_UNLOCK(queue); return; }
+ *
+ * so every later queue_work() bumps a counter and wakes nothing.
+ *
+ * taskqueue_unblock() is the one exported call that breaks that: it clears
+ * TQ_FLAGS_BLOCKED *and* re-issues tq_enqueue() when the queue is non-empty.
+ * So writing 1 here distinguishes the two remaining candidates, and does it
+ * without patching the kernel:
+ *
+ *   desktop recovers  the task really was queued with no one coming to run it
+ *                     -- a lost wakeup (or a queue left blocked). This is then
+ *                     also a usable recovery mechanism.
+ *   nothing happens   the task is not actually dispatchable and the fault is
+ *                     elsewhere.
+ */
+int v3d_sysctl_kick(SYSCTL_HANDLER_ARGS);
+
+int
+v3d_sysctl_kick(SYSCTL_HANDLER_ARGS)
+{
+	struct device *dev = arg1;
+	struct drm_device *drm;
+	struct v3d_dev *v3d;
+	int error, val, q;
+
+	val = 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val == 0)
+		return (0);
+
+	if (dev == NULL)
+		return (ENXIO);
+	drm = dev_get_drvdata(dev);
+	if (drm == NULL)
+		return (ENXIO);
+	v3d = to_v3d_dev(drm);
+
+	for (q = 0; q < V3D_MAX_QUEUES; q++) {
+		struct v3d_queue_state *qs = &v3d->queue[q];
+		struct workqueue_struct *wq = qs->sched.submit_wq;
+
+		printf("V3DKICK: q%d runwork=%d/%d freework=%d/%d wq=%p tq=%p\n",
+		    q,
+		    atomic_read(&qs->sched.work_run_job.state),
+		    qs->sched.work_run_job.work_task.ta_pending,
+		    atomic_read(&qs->sched.work_free_job.state),
+		    qs->sched.work_free_job.work_task.ta_pending,
+		    wq, (wq != NULL) ? wq->taskqueue : NULL);
+
+		if (wq != NULL && wq->taskqueue != NULL)
+			taskqueue_unblock(wq->taskqueue);
+	}
+	printf("V3DKICK: unblocked all submit taskqueues\n");
+
+	return (0);
 }

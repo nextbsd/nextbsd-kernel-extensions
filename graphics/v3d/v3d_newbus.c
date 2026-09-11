@@ -56,6 +56,7 @@ extern struct platform_driver v3d_platform_driver;
  * pulls in <linux/ioport.h> and a different struct of the same name.
  */
 int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
+int v3d_sysctl_kick(SYSCTL_HANDLER_ARGS);
 
 struct v3d_newbus_softc {
 	device_t		bsddev;
@@ -158,6 +159,12 @@ v3d_newbus_attach(device_t dev)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
 	    v3d_sysctl_state, "A",
 	    "V3D scheduler queues and GPU registers");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "kick",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
+	    v3d_sysctl_kick, "I",
+	    "write 1 to re-kick the scheduler submit taskqueues");
 
 	return (0);
 }
