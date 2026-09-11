@@ -109,7 +109,11 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 		 *   0 IDLE   not queued, not running
 		 *   1 TIMER  delayed work timer pending
 		 *   2 TASK   queued on the taskqueue
-		 *   3 EXEC   callback executing
+		 *   3 EXEC   callback executing -- note this is also the normal
+		 *             RESTING state: linux_work_fn() exits its loop by
+		 *             falling through to "goto done" without resetting
+		 *             to IDLE, so EXEC on an idle queue is expected and
+		 *             is NOT evidence of anything.
 		 *   4 CANCEL cancel requested
 		 *
 		 * With jobs waiting:
@@ -117,12 +121,23 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 		 *           correct and LinuxKPI lost it. drm_sched_run_job_work()
 		 *           re-queues itself only while running, so one lost
 		 *           wakeup stalls the queue permanently.
-		 *   TASK -> queued but the taskqueue thread never ran it.
-		 *   EXEC -> the worker is stuck inside the callback.
+		 *   TASK -> claims to be queued. The second number, ta_pending,
+		 *           is what makes this conclusive: it is the underlying
+		 *           struct task's pending count, so
+		 *             TASK with ta_pending=0  => NOT on any taskqueue.
+		 *           The only path in linux_queue_work_on() that sets
+		 *           TASK without calling taskqueue_enqueue() is the
+		 *           linux_work_exec_unblock() shortcut, which returns
+		 *           true and relies on the running linux_work_fn loop
+		 *           to re-run the callback.
+		 *             TASK with ta_pending>0  => really queued, and the
+		 *           taskqueue thread is at fault instead.
 		 */
-		sbuf_printf(&sb, " runwork=%d freework=%d",
+		sbuf_printf(&sb, " runwork=%d/%d freework=%d/%d",
 		    atomic_read(&qs->sched.work_run_job.state),
-		    atomic_read(&qs->sched.work_free_job.state));
+		    qs->sched.work_run_job.work_task.ta_pending,
+		    atomic_read(&qs->sched.work_free_job.state),
+		    qs->sched.work_free_job.work_task.ta_pending);
 
 		/*
 		 * Walk the run-queues.
