@@ -67,7 +67,8 @@ SRCS+=	\
 	lkpi_rpi_firmware.c \
 	lkpi_rpi_firmware_mbox.c \
 	v3d_sysfs_stub.c \
-	v3d_gemfs_stub.c
+	v3d_gemfs_stub.c \
+	v3d_state.c
 
 SRCS	+=			\
 	opt_acpi.h		\
