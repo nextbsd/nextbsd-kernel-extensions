@@ -40,6 +40,8 @@
 #include <linux/io.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_plane.h>
+#include <linux/dma-fence.h>
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
@@ -81,6 +83,46 @@ vc4_crtc_sysctl_state(SYSCTL_HANDLER_ARGS)
 	    crtc->state != NULL ? crtc->state->active : -1,
 	    (crtc->state != NULL && crtc->state->event != NULL) ?
 	    "PENDING" : "none");
+
+	/*
+	 * Name the fence each plane is holding.
+	 *
+	 * drm_atomic_helper_wait_for_fences() blocks on plane_state->fence,
+	 * which drm_gem_plane_helper_prepare_fb() takes from the framebuffer's
+	 * dma_resv. When the desktop wedges, dev.v3d.0.state reports
+	 * outstanding=0 on every queue -- every v3d job has completed -- so
+	 * whatever is being waited on is NOT an outstanding v3d job fence. If
+	 * it were, it would already be signalled and the wait would return.
+	 *
+	 * So print who owns it. driver/timeline come from the fence ops, which
+	 * is how a v3d fence, a vc4 fence, a dma_fence_array/chain container
+	 * and a syncobj stub tell themselves apart. "signalled=1" here with a
+	 * thread still asleep in dma_fence_default_wait() would instead mean a
+	 * lost wakeup rather than a fence that never fired.
+	 */
+	{
+		struct drm_plane *plane;
+
+		drm_for_each_plane(plane, crtc->dev) {
+			struct dma_fence *f;
+
+			if (plane->state == NULL)
+				continue;
+			f = plane->state->fence;
+			if (f == NULL)
+				continue;
+			sbuf_printf(&sb,
+			    "plane[%u] fence driver=%s timeline=%s ctx=%llu seqno=%llu signalled=%d\n",
+			    plane->base.id,
+			    f->ops != NULL && f->ops->get_driver_name != NULL ?
+			    f->ops->get_driver_name(f) : "?",
+			    f->ops != NULL && f->ops->get_timeline_name != NULL ?
+			    f->ops->get_timeline_name(f) : "?",
+			    (unsigned long long)f->context,
+			    (unsigned long long)f->seqno,
+			    dma_fence_is_signaled(f));
+		}
+	}
 
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
