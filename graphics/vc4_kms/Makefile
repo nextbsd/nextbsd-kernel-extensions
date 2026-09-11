@@ -63,7 +63,8 @@ SRCS+=	\
 # and perfmon sources are unreachable on 2712. These stand in for the symbols
 # vc4_drv.c still names in that unreachable ioctl table.
 SRCS+=	\
-	vc4_gen4_render_stubs.c
+	vc4_gen4_render_stubs.c \
+	vc4_state.c
 
 SRCS+=	\
 	vc4_newbus.c \

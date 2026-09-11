@@ -18,12 +18,20 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <linux/platform_device.h>
 
 #include "vc4_newbus.h"
 
 extern struct platform_driver vc4_crtc_driver;
+
+/*
+ * In vc4_state.c, which includes vc4_drv.h. This file cannot: vc4_newbus.h
+ * pulls <sys/rman.h> and FreeBSD's struct resource, while vc4_drv.h pulls
+ * <linux/ioport.h> and a different struct of the same name.
+ */
+int vc4_crtc_sysctl_state(SYSCTL_HANDLER_ARGS);
 
 static int
 vc4_crtc_newbus_probe(device_t dev)
@@ -36,7 +44,20 @@ static int
 vc4_crtc_newbus_attach(device_t dev)
 {
 
-	return (vc4_newbus_attach(dev, &vc4_crtc_driver, "vc4_crtc"));
+	struct vc4_newbus_softc *sc = device_get_softc(dev);
+	int error;
+
+	error = vc4_newbus_attach(dev, &vc4_crtc_driver, "vc4_crtc");
+	if (error != 0)
+		return (error);
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "state",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
+	    vc4_crtc_sysctl_state, "A",
+	    "pixelvalve interrupt registers");
+
+	return (0);
 }
 
 static int
