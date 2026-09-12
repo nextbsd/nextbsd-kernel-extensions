@@ -64,44 +64,37 @@ MTX_SYSINIT(lkpi_of_irq_mtx, &lkpi_of_irq_mtx, "lkpi-of-irqs", MTX_DEF);
  * Linux handlers return irqreturn_t and take (irq, arg); newbus wants a void
  * filter taking a single cookie. This adapts one to the other.
  *
- * Registered as a FILTER because the Linux contract is that the primary
- * handler runs in interrupt context and returns quickly. The two models line
- * up almost exactly: Linux's primary/threaded split is newbus's filter/ithread
- * split, and IRQ_WAKE_THREAD is FILTER_SCHEDULE_THREAD.
+ * The filter does no work beyond scheduling the ithread. An earlier version
+ * ran the Linux primary handler here, reasoning that Linux's primary/threaded
+ * split maps onto newbus's filter/ithread split. It does not, and the
+ * difference is not cosmetic:
+ *
+ *   - On Linux a primary handler may take a spinlock_t, because that is a
+ *     genuine non-sleeping spinlock.
+ *   - LinuxKPI implements spinlock_t as a struct mtx of type MTX_DEF, which
+ *     is adaptive: under contention mtx_lock() spins only while the owner is
+ *     running, and otherwise SLEEPS.
+ *   - A newbus filter runs in primary interrupt context and must never sleep.
+ *
+ * So any Linux primary handler that takes a lock is illegal as a filter, and
+ * essentially all of them do. v3d_irq() calls dma_fence_signal(), which takes
+ * fence->lock, and that deadlocked a Pi 500+ desktop -- whichever thread the
+ * interrupt happened to land on was switched out inside the handler and never
+ * resumed:
+ *
+ *	mi_switch / __mtx_lock_sleep / dma_fence_signal / v3d_irq
+ *	/ lkpi_of_irq_filter / intr_event_handle / handle_el0_irq
+ *
+ * Note handle_el0_irq: the victim was in userspace, minding its own business.
+ *
+ * Running both halves on the ithread costs a little interrupt latency and
+ * makes sleeping legal, which is what the Linux code assumes it may do.
  */
 static int
-lkpi_of_irq_filter(void *p)
+lkpi_of_irq_filter(void *p __unused)
 {
-	struct lkpi_of_irq *e = p;
-	irqreturn_t ret;
 
-	/*
-	 * No primary handler. Linux substitutes irq_default_primary_handler(),
-	 * which does nothing but wake the thread, and that is not a corner
-	 * case here -- every threaded request vc4_hdmi.c makes passes NULL:
-	 *
-	 *	devm_request_threaded_irq(&pdev->dev, hpd, NULL,
-	 *	    vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT, ...)
-	 *
-	 * so all of the work is in the thread half.
-	 */
-	if (e->handler == NULL)
-		return (e->thread_handler != NULL ?
-		    FILTER_SCHEDULE_THREAD : FILTER_STRAY);
-
-	ret = e->handler((int)e->irq, e->handler_arg);
-	if (ret == IRQ_WAKE_THREAD) {
-		/*
-		 * Asking for a thread that was never registered would panic in
-		 * the ithread layer, so a mismatched pair is treated as merely
-		 * handled.
-		 */
-		return (e->thread_handler != NULL ?
-		    FILTER_SCHEDULE_THREAD : FILTER_HANDLED);
-	}
-	if (ret == IRQ_HANDLED)
-		return (FILTER_HANDLED);
-	return (FILTER_STRAY);
+	return (FILTER_SCHEDULE_THREAD);
 }
 
 /*
@@ -117,8 +110,25 @@ static void
 lkpi_of_irq_thread(void *p)
 {
 	struct lkpi_of_irq *e = p;
+	irqreturn_t ret = IRQ_WAKE_THREAD;
 
-	if (e->thread_handler != NULL)
+	/*
+	 * The primary handler runs here now rather than in the filter, so it
+	 * may sleep on a LinuxKPI spinlock_t like the Linux code expects.
+	 *
+	 * A NULL primary handler is not a corner case: Linux substitutes
+	 * irq_default_primary_handler(), which only wakes the thread, and
+	 * every threaded request vc4_hdmi.c makes passes NULL:
+	 *
+	 *	devm_request_threaded_irq(&pdev->dev, hpd, NULL,
+	 *	    vc4_hdmi_hpd_irq_thread, IRQF_ONESHOT, ...)
+	 *
+	 * so treat it as an implicit IRQ_WAKE_THREAD.
+	 */
+	if (e->handler != NULL)
+		ret = e->handler((int)e->irq, e->handler_arg);
+
+	if (ret == IRQ_WAKE_THREAD && e->thread_handler != NULL)
 		e->thread_handler((int)e->irq, e->handler_arg);
 }
 
@@ -161,10 +171,14 @@ lkpi_of_request_irq(struct device *xdev, unsigned int irq,
 	e->thread_handler = thread_handler;
 	e->handler_arg = arg;
 
+	/*
+	 * The ithread is unconditional now: the filter always returns
+	 * FILTER_SCHEDULE_THREAD, and scheduling a thread that was never
+	 * registered panics in the ithread layer.
+	 */
 	error = bus_setup_intr(xdev->bsddev, res,
 	    INTR_TYPE_MISC | INTR_MPSAFE, lkpi_of_irq_filter,
-	    thread_handler != NULL ? lkpi_of_irq_thread : NULL, e,
-	    &e->cookie);
+	    lkpi_of_irq_thread, e, &e->cookie);
 	if (error != 0) {
 		bus_release_resource(xdev->bsddev, SYS_RES_IRQ, rid, res);
 		free(e, M_DEVBUF);
