@@ -185,6 +185,25 @@ struct v3d_dev {
 	 */
 	struct mutex reset_lock;
 
+	/* Ordered workqueue shared by every queue's scheduler timeout
+	 * work. A V3D reset is global to all queues, so two queues'
+	 * timeout handlers must never run at the same time: reset_lock
+	 * only covers this driver's timedout_job callback, while the
+	 * scheduler manipulates the pending list around it. If two
+	 * handlers interleave, one queue's drm_sched_stop()/start()
+	 * pair no longer sees the same set of jobs as the other's, and
+	 * the credit accounting is left permanently short -- with
+	 * credit_limit == 1 that wedges the queue for good.
+	 *
+	 * On FreeBSD this matters twice over: the default timeout_wq
+	 * is system_wq, which LinuxKPI aliases to a single fixed-size
+	 * taskqueue (mp_ncpus + 1 threads) that drm's atomic commit
+	 * work also blocks on while waiting for fences. A timeout
+	 * queued behind those blocked commits is a timeout that never
+	 * runs -- which is precisely the recovery we need most.
+	 */
+	struct workqueue_struct *reset_wq;
+
 	/* Lock taken when creating and pushing the GPU scheduler
 	 * jobs, to keep the sched-fence seqnos in order.
 	 */
