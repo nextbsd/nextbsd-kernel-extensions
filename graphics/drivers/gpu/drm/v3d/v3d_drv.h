@@ -307,6 +307,13 @@ struct v3d_job {
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
 	struct dma_fence *irq_fence;
 
+	/* Number of consecutive times the timeout handler has deferred a
+	 * reset because CTnCA/CTnRA appeared to be moving. Bounded so a CL
+	 * that loops forever, or a register window that reads garbage, cannot
+	 * defer recovery indefinitely.
+	 */
+	u32 timedout_skips;
+
 	/* scheduler fence for when the job is considered complete and
 	 * the BO reservations can be released.
 	 */
