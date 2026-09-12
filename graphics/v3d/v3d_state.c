@@ -49,6 +49,7 @@
 #include "v3d_regs.h"	/* register offsets: v3d_drv.h does not pull these in */
 
 extern unsigned long v3d_wd_kicks;
+extern unsigned long v3d_wd_depkicks;
 
 int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
 
@@ -76,7 +77,8 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	    V3D_CORE_READ(0, V3D_CTL_INT_STS));
 	sbuf_printf(&sb, "ERR_STAT     0x%08x\n",
 	    V3D_CORE_READ(0, V3D_ERR_STAT));
-	sbuf_printf(&sb, "watchdog kicks %lu\n", v3d_wd_kicks);
+	sbuf_printf(&sb, "watchdog kicks %lu depkicks %lu\n",
+	    v3d_wd_kicks, v3d_wd_depkicks);
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		struct v3d_queue_state *qs = &v3d->queue[q];
@@ -360,13 +362,15 @@ static struct callout	v3d_wd_callout;
 static struct device   *v3d_wd_dev;
 static int		v3d_wd_strikes[V3D_MAX_QUEUES];
 unsigned long		v3d_wd_kicks;
+unsigned long		v3d_wd_depkicks;
 
 static void
 v3d_watchdog(void *arg __unused)
 {
 	struct drm_device *drm;
 	struct v3d_dev *v3d;
-	int q;
+	int q, i;
+	bool wake = false;
 
 	if (v3d_wd_dev == NULL)
 		goto rearm;
@@ -378,6 +382,67 @@ v3d_watchdog(void *arg __unused)
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		struct v3d_queue_state *qs = &v3d->queue[q];
 		struct workqueue_struct *wq = qs->sched.submit_wq;
+
+		/*
+		 * Case B: an entity parked on a dependency fence that has
+		 * ALREADY SIGNALLED.
+		 *
+		 * When a dependency signals, drm_sched_entity_wakeup() is
+		 * supposed to fire as a dma_fence callback, clear
+		 * entity->dependency and wake the scheduler. Measured on the
+		 * hardware:
+		 *
+		 *   q1 dep fence drm_sched/v3d_bin ctx 58 seqno 15026
+		 *      signalled=1   rq[2]{ents=1 jobs=949 dep=1}
+		 *   q0 (bin): emit=18464 done=18464
+		 *
+		 * The fence fired, every bin job completed, and the render
+		 * entity is still waiting on it with 949 jobs behind. The
+		 * callback was dropped -- the same class of lost notification
+		 * as the taskqueue wakeup below, one layer up.
+		 *
+		 * This needs no heuristic: a signalled fence cannot legally be
+		 * worth waiting on. Remove our callback (so it cannot also fire
+		 * later and double-put), drop the reference the way
+		 * drm_sched_entity_clear_dep() would, and wake the scheduler.
+		 */
+		for (i = 0; i < qs->sched.num_rqs; i++) {
+			struct drm_sched_rq *rq = qs->sched.sched_rq[i];
+			struct drm_sched_entity *ent;
+
+			if (rq == NULL)
+				continue;
+			spin_lock(&rq->lock);
+			list_for_each_entry(ent, &rq->entities, list) {
+				struct dma_fence *f = ent->dependency;
+
+				if (f == NULL || !dma_fence_is_signaled(f))
+					continue;
+				if (dma_fence_remove_callback(f, &ent->cb)) {
+					ent->dependency = NULL;
+					dma_fence_put(f);
+				}
+				v3d_wd_depkicks++;
+				if ((v3d_wd_depkicks % 100) == 1)
+					printf("V3DWD: q%d entity parked on an "
+					    "already-signalled dependency "
+					    "(%s ctx %llu seqno %llu) -- lost "
+					    "callback, waking (dep kick #%lu)\n",
+					    q,
+					    (f->ops != NULL &&
+					     f->ops->get_timeline_name != NULL) ?
+					    f->ops->get_timeline_name(f) : "?",
+					    (unsigned long long)f->context,
+					    (unsigned long long)f->seqno,
+					    v3d_wd_depkicks);
+				wake = true;
+			}
+			spin_unlock(&rq->lock);
+		}
+		if (wake) {
+			drm_sched_wakeup(&qs->sched);
+			wake = false;
+		}
 
 		if (atomic_read(&qs->sched.work_run_job.state) !=
 		    V3D_WORK_ST_TASK ||
