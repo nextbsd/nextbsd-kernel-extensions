@@ -2844,11 +2844,19 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 #define VC4_NUM_OVERLAY_PLANES	16
 #define VC4_NUM_TXP_OVERLAY_PLANES 32
 
+/*
+ * drm_universal_plane_init() refuses to register the 33rd plane -- plane
+ * indices are used in 32-bit bitmasks (drm_plane.c: "plane index is used with
+ * 32bit bitmasks"). This is a hard DRM limit, not a tunable.
+ */
+#define VC4_MAX_TOTAL_PLANES	32
+
 int vc4_plane_create_additional_planes(struct drm_device *drm)
 {
 	struct drm_plane *cursor_plane;
 	struct drm_crtc *crtc;
 	unsigned int i;
+	unsigned int avail;
 	struct drm_crtc *txp_crtc;
 	uint32_t non_txp_crtc_mask;
 
@@ -2864,6 +2872,30 @@ int vc4_plane_create_additional_planes(struct drm_device *drm)
 	non_txp_crtc_mask = GENMASK(drm->mode_config.num_crtc - 1, 0) -
 					drm_crtc_mask(txp_crtc);
 
+	/*
+	 * Reserve a cursor plane per CRTC before spending anything on overlays.
+	 *
+	 * On BCM2712 the requested set overflows the 32-plane limit badly:
+	 *
+	 *	2 primary + 16 overlay + 32 TXP overlay + 2 cursor = 52
+	 *
+	 * Everything past 32 is rejected. The cursor planes are created last --
+	 * deliberately, so the plane-ID z-order fallback puts the cursor on top
+	 * -- so they are exactly what gets dropped, and the IS_ERR() check below
+	 * swallows the failure silently. crtc->cursor stays NULL, X finds no
+	 * cursor plane and falls back to a software cursor, and on a kmsro
+	 * setup that turns every pointer motion into a GPU composite.
+	 *
+	 * Losing overlay planes is a far cheaper failure than losing the
+	 * hardware cursor, so bound the overlay loops by what is actually left.
+	 */
+	avail = 0;
+	if (drm->mode_config.num_total_plane + drm->mode_config.num_crtc <
+	    VC4_MAX_TOTAL_PLANES)
+		avail = VC4_MAX_TOTAL_PLANES -
+			drm->mode_config.num_total_plane -
+			drm->mode_config.num_crtc;
+
 	/* Set up some arbitrary number of planes.  We're not limited
 	 * by a set number of physical registers, just the space in
 	 * the HVS (16k) and how small an plane can be (28 bytes).
@@ -2873,13 +2905,14 @@ int vc4_plane_create_additional_planes(struct drm_device *drm)
 	 * modest number of planes to expose, that should hopefully
 	 * still cover any sane usecase.
 	 */
-	for (i = 0; i < VC4_NUM_OVERLAY_PLANES; i++) {
+	for (i = 0; i < VC4_NUM_OVERLAY_PLANES && avail > 0; i++) {
 		struct drm_plane *plane =
 			vc4_plane_init(drm, DRM_PLANE_TYPE_OVERLAY,
 				       non_txp_crtc_mask);
 
 		if (IS_ERR(plane))
 			continue;
+		avail--;
 
 		/* Create zpos property. Max of all the overlays + 1 primary +
 		 * 1 cursor plane on a crtc.
@@ -2888,13 +2921,14 @@ int vc4_plane_create_additional_planes(struct drm_device *drm)
 					       VC4_NUM_OVERLAY_PLANES + 1);
 	}
 
-	for (i = 0; i < VC4_NUM_TXP_OVERLAY_PLANES; i++) {
+	for (i = 0; i < VC4_NUM_TXP_OVERLAY_PLANES && avail > 0; i++) {
 		struct drm_plane *plane =
 			vc4_plane_init(drm, DRM_PLANE_TYPE_OVERLAY,
 				       drm_crtc_mask(txp_crtc));
 
 		if (IS_ERR(plane))
 			continue;
+		avail--;
 
 		/* Create zpos property. Max of all the overlays + 1 primary +
 		 * 1 cursor plane on a crtc.
@@ -2917,6 +2951,15 @@ int vc4_plane_create_additional_planes(struct drm_device *drm)
 						       VC4_NUM_OVERLAY_PLANES + 1,
 						       1,
 						       VC4_NUM_OVERLAY_PLANES + 1);
+		} else {
+			/*
+			 * Do not let this be silent again. Without a cursor
+			 * plane X uses a software cursor, which is a composite
+			 * per pointer motion and is very visible to the user.
+			 */
+			drm_warn(drm,
+				 "no cursor plane for CRTC %d (%ld); expect a software cursor\n",
+				 drm_crtc_index(crtc), PTR_ERR(cursor_plane));
 		}
 	}
 
