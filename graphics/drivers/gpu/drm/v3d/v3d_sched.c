@@ -895,20 +895,29 @@ v3d_sched_init(struct v3d_dev *v3d)
 	int hang_limit_ms = 500;
 	int ret;
 
+	/*
+	 * One ordered workqueue for every queue's timeout work, so the
+	 * handlers are serialized against each other -- see the comment
+	 * on v3d_dev.reset_wq.
+	 */
+	v3d->reset_wq = alloc_ordered_workqueue("v3d_reset", 0);
+	if (v3d->reset_wq == NULL)
+		return -ENOMEM;
+
 	ret = drm_sched_init(&v3d->queue[V3D_BIN].sched,
 			     &v3d_bin_sched_ops, NULL,
 			     DRM_SCHED_PRIORITY_COUNT,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 			     NULL, "v3d_bin", v3d->drm.dev);
 	if (ret)
-		return ret;
+		goto fail;
 
 	ret = drm_sched_init(&v3d->queue[V3D_RENDER].sched,
 			     &v3d_render_sched_ops, NULL,
 			     DRM_SCHED_PRIORITY_COUNT,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 			     NULL, "v3d_render", v3d->drm.dev);
 	if (ret)
 		goto fail;
@@ -917,7 +926,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     &v3d_tfu_sched_ops, NULL,
 			     DRM_SCHED_PRIORITY_COUNT,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 			     NULL, "v3d_tfu", v3d->drm.dev);
 	if (ret)
 		goto fail;
@@ -927,7 +936,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 				     &v3d_csd_sched_ops, NULL,
 				     DRM_SCHED_PRIORITY_COUNT,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms), NULL,
+				     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 				     NULL, "v3d_csd", v3d->drm.dev);
 		if (ret)
 			goto fail;
@@ -936,7 +945,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 				     &v3d_cache_clean_sched_ops, NULL,
 				     DRM_SCHED_PRIORITY_COUNT,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms), NULL,
+				     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 				     NULL, "v3d_cache_clean", v3d->drm.dev);
 		if (ret)
 			goto fail;
@@ -946,7 +955,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     &v3d_cpu_sched_ops, NULL,
 			     DRM_SCHED_PRIORITY_COUNT,
 			     1, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     msecs_to_jiffies(hang_limit_ms), v3d->reset_wq,
 			     NULL, "v3d_cpu", v3d->drm.dev);
 	if (ret)
 		goto fail;
@@ -966,5 +975,11 @@ v3d_sched_fini(struct v3d_dev *v3d)
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		if (v3d->queue[q].sched.ready)
 			drm_sched_fini(&v3d->queue[q].sched);
+	}
+
+	/* After drm_sched_fini(), so no timeout work can still be pending. */
+	if (v3d->reset_wq != NULL) {
+		destroy_workqueue(v3d->reset_wq);
+		v3d->reset_wq = NULL;
 	}
 }
