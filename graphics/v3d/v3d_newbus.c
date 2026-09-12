@@ -50,6 +50,16 @@ SYSCTL_NODE(_hw, OID_AUTO, v3d, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 /* Non-static in the vendored v3d_drv.c -- see the note there. */
 extern struct platform_driver v3d_platform_driver;
 
+/*
+ * Lives in v3d_state.c, which includes v3d_drv.h. This file cannot: it handles
+ * newbus resources and so sees FreeBSD's struct resource, while v3d_drv.h
+ * pulls in <linux/ioport.h> and a different struct of the same name.
+ */
+int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
+int v3d_sysctl_kick(SYSCTL_HANDLER_ARGS);
+void v3d_watchdog_start(struct device *dev);
+void v3d_watchdog_stop(void);
+
 struct v3d_newbus_softc {
 	device_t		bsddev;
 	struct platform_device	pdev;
@@ -145,6 +155,27 @@ v3d_newbus_attach(device_t dev)
 		device_printf(dev, "v3d probe failed: %d\n", error);
 		return (ENXIO);
 	}
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "state",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
+	    v3d_sysctl_state, "A",
+	    "V3D scheduler queues and GPU registers");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "kick",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &sc->pdev.dev, 0,
+	    v3d_sysctl_kick, "I",
+	    "write 1 to re-kick the scheduler submit taskqueues");
+
+	/*
+	 * Recovery for the lost taskqueue wakeup (nextbsd#450): drm_sched's
+	 * submit work can be left enqueued with ta_pending>0 while its
+	 * taskqueue thread sleeps, which starves the GPU permanently. See the
+	 * long comment in v3d_state.c.
+	 */
+	v3d_watchdog_start(&sc->pdev.dev);
+
 	return (0);
 }
 
@@ -153,6 +184,8 @@ v3d_newbus_detach(device_t dev)
 {
 	struct v3d_newbus_softc *sc = device_get_softc(dev);
 	struct platform_driver *drv = &v3d_platform_driver;
+
+	v3d_watchdog_stop();
 
 	if (drv->remove_new != NULL)
 		drv->remove_new(&sc->pdev);
