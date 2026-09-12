@@ -35,6 +35,8 @@
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/queue.h>
+#include <sys/mutex.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
 
@@ -50,6 +52,7 @@
 
 extern unsigned long v3d_wd_kicks;
 extern unsigned long v3d_wd_depkicks;
+extern unsigned long v3d_wd_wakekicks;
 
 int v3d_sysctl_state(SYSCTL_HANDLER_ARGS);
 
@@ -77,8 +80,8 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 	    V3D_CORE_READ(0, V3D_CTL_INT_STS));
 	sbuf_printf(&sb, "ERR_STAT     0x%08x\n",
 	    V3D_CORE_READ(0, V3D_ERR_STAT));
-	sbuf_printf(&sb, "watchdog kicks %lu depkicks %lu\n",
-	    v3d_wd_kicks, v3d_wd_depkicks);
+	sbuf_printf(&sb, "watchdog kicks %lu depkicks %lu wakekicks %lu\n",
+	    v3d_wd_kicks, v3d_wd_depkicks, v3d_wd_wakekicks);
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
 		struct v3d_queue_state *qs = &v3d->queue[q];
@@ -363,6 +366,7 @@ static struct device   *v3d_wd_dev;
 static int		v3d_wd_strikes[V3D_MAX_QUEUES];
 unsigned long		v3d_wd_kicks;
 unsigned long		v3d_wd_depkicks;
+unsigned long		v3d_wd_wakekicks;
 
 static void
 v3d_watchdog(void *arg __unused)
@@ -442,6 +446,78 @@ v3d_watchdog(void *arg __unused)
 		if (wake) {
 			drm_sched_wakeup(&qs->sched);
 			wake = false;
+		}
+
+		/*
+		 * Case C: the submit work claims to be queued (WORK_ST_TASK)
+		 * but ta_pending is 0 -- it is on no taskqueue at all.
+		 *
+		 * Measured on the hardware, persisting for ten minutes:
+		 *
+		 *   q1 emit=89293 done=89293 outstanding=0 pending=empty
+		 *      runwork=2/0  rq[2]{ents=2 jobs=237 dep=0}
+		 *
+		 * This is a permanent trap, not a slow path. Nothing can break
+		 * it from outside:
+		 *
+		 *   - queue_work() reads the state as TASK and returns false
+		 *     without enqueueing ("already on a queue"),
+		 *   - taskqueue_unblock() has no pending task to re-issue,
+		 *   - and the scheduler's timeout never arms, because
+		 *     drm_sched_start_timeout() requires a non-empty
+		 *     pending_list and every job is still stuck in the entity.
+		 *
+		 * It comes from the one path in linux_queue_work_on() that
+		 * sets TASK without enqueueing anything:
+		 *
+		 *	case WORK_ST_EXEC:
+		 *		if (linux_work_exec_unblock(work) != 0)
+		 *			return (true);
+		 *		FALLTHROUGH
+		 *	case WORK_ST_IDLE:
+		 *		taskqueue_enqueue(wq->taskqueue, ...);
+		 *
+		 * That hands off to a linux_work_fn() already running this
+		 * work, which is supposed to see its exec.target cleared and
+		 * run the callback a second time. When that executor does not
+		 * re-run, the work is stranded in TASK forever.
+		 *
+		 * Like case B this needs no heuristic. Walk the workqueue's
+		 * executor list: if nothing is executing this work, then there
+		 * is no one left who could honour the hand-off, and a work in
+		 * TASK with an empty taskqueue provably cannot run again.
+		 * Re-enqueue it -- the state is already exactly what
+		 * queue_work() would have set, so this restores the invariant
+		 * rather than forcing anything.
+		 */
+		if (atomic_read(&qs->sched.work_run_job.state) ==
+		    V3D_WORK_ST_TASK &&
+		    qs->sched.work_run_job.work_task.ta_pending == 0 &&
+		    wq != NULL && wq->taskqueue != NULL) {
+			struct work_struct *w = &qs->sched.work_run_job;
+			struct work_exec *ex;
+			bool executing = false;
+
+			mtx_lock(&wq->exec_mtx);
+			TAILQ_FOREACH(ex, &wq->exec_head, entry) {
+				if (ex->target == w) {
+					executing = true;
+					break;
+				}
+			}
+			mtx_unlock(&wq->exec_mtx);
+
+			if (!executing) {
+				v3d_wd_wakekicks++;
+				if ((v3d_wd_wakekicks % 100) == 1)
+					printf("V3DWD: q%d submit work stranded "
+					    "in WORK_ST_TASK with an empty "
+					    "taskqueue and no executor -- lost "
+					    "hand-off, re-enqueueing (wake kick "
+					    "#%lu)\n", q, v3d_wd_wakekicks);
+				taskqueue_enqueue(wq->taskqueue,
+				    &w->work_task);
+			}
 		}
 
 		if (atomic_read(&qs->sched.work_run_job.state) !=
