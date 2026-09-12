@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 
 #include <drm/gpu_scheduler.h>
+#include <linux/dma-fence.h>
 #include <drm/spsc_queue.h>
 
 #include "v3d_drv.h"
@@ -177,12 +178,44 @@ v3d_sysctl_state(SYSCTL_HANDLER_ARGS)
 				continue;
 			spin_lock(&rq->lock);
 			list_for_each_entry(ent, &rq->entities, list) {
+				struct dma_fence *d = ent->dependency;
+
 				nents++;
 				njobs += spsc_queue_count(&ent->job_queue);
-				if (ent->dependency != NULL)
-					ndep++;
 				if (ent->stopped)
 					nstop++;
+				if (d == NULL)
+					continue;
+				ndep++;
+				/*
+				 * Name the dependency. An entity parked on an
+				 * unsignalled dependency is drm_sched working
+				 * as designed -- drm_sched_entity_pop_job()
+				 * registers a callback and returns NULL, and
+				 * the scheduler waits for drm_sched_wakeup().
+				 * But if that fence never signals, or its
+				 * callback is lost, the entity stalls forever
+				 * with jobs piling up behind it, and nothing
+				 * is wrongly queued so the taskqueue watchdog
+				 * cannot see it.
+				 *
+				 * signalled=1 here means the fence DID fire and
+				 * the wakeup callback was lost -- a different
+				 * bug from a fence that never fires, and a
+				 * different fix.
+				 */
+				sbuf_printf(&sb,
+				    "\n    q%d dep fence %s/%s ctx %llu seqno %llu signalled=%d",
+				    q,
+				    (d->ops != NULL &&
+				     d->ops->get_driver_name != NULL) ?
+				    d->ops->get_driver_name(d) : "?",
+				    (d->ops != NULL &&
+				     d->ops->get_timeline_name != NULL) ?
+				    d->ops->get_timeline_name(d) : "?",
+				    (unsigned long long)d->context,
+				    (unsigned long long)d->seqno,
+				    dma_fence_is_signaled(d));
 			}
 			spin_unlock(&rq->lock);
 			if (nents != 0 || njobs != 0)
