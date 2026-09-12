@@ -340,7 +340,21 @@ v3d_sysctl_kick(SYSCTL_HANDLER_ARGS)
  * healthy system.
  */
 #define	V3D_WORK_ST_TASK	2	/* enum is private to linux_work.c */
-#define	V3D_WD_STRIKES		3
+
+/*
+ * Poll interval and strike count.
+ *
+ * Measured with v3dstress (EGL surfaceless, no X): the lost wakeup fires every
+ * 3-4 seconds under load, and every stall lasted 2.4-3.0s -- i.e. exactly the
+ * old 3 x 1s detection window. The stall duration was my tuning choice, not a
+ * property of the bug.
+ *
+ * A legitimately queued work item is dispatched in microseconds, so 100ms is
+ * still ~4 orders of magnitude of headroom against a false kick. This turns a
+ * constant 3-second freeze into a hitch.
+ */
+#define	V3D_WD_HZ		20	/* poll every 50ms */
+#define	V3D_WD_STRIKES		2	/* ...so ~100ms to detect */
 
 static struct callout	v3d_wd_callout;
 static struct device   *v3d_wd_dev;
@@ -376,10 +390,12 @@ v3d_watchdog(void *arg __unused)
 			continue;
 
 		v3d_wd_kicks++;
-		printf("V3DWD: q%d submit work queued (ta_pending=%d) with an idle "
-		    "taskqueue for %ds -- lost wakeup, re-kicking (kick #%lu)\n",
-		    q, qs->sched.work_run_job.work_task.ta_pending,
-		    v3d_wd_strikes[q], v3d_wd_kicks);
+		if ((v3d_wd_kicks % 100) == 1)
+			printf("V3DWD: q%d submit work queued (ta_pending=%d) "
+			    "with an idle taskqueue -- lost wakeup, re-kicking "
+			    "(kick #%lu; further kicks logged every 100)\n",
+			    q, qs->sched.work_run_job.work_task.ta_pending,
+			    v3d_wd_kicks);
 
 		if (wq != NULL && wq->taskqueue != NULL)
 			taskqueue_unblock(wq->taskqueue);
@@ -388,7 +404,7 @@ v3d_watchdog(void *arg __unused)
 	}
 
 rearm:
-	callout_reset(&v3d_wd_callout, hz, v3d_watchdog, NULL);
+	callout_reset(&v3d_wd_callout, hz / V3D_WD_HZ, v3d_watchdog, NULL);
 }
 
 void v3d_watchdog_start(struct device *dev);
@@ -400,7 +416,7 @@ v3d_watchdog_start(struct device *dev)
 	v3d_wd_dev = dev;
 	memset(v3d_wd_strikes, 0, sizeof(v3d_wd_strikes));
 	callout_init(&v3d_wd_callout, 1);
-	callout_reset(&v3d_wd_callout, hz, v3d_watchdog, NULL);
+	callout_reset(&v3d_wd_callout, hz / V3D_WD_HZ, v3d_watchdog, NULL);
 }
 
 void
