@@ -56,6 +56,15 @@ env:
   # drm_dma_helpers should behave until nextbsd-kernel#181 lands the linuxkpi
   # symbols it needs. Add it here once it builds.
   REQUIRED_KOS: "drm_extra_helpers bochs vboxvideo linux_virtio drm_shmem_helpers virtio_gpu_drm drm_dma_helpers"
+  # drm-kmod is pinned to a release tag, not the moving `6.12-lts` branch.
+  # The branch takes upstream churn between releases, and on 2026-09-16
+  # 75dc0eaf74 ("drm/fb-helper: Allocate and release fb_info in single place")
+  # removed drm_fb_helper_alloc_info(), which broke our vendored
+  # graphics/drivers/gpu/drm/drm_fbdev_shmem.c on the next rebuild with no
+  # change on our side. Bump this deliberately: re-check that
+  # graphics/drm-kmod-patches apply in order and that the vendored DRM sources
+  # under graphics/ still match the new tag's API.
+  DRM_KMOD_REF: drm_v6.12.85_3
 
 jobs:
   modules:
@@ -256,9 +265,9 @@ jobs:
         with:
           path: nbkm-tools
 
-      - name: Build drm-kmod (6.12-lts) against the kernel obj
+      - name: Build drm-kmod (${{ env.DRM_KMOD_REF }}) against the kernel obj
         run: |
-          git clone --depth 1 --branch 6.12-lts \
+          git clone --depth 1 --branch "${DRM_KMOD_REF}" \
             https://github.com/freebsd/drm-kmod.git /tmp/drm-kmod
           # Local fixes to drm-kmod itself, applied to the fresh clone. Kept as
           # patches rather than vendored files because these belong to modules
@@ -2114,7 +2123,7 @@ jobs:
           done
           # drm-kmod 6.12-lts source = DRMKMODDIR for nvidia-drm (headers/.mk only,
           # matching the drm.ko NextBSD ships from #337; drm.ko is a runtime dep).
-          git clone --depth 1 --branch 6.12-lts \
+          git clone --depth 1 --branch "${DRM_KMOD_REF}" \
             https://github.com/freebsd/drm-kmod.git /tmp/drm-kmod
           # post-patch REINPLACE edits: nvidia-kmod core + nvidia-drm (NVPP_DRM=1
           # adds the fbdev/const-cast/pm_vt_switch/dummy-include edits from
