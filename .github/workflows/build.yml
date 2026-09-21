@@ -882,7 +882,10 @@ jobs:
           test -f /tmp/ko-out/v3d.ko
 
       - name: PROBE v3d gap summary (#66)
-        if: matrix.target == 'arm64'
+        # always(): the build step above gates on a missing v3d.ko, and without
+        # this the summary + log upload were skipped on exactly the runs that
+        # need them (run 35594297879 failed with nothing but `build exit: 1`).
+        if: always() && matrix.target == 'arm64'
         continue-on-error: true
         run: |
           set +e
@@ -913,7 +916,7 @@ jobs:
           exit 0
 
       - name: Upload v3d probe log (#66)
-        if: matrix.target == 'arm64'
+        if: always() && matrix.target == 'arm64'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
