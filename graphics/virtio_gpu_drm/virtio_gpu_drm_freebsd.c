@@ -60,6 +60,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -331,6 +332,35 @@ static driver_t virtio_gpu_drm_driver = {
  *   - VIRTIO_DRIVER_MODULE registers on both virtio transports, so a chained
  *     handler runs twice.
  */
+/*
+ * Off by default, because the handover below panics arm64 while base
+ * virtio_gpu(4) is the vt(4) console -- nextbsd-kernel-extensions#82.
+ *
+ * The comment above claims one bus_topo_lock() section makes the detach and
+ * re-attach atomic and therefore safe. It does not. bus_topo_lock() is an sx
+ * lock over the newbus topology; it does not quiesce vt(4) or stop console
+ * writes. And the crash is not in the gap between detach and re-attach, it is
+ * inside the detach: device_detach() -> vtgpu_detach() -> vt_deallocate(),
+ * which prints "VT: Switching back from ..." (that line is in the panic log)
+ * and then repaints through the mapping it is tearing down. Measured on arm64:
+ * a level-3 translation fault on a write to a framebuffer address
+ * (esr 0x96000047, far 0xffff00009b600000).
+ *
+ * Leaving base in place costs KMS on arm64 and nothing else. It is the same
+ * outcome as the device_detach() failure path below, which already describes
+ * itself as "No KMS this boot, but the screen still works". Set the tunable to
+ * 1 to work on #82; do not turn it on by default until the handover no longer
+ * repaints through a dying backend.
+ */
+static int virtio_gpu_drm_takeover_enable = 0;
+
+static SYSCTL_NODE(_hw, OID_AUTO, virtio_gpu_drm, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VirtIO GPU DRM driver");
+SYSCTL_INT(_hw_virtio_gpu_drm, OID_AUTO, takeover, CTLFLAG_RDTUN,
+    &virtio_gpu_drm_takeover_enable, 0,
+    "Detach base virtio_gpu(4) and re-probe so KMS can bind. Panics while base "
+    "is the vt(4) console (nextbsd-kernel-extensions#82)");
+
 static struct task virtio_gpu_drm_takeover_task;
 
 static void
@@ -344,6 +374,13 @@ virtio_gpu_drm_takeover(void *ctx __unused, int pending __unused)
 	dc = devclass_find("vtgpu");		/* base virtio_gpu(4) */
 	if (dc == NULL)
 		return;				/* base not present -- nothing to take */
+
+	if (!virtio_gpu_drm_takeover_enable) {
+		printf("virtio_gpu_drm: leaving base virtio_gpu(4) attached; "
+		    "set hw.virtio_gpu_drm.takeover=1 for KMS "
+		    "(panics while base is the console, #82)\n");
+		return;
+	}
 
 	bus_topo_lock();
 	if (devclass_get_devices(dc, &devs, &ndevs) != 0) {
