@@ -333,8 +333,31 @@ static driver_t virtio_gpu_drm_driver = {
  *     handler runs twice.
  */
 /*
- * Off by default, because the handover below panics arm64 while base
- * virtio_gpu(4) is the vt(4) console -- nextbsd-kernel#170.
+ * ON by default, and the default is a trade rather than a safe choice --
+ * nextbsd-kernel#170.
+ *
+ * The handover leaves vt(4) with no backend. What that costs depends entirely
+ * on whether anything writes to the console afterwards, and the two arm64
+ * environments we have differ:
+ *
+ *   UTM / Virtualization.framework: base vtgpu attaches but displays nothing,
+ *   so video is blind from the bootloader until this kext loads and drmfb
+ *   lights it up. The takeover is what makes the machine usable; turning it
+ *   off leaves it blind for good.
+ *
+ *   qemu virt: base vtgpu IS the live console. Detaching it kills the backend
+ *   under a console that is still being written to, and the next write faults
+ *   -- esr 0x96000047, a level-3 translation fault on a framebuffer address.
+ *
+ * So there is no default that is right everywhere, and a machine that needs
+ * video must not be made blind to keep CI green. Default on preserves the
+ * working case; qemu is opted out from the loader by the boot tests, which is
+ * CI-only and leaves shipped images alone.
+ *
+ * Neither state is correct. #170's option 3 -- a vt_simplefb-style placeholder
+ * for arm64 that DRM can legitimately evict, as efifb is on amd64 -- is the
+ * only one that keeps both the console and KMS, and this tunable is not a
+ * substitute for it.
  *
  * The comment above claims one bus_topo_lock() section makes the detach and
  * re-attach atomic and therefore safe. It does not. bus_topo_lock() is an sx
@@ -346,20 +369,21 @@ static driver_t virtio_gpu_drm_driver = {
  * a level-3 translation fault on a write to a framebuffer address
  * (esr 0x96000047, far 0xffff00009b600000).
  *
- * Leaving base in place costs KMS on arm64 and nothing else. It is the same
- * outcome as the device_detach() failure path below, which already describes
- * itself as "No KMS this boot, but the screen still works". Set the tunable to
- * 1 to work on #170; do not turn it on by default until the handover no longer
- * repaints through a dying backend.
+ * Setting it to 0 leaves base attached: the console survives and there is no
+ * KMS, which is the same outcome as the device_detach() failure path below,
+ * already described there as "No KMS this boot, but the screen still works".
+ * That is the right choice only where the console is real and video does not
+ * depend on this kext.
  */
-static int virtio_gpu_drm_takeover_enable = 0;
+static int virtio_gpu_drm_takeover_enable = 1;
 
 static SYSCTL_NODE(_hw, OID_AUTO, virtio_gpu_drm, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VirtIO GPU DRM driver");
 SYSCTL_INT(_hw_virtio_gpu_drm, OID_AUTO, takeover, CTLFLAG_RDTUN,
     &virtio_gpu_drm_takeover_enable, 0,
-    "Detach base virtio_gpu(4) and re-probe so KMS can bind. Panics while base "
-    "is the vt(4) console (nextbsd-kernel#170)");
+    "Detach base virtio_gpu(4) and re-probe so KMS can bind. Required for video "
+    "where base displays nothing; panics where base is the live console "
+    "(nextbsd-kernel#170)");
 
 static struct task virtio_gpu_drm_takeover_task;
 
@@ -376,9 +400,9 @@ virtio_gpu_drm_takeover(void *ctx __unused, int pending __unused)
 		return;				/* base not present -- nothing to take */
 
 	if (!virtio_gpu_drm_takeover_enable) {
-		printf("virtio_gpu_drm: leaving base virtio_gpu(4) attached; "
-		    "set hw.virtio_gpu_drm.takeover=1 for KMS "
-		    "(panics while base is the console, nextbsd-kernel#170)\n");
+		printf("virtio_gpu_drm: takeover disabled; leaving base "
+		    "virtio_gpu(4) attached -- console kept, no KMS "
+		    "(nextbsd-kernel#170)\n");
 		return;
 	}
 
