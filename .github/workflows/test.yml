@@ -1,0 +1,288 @@
+# Test NextBSD Kernel Extensions
+#
+# A manual, test-ONLY lane. It builds nothing and publishes nothing: it takes
+# the kernel and the kexts that are already published and proves they work
+# together in a booted VM.
+#
+# Why this exists. build.yml's two tests -- the personalities self-test and the
+# kext PoC -- are both gated `if: github.event_name == 'pull_request'`, so its
+# workflow_dispatch builds and PUBLISHES while running neither. Getting a test
+# result therefore meant opening a PR and waiting through a full module +
+# drm-kmod build (~30 min) for tests that need neither.
+#
+# This lane reuses nextbsd-kernel's ci/assemble-image.sh, the same script its
+# own smoke-test uses, so the image under test is assembled the same way rather
+# than by a second implementation that can drift.
+name: Test NextBSD Kernel Extensions
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture to test'
+        type: choice
+        options: [arm64, amd64]
+        default: arm64
+      fbsd_sha:
+        description: 'Pinned FreeBSD SHA for the toolchain image tag (blank = latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Pure host script against fixtures -- no kernel, no kexts, no VM. Seconds.
+  personalities:
+    name: graphics personalities self-test (i915/amdgpu/radeon)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run i915/amdgpu/radeon personality generators against fixtures
+        run: ./tests/personalities-selftest.sh
+
+  # Assemble a bootable image from PUBLISHED artifacts only. The toolchain
+  # container is needed for its /usr/src: assemble-image.sh builds makefs and
+  # mkimg from it. Nothing here compiles a kernel or a kext.
+  assemble:
+    name: assemble a VM image from the published kernel + kexts
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/nextbsd/nextbsd-kernel-toolchain:${{ inputs.arch }}-${{ inputs.fbsd_sha && format('fbsd-{0}', inputs.fbsd_sha) || 'latest' }}
+    steps:
+      - name: Download the published stack
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          set -eu
+          mkdir -p art
+          gh release download continuous -R nextbsd-redux/nextbsd-freebsd-compat \
+            --pattern "nextbsd-base-${ARCH}.tar.gz" --dir art --clobber
+          gh release download continuous -R nextbsd-redux/nextbsd-kernel \
+            --pattern "nextbsd-kernel-${ARCH}.tar.gz" --dir art --clobber
+          gh release download continuous -R nextbsd-redux/nextbsd-userland \
+            --pattern "nextbsd-userland-${ARCH}.tar.gz" --dir art --clobber
+          gh release download continuous -R nextbsd/nextbsd-contrib \
+            --pattern "nextbsd-contrib-${ARCH}.tar.gz" --dir art --clobber
+          # The kexts under test: this repo's own published output.
+          gh release download continuous -R nextbsd/nextbsd-kernel-extensions \
+            --pattern '*kext*.tar.gz' --dir art --clobber || true
+
+          # Same arch filter nextbsd-kernel needs, and for the same reason: the
+          # release carries arch-suffixed assets AND unsuffixed ones that are
+          # amd64, and `ls` orders "graphics-kexts.tar.gz" AFTER
+          # "graphics-kexts-arm64.tar.gz" ('-' 0x2d < '.' 0x2e) -- so on arm64 the
+          # amd64 bundle would extract last and lay x86-64 objects over arm64's
+          # own, and every kext would fail to load with "unsupported file type".
+          _other=amd64; [ "$ARCH" = amd64 ] && _other=arm64
+          rm -f art/*-"$_other".tar.gz
+          if [ "$ARCH" != amd64 ]; then
+            for _k in art/*kext*.tar.gz; do
+              [ -e "$_k" ] || continue
+              case "$_k" in
+                *-"$ARCH".tar.gz) ;;
+                *) echo "dropping non-${ARCH} kext asset $_k"; rm -f "$_k" ;;
+              esac
+            done
+          fi
+          echo "==> kexts under test:"; ls -la art/*kext*.tar.gz || echo "(none)"
+
+      - name: Assemble disk.img
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          set -eu
+          export WORK=/tmp/nbimg
+          export OUT="$PWD/out"
+          mkdir -p "$WORK" "$OUT"
+          export BASE_TGZ="$PWD/art/nextbsd-base-${ARCH}.tar.gz"
+          export KERNEL_TGZ="$PWD/art/nextbsd-kernel-${ARCH}.tar.gz"
+          export USERLAND_TGZ="$PWD/art/nextbsd-userland-${ARCH}.tar.gz"
+          export CONTRIB_TGZ="$PWD/art/nextbsd-contrib-${ARCH}.tar.gz"
+          export MODULES_TGZ="$(ls art/*kext*.tar.gz 2>/dev/null | tr '\n' ' ')"
+          # pkg-free /etc seed, exactly as nextbsd-kernel does it (no git in the
+          # container, so the tarball comes over the API).
+          gh api repos/nextbsd-redux/nextbsd-overlays/tarball/main > /tmp/overlays.tar.gz
+          mkdir -p "$WORK/seed"
+          tar -C "$WORK/seed" --strip-components=1 -xzf /tmp/overlays.tar.gz
+          export SEED_ROOTFS="$WORK/seed/rootfs"
+          # The assembler itself comes from nextbsd-kernel rather than being
+          # copied here, so this lane cannot drift from the one its own
+          # smoke-test uses.
+          curl -fsSL https://raw.githubusercontent.com/nextbsd/nextbsd-kernel/main/ci/assemble-image.sh \
+            -o assemble-image.sh
+          chmod +x assemble-image.sh
+          ARCH="$ARCH" ./assemble-image.sh
+          ls -lh "$OUT/disk.img"
+
+      - name: Upload the assembled image
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-image-${{ inputs.arch }}
+          path: out/disk.img
+          retention-days: 1
+
+  boot:
+    name: boot the VM and prove the kexts load
+    needs: assemble
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-image-${{ inputs.arch }}
+
+      - name: Install qemu + expect + firmware
+        run: |
+          sudo apt-get update
+          if [ "${{ inputs.arch }}" = arm64 ]; then
+            sudo apt-get install -y --no-install-recommends \
+              qemu-system-arm qemu-efi-aarch64 expect
+          else
+            sudo apt-get install -y --no-install-recommends \
+              qemu-system-x86 ovmf expect
+          fi
+
+      - name: Boot and verify
+        run: |
+          set -eu
+          ARCH=${{ inputs.arch }}
+          if [ "$ARCH" = arm64 ]; then
+            cp /usr/share/AAVMF/AAVMF_VARS.fd vars.fd 2>/dev/null \
+              || cp /usr/share/qemu-efi-aarch64/QEMU_VARS.fd vars.fd
+            CODE=$(ls /usr/share/AAVMF/AAVMF_CODE.fd \
+                      /usr/share/qemu-efi-aarch64/QEMU_EFI.fd 2>/dev/null | head -1)
+            QEMU="qemu-system-aarch64 -machine virt -accel tcg,thread=single -cpu max"
+            PFLASH="-drive if=pflash,format=raw,unit=0,readonly=on,file=$CODE \
+                    -drive if=pflash,format=raw,unit=1,file=vars.fd"
+            DISK="-drive if=none,id=hd0,format=raw,file=disk.img -device virtio-blk-device,drive=hd0"
+            NET="-netdev user,id=net0 -device virtio-net-device,netdev=net0"
+            # The GPU is the point on arm64: VirtIOGraphics is the only kext that
+            # can take the vt(4) console there, because neither qemu `virt` nor
+            # Virtualization.framework gives vt_efifb an EFI GOP.
+            GPU="-device virtio-gpu-pci"
+          else
+            cp /usr/share/OVMF/OVMF_VARS.fd vars.fd
+            QEMU="qemu-system-x86_64 -machine q35 -cpu max"
+            PFLASH="-drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+                    -drive if=pflash,format=raw,unit=1,file=vars.fd"
+            DISK="-drive if=none,id=hd0,format=raw,file=disk.img -device virtio-blk-pci,drive=hd0"
+            NET="-netdev user,id=net0 -device virtio-net-pci,netdev=net0"
+            GPU=""
+          fi
+          export QEMU PFLASH DISK NET GPU
+          cat > boot.exp <<'EXP'
+          set timeout 1800
+          log_file -noappend boot.log
+          eval spawn $env(QEMU) -m 4096 -smp 2 $env(PFLASH) $env(DISK) $env(NET) \
+              $env(GPU) -display none -serial stdio
+
+          # The shipped image sets boot_mutemsgs="YES" for a clean login screen,
+          # which silences the kernel console entirely -- nothing would reach
+          # -serial stdio and this would sit until the timeout. Interrupt autoboot
+          # and opt CI into the serial console, as nextbsd's own harness does.
+          set send_slow {1 .04}
+          proc loader_set {cmd} {
+              global timeout
+              set saved $timeout
+              set timeout 20
+              sleep 0.3
+              # Sync on the next OK rather than the command echo: this emulated
+              # UART drops characters from the ECHO often enough that an
+              # exact-echo match hangs on a cosmetic glitch.
+              expect *
+              send -s -- "$cmd\r"
+              expect {
+                  timeout { puts "\nFAIL: no OK prompt after '$cmd'"; exit 1 }
+                  "OK "
+              }
+              set timeout $saved
+          }
+
+          expect {
+              timeout { puts "\nFAIL: no loader autoboot prompt within 60s"; exit 1 }
+              -re "Hit \\\[Enter\\\]"          { send " " }
+              "Booting"                      { send " " }
+              -re "FreeBSD/\[a-z0-9\]+ EFI"   { send " " }
+          }
+          expect {
+              timeout { puts "\nFAIL: no loader OK prompt within 30s"; exit 1 }
+              "OK " { puts "\n==> at loader prompt; enabling the serial console" }
+          }
+          loader_set "set console=comconsole"
+          loader_set "set boot_serial=YES"
+          loader_set "set comconsole_speed=115200"
+          # =NO, not unset: the loader's howto builder tests
+          # `val != NULL && strcasecmp(val, "no") != 0`.
+          loader_set "set boot_mutemsgs=NO"
+
+          # Not loader_set: a successful boot LEAVES the OK prompt, so waiting for
+          # another OK would time out on success.
+          set timeout 20
+          for {set try 1} {$try <= 5} {incr try} {
+              sleep 0.3
+              expect *
+              send -s -- "boot\r"
+              expect {
+                  "unknown command" { puts "\n==> garbled 'boot' ($try/5); resending"; continue }
+                  -re "Booting|/boot/kernel/kernel|Loading kernel|---<<" { break }
+                  "OK "   { puts "\n==> still at OK ($try/5); resending"; continue }
+                  timeout { puts "\n==> no response ($try/5); resending"; continue }
+              }
+          }
+
+          set timeout 900
+          expect {
+              -re {panic:[^\r\n]*} { puts "\nFAIL: $expect_out(0,string)"; exit 1 }
+              -re {login: *$}            { puts "\n==> reached the getty login prompt." }
+              -re {login on console as } { puts "\n==> getty autologin fired." }
+              -re {[#%$] $}              { puts "\n==> reached a shell prompt." }
+              timeout { puts "\nFAIL: no login within 900s"; exit 1 }
+              eof     { puts "\nFAIL: qemu exited before login"; exit 1 }
+          }
+
+          # kextd loads the graphics chain a few SECONDS AFTER login, so this must
+          # keep reading -- exiting at the prompt would kill qemu before the thing
+          # under test runs. Success is any VT: line naming drmfb: the DRM kext
+          # bound and took the console, which is the end-to-end proof that the
+          # published kexts work against the published kernel. It matches both
+          # "Replacing driver ... with new \"drmfb\"" and "initialize with new VT
+          # driver \"drmfb\"" -- which of the two you get depends on whether vt(4)
+          # had a previous backend.
+          set timeout 300
+          expect {
+              -re {panic:[^\r\n]*}     { puts "\nFAIL after login: $expect_out(0,string)"; exit 1 }
+              -re {VT: [^\r\n]*drmfb}  { puts "\nOK: the DRM kext took the console: $expect_out(0,string)"; exit 0 }
+              timeout { puts "\nFAIL: booted, but no drmfb handover in 300s -- the kexts did not load and bind"; exit 1 }
+              eof     { puts "\nFAIL: qemu exited before the kexts loaded"; exit 1 }
+          }
+          EXP
+          expect -f boot.exp
+
+      - name: Show what loaded
+        if: always()
+        run: |
+          echo "--- kext / graphics lines ---"
+          grep -aE "kextd|linker_load_file|^VT:|\[drm\]|vtgpu|drmfb|panic" boot.log || true
+
+      - name: Upload boot log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-boot-log-${{ inputs.arch }}
+          path: boot.log
