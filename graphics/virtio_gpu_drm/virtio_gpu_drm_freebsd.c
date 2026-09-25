@@ -334,7 +334,7 @@ static driver_t virtio_gpu_drm_driver = {
  */
 /*
  * Off by default, because the handover below panics arm64 while base
- * virtio_gpu(4) is the vt(4) console -- nextbsd-kernel-extensions#82.
+ * virtio_gpu(4) is the vt(4) console -- nextbsd-kernel#170.
  *
  * The comment above claims one bus_topo_lock() section makes the detach and
  * re-attach atomic and therefore safe. It does not. bus_topo_lock() is an sx
@@ -349,7 +349,7 @@ static driver_t virtio_gpu_drm_driver = {
  * Leaving base in place costs KMS on arm64 and nothing else. It is the same
  * outcome as the device_detach() failure path below, which already describes
  * itself as "No KMS this boot, but the screen still works". Set the tunable to
- * 1 to work on #82; do not turn it on by default until the handover no longer
+ * 1 to work on #170; do not turn it on by default until the handover no longer
  * repaints through a dying backend.
  */
 static int virtio_gpu_drm_takeover_enable = 0;
@@ -359,7 +359,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, virtio_gpu_drm, CTLFLAG_RD | CTLFLAG_MPSAFE, 0
 SYSCTL_INT(_hw_virtio_gpu_drm, OID_AUTO, takeover, CTLFLAG_RDTUN,
     &virtio_gpu_drm_takeover_enable, 0,
     "Detach base virtio_gpu(4) and re-probe so KMS can bind. Panics while base "
-    "is the vt(4) console (nextbsd-kernel-extensions#82)");
+    "is the vt(4) console (nextbsd-kernel#170)");
 
 static struct task virtio_gpu_drm_takeover_task;
 
@@ -378,7 +378,7 @@ virtio_gpu_drm_takeover(void *ctx __unused, int pending __unused)
 	if (!virtio_gpu_drm_takeover_enable) {
 		printf("virtio_gpu_drm: leaving base virtio_gpu(4) attached; "
 		    "set hw.virtio_gpu_drm.takeover=1 for KMS "
-		    "(panics while base is the console, #82)\n");
+		    "(panics while base is the console, nextbsd-kernel#170)\n");
 		return;
 	}
 
