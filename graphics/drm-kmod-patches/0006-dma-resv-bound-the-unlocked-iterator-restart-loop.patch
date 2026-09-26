@@ -1,0 +1,137 @@
+dma-resv: bound the unlocked iterator restart loop (fixes #450)
+
+The Pi 500+ desktop wedge that survived every scheduler fix: Xorg spinning
+at 100% system time, in the kernel, never sleeping and never returning, so
+the X server serviced no client at all -- no clicks, no keys -- while the
+screen kept updating from already-queued flips. A forced crash dump caught
+the thread exactly:
+
+	#4  dma_fence_get_rcu ()
+	#5  dma_resv_wait_timeout ()
+	#6  drm_gem_dma_resv_wait ()
+	#7  v3d_wait_bo_ioctl ()
+	#8  drm_ioctl_kernel ()
+	#14 sys_ioctl ()
+
+Not a fence wait -- the GPU was idle with every queue at emit == done. It
+is the unlocked fence-list walk itself:
+
+	rcu_read_lock();
+	do {
+		dma_resv_iter_restart_unlocked(cursor);
+		dma_resv_iter_walk_unlocked(cursor);
+	} while (dma_resv_fences_list(cursor->obj) != cursor->fences);
+	rcu_read_unlock();
+
+The loop restarts whenever the list pointer moved, and it does so inside
+the RCU read section. On Linux that converges: a writer publishes the new
+list and the old one is freed asynchronously. On FreeBSD rcu_read_lock()
+is an epoch section and freeing the old list must wait for the epoch to
+drain -- so a reader that never leaves the section blocks the very writer
+whose completion would let it converge, while that writer has already
+published the new pointer. Reader and writer starve each other and the
+loop spins forever.
+
+The writer here is the hardware cursor. Every pointer motion is a
+cursor-plane atomic commit adding a fence to the scanout BO's reservation
+-- the same reservation v3d_wait_bo_ioctl() is walking. That is why this
+only appeared once vc4 started exposing cursor planes, and why forcing
+Option "SWcursor" (which removes the writer entirely) made it vanish. A
+software cursor is not an acceptable fix, only the experiment that
+identified the writer.
+
+Fix: leave the epoch every few restarts and yield, so the writer can drain
+and free and the list can settle. Safe at this point and only this point --
+cursor->fence is held by reference from dma_fence_get_rcu(), while
+cursor->fences is merely RCU-protected and the next statement re-reads it
+in dma_resv_iter_restart_unlocked().
+
+No #ifdef __FreeBSD__: drm-kmod builds nowhere else, and the guard would
+only leave an unused variable behind.
+
+--- a/drivers/dma-buf/dma-resv.c
++++ b/drivers/dma-buf/dma-resv.c
+@@ -37,6 +37,7 @@
+ #include <linux/dma-fence-array.h>
+ #include <linux/export.h>
+ #include <linux/mm.h>
++#include <linux/sched.h>
+ #include <linux/sched/mm.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/seq_file.h>
+@@ -405,6 +406,44 @@
+ 	} while (true);
+ }
+ 
++/*
++ * Bound the unlocked iterators' restart loop.
++ *
++ * Both iterators re-walk the fence list from the start whenever the list
++ * pointer changed underneath them, and they do it inside rcu_read_lock().
++ * On Linux that terminates: a writer publishes the new list and frees the
++ * old one asynchronously, so the comparison converges.
++ *
++ * On FreeBSD rcu_read_lock() is an epoch section, and freeing the old list
++ * has to wait for that epoch to drain. A reader that never leaves the
++ * section therefore blocks the writer that would let it converge, while the
++ * writer has already published the new pointer -- so the loop spins at 100%
++ * CPU, in the kernel, forever. Measured on a Pi 500+ with a hardware cursor:
++ * every pointer motion is a cursor-plane atomic commit adding a fence to the
++ * scanout BO's reservation, which is the very list v3d_wait_bo_ioctl() is
++ * walking. Xorg wedged in exactly this loop, and a crash dump caught it:
++ *
++ *	dma_fence_get_rcu / dma_resv_wait_timeout / drm_gem_dma_resv_wait
++ *	/ v3d_wait_bo_ioctl / drm_ioctl / sys_ioctl
++ *
++ * The GPU was idle and every job complete; the walker simply could not
++ * finish. So leave the epoch periodically and yield. That lets the writer
++ * drain and free, after which the list settles and the walk converges. It is
++ * safe here and only here: cursor->fence is held by reference via
++ * dma_fence_get_rcu(), while cursor->fences is only RCU-protected -- and the
++ * very next statement re-reads it in dma_resv_iter_restart_unlocked().
++ */
++#define	DMA_RESV_ITER_MAX_SPINS	8
++
++#define	DMA_RESV_ITER_YIELD(spins) do {					\
++	if (++(spins) > DMA_RESV_ITER_MAX_SPINS) {			\
++		rcu_read_unlock();					\
++		cond_resched();						\
++		rcu_read_lock();					\
++		(spins) = 0;						\
++	}								\
++} while (0)
++
+ /**
+  * dma_resv_iter_first_unlocked - first fence in an unlocked dma_resv obj.
+  * @cursor: the cursor with the current position
+@@ -419,8 +458,11 @@
+  */
+ struct dma_fence *dma_resv_iter_first_unlocked(struct dma_resv_iter *cursor)
+ {
++	unsigned int spins = 0;
++
+ 	rcu_read_lock();
+ 	do {
++		DMA_RESV_ITER_YIELD(spins);
+ 		dma_resv_iter_restart_unlocked(cursor);
+ 		dma_resv_iter_walk_unlocked(cursor);
+ 	} while (dma_resv_fences_list(cursor->obj) != cursor->fences);
+@@ -442,14 +484,17 @@
+  */
+ struct dma_fence *dma_resv_iter_next_unlocked(struct dma_resv_iter *cursor)
+ {
++	unsigned int spins = 0;
+ 	bool restart;
+ 
+ 	rcu_read_lock();
+ 	cursor->is_restarted = false;
+ 	restart = dma_resv_fences_list(cursor->obj) != cursor->fences;
+ 	do {
+-		if (restart)
++		if (restart) {
++			DMA_RESV_ITER_YIELD(spins);
+ 			dma_resv_iter_restart_unlocked(cursor);
++		}
+ 		dma_resv_iter_walk_unlocked(cursor);
+ 		restart = true;
+ 	} while (dma_resv_fences_list(cursor->obj) != cursor->fences);

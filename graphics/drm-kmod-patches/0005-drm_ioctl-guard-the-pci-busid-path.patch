@@ -1,0 +1,117 @@
+drm_ioctl: guard the PCI busid path in drm_set_busid() too
+
+0004 fixed drm_add_busid_modesetting() and said out loud what was left:
+
+	simply assuming PCI the way upstream drm-kmod does ("BSDFIXME: Assume
+	it's PCI for now", drm_ioctl.c) would reintroduce the panic on the Pi.
+
+It does. drm_set_busid() still carries that BSDFIXME:
+
+	#elif defined(__FreeBSD__)
+		// BSDFIXME: Assume it's PCI for now
+		if (dev->dev) {
+
+dev->dev is non-NULL for every DRM device, so this is not a guard at all --
+vc4 and v3d go straight into drm_pci_set_busid(), whose to_pci_dev() is a
+container_of. v3d_newbus.c points dev->dev at a platform_device embedded in the
+driver softc, so the resulting "pci_dev" aims into that softc and the next load
+faults.
+
+Reached from userland by any X server, on a Pi 500+ with no X running:
+
+	drmSetInterfaceVersion(fd, {1, 4, -1, -1}) on /dev/dri/card0  -> panic
+	drmSetInterfaceVersion(fd, {1, 4, -1, -1}) on /dev/dri/card1  -> panic
+
+	Fatal data abort:
+	  far: 0x0000000000000008
+	  elr: 0xffff000125cbad14        IOGraphics + 0x8ed14
+	   lr: 0xffff000125cb1e6c        IOGraphics + 0x85e6c
+
+	nm IOGraphics:
+	  000000000008ecdc T drm_pci_set_busid   -> fault  = +0x38
+	  0000000000085da0 t drm_setversion      -> caller = +0xcc
+
+far = 0x8 is exact rather than incidental. drm_di_minor = 4 sets if_version to
+0x10004, so drm_get_pci_domain() skips its < 1.4 early return and calls
+pci_domain_nr(pdev->bus). pdev->bus reads as NULL out of the softc, and
+struct pci_bus is { self, domain, number } -- domain at offset 8.
+
+drm_setversion() calls drm_set_busid() for any drm_di_minor >= 1, under
+dev->master_mutex, from an ioctl any DRM master may issue. So this is an
+unprivileged-userland kernel panic on every non-PCI DRM device, and it fires on
+card0 (vc4) as readily as card1 (v3d) because both go through drm.ko.
+
+It surfaced now because libdrm learned to enumerate platform-bus DRM devices:
+with drmGetDevices2() returning 0 devices, X never probed the Pi's DRM nodes
+and never issued the ioctl. The panic predates that -- nothing reached it.
+
+Fix: use drm_dev_has_pci_parent(), the ancestry walk 0004 already added for
+exactly this question, instead of the BSDFIXME. It moves from static to
+drm_internal.h beside the other drm_sysctl_freebsd.c exports; both translation
+units are in drm.ko and both include that header, so the prototype is visible
+where the kernel's -Wmissing-prototypes needs it.
+
+amd64 is unchanged by construction. A PCI GPU reaches a PCI bus walking up
+(pci0 -> vgapci0 -> drmn0), takes drm_pci_set_busid() exactly as before, and
+reports the same "pci:%04x:%02x:%02x.%d" busid. Only devices for which the
+old test was already wrong change behaviour, and those are the ones panicking.
+The GFX-BUSID assertion 0004 added to the amd64 boot test covers the sysctl
+half of this; i915, amdgpu, radeon, bochs and vboxvideo all share this drm.ko.
+
+The else branch is safe for vc4/v3d: drm_dev_init() sets dev->unique from
+dev_name(parent), so master->unique becomes "v3d.0" / the vc4 name rather than
+a PCI address.
+
+diff --git a/drivers/gpu/drm/drm_internal.h b/drivers/gpu/drm/drm_internal.h
+index f706278..33b41dd 100644
+--- a/drivers/gpu/drm/drm_internal.h
++++ b/drivers/gpu/drm/drm_internal.h
+@@ -180,6 +180,7 @@ void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
+ /* Need to find a proper way to do that */
+ int drm_sysctl_init(struct drm_device *dev);
+ int drm_sysctl_cleanup(struct drm_device *dev);
++bool drm_dev_has_pci_parent(struct device *dev);
+ #endif
+ 
+ /* drm_debugfs.c drm_debugfs_crc.c */
+diff --git a/drivers/gpu/drm/drm_ioctl.c b/drivers/gpu/drm/drm_ioctl.c
+index 50e7c44..9f94e16 100644
+--- a/drivers/gpu/drm/drm_ioctl.c
++++ b/drivers/gpu/drm/drm_ioctl.c
+@@ -152,8 +152,21 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
+ #ifdef __linux__
+ 	if (dev->dev && dev_is_pci(dev->dev)) {
+ #elif defined(__FreeBSD__)
+-	// BSDFIXME: Assume it's PCI for now
+-	if (dev->dev) {
++	/*
++	 * Not "assume it's PCI": drm_pci_set_busid() runs to_pci_dev() on
++	 * dev->dev, which is a container_of, and then dereferences ->bus. On a
++	 * device-tree device that pointer aims into the driver's softc, so the
++	 * very next load faults. A Pi 500+ panics instantly here --
++	 * pci_domain_nr(NULL) reading NULL+8 -- for any userland that calls
++	 * drmSetInterfaceVersion() with drm_di_minor >= 1, which every X server
++	 * does while probing DRM nodes.
++	 *
++	 * Use the same ancestry test drm_add_busid_modesetting() uses. A PCI
++	 * GPU still reaches a PCI bus walking up (pci0 -> vgapci0 -> drmn0) and
++	 * keeps the PCI busid it has always had; a device-tree device never
++	 * does and takes the dev->unique path below.
++	 */
++	if (drm_dev_has_pci_parent(dev->dev)) {
+ #endif
+ 		ret = drm_pci_set_busid(dev, master);
+ 		if (ret) {
+diff --git a/drivers/gpu/drm/drm_sysctl_freebsd.c b/drivers/gpu/drm/drm_sysctl_freebsd.c
+index 6e37a08..f3625ef 100644
+--- a/drivers/gpu/drm/drm_sysctl_freebsd.c
++++ b/drivers/gpu/drm/drm_sysctl_freebsd.c
+@@ -187,7 +187,7 @@ int drm_sysctl_cleanup(struct drm_device *dev)
+  * so walk up until a PCI bus turns up. A device-tree device never reaches one,
+  * which is what keeps the container_of below out of reach for it.
+  */
+-static bool
++bool
+ drm_dev_has_pci_parent(struct device *dev)
+ {
+ 	device_t bsddev, parent;
