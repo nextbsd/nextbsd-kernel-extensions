@@ -198,70 +198,41 @@ jobs:
           eval spawn $env(QEMU) -m 4096 -smp 2 $env(PFLASH) $env(DISK) $env(NET) \
               $env(GPU) -display none -serial stdio
 
+          # The loader handshake is nextbsd's tests/loader.exp.inc, fetched next
+          # to this script rather than reimplemented. It hardened over several
+          # flaky runs -- input paced at ~25 cps, each command syncing on the
+          # loader's next "OK " rather than on the echo of what we typed (the
+          # UART drops characters in both directions), and a garbled final `boot`
+          # resent because it never self-recovers. A second copy here would drift
+          # from it, which is the failure this whole lane is meant to stop
+          # repeating.
+          source loader.exp.inc
+
+          loader_prompt 60
           # The shipped image sets boot_mutemsgs="YES" for a clean login screen,
           # which silences the kernel console entirely -- nothing would reach
-          # -serial stdio and this would sit until the timeout. Interrupt autoboot
-          # and opt CI into the serial console, as nextbsd's own harness does.
-          set send_slow {1 .04}
-          proc loader_set {cmd} {
-              global timeout
-              set saved $timeout
-              set timeout 20
-              sleep 0.3
-              # Sync on the next OK rather than the command echo: this emulated
-              # UART drops characters from the ECHO often enough that an
-              # exact-echo match hangs on a cosmetic glitch.
-              expect *
-              send -s -- "$cmd\r"
-              expect {
-                  timeout { puts "\nFAIL: no OK prompt after '$cmd'"; exit 1 }
-                  "OK "
-              }
-              set timeout $saved
-          }
-
-          expect {
-              timeout { puts "\nFAIL: no loader autoboot prompt within 60s"; exit 1 }
-              -re "Hit \\\[Enter\\\]"          { send " " }
-              "Booting"                      { send " " }
-              -re "FreeBSD/\[a-z0-9\]+ EFI"   { send " " }
-          }
-          expect {
-              timeout { puts "\nFAIL: no loader OK prompt within 30s"; exit 1 }
-              "OK " { puts "\n==> at loader prompt; enabling the serial console" }
-          }
+          # -serial stdio. Opt CI into the serial console, as the other harnesses
+          # do. =NO rather than unset: the loader's howto builder tests
+          # `val != NULL && strcasecmp(val, "no") != 0`.
           loader_set "set console=comconsole"
           loader_set "set boot_serial=YES"
           loader_set "set comconsole_speed=115200"
           loader_set "set boot_multicons=YES"
-          # =NO, not unset: the loader's howto builder tests
-          # `val != NULL && strcasecmp(val, "no") != 0`.
           loader_set "set boot_mutemsgs=NO"
-          # Verbose, and this lane is the reason it matters: the IOKit
-          # catalogue prints
-          #   iokit: present-scan: <dev> (0x<id>) present + unmatched -> request load <bundle>
-          # ONLY under bootverbose. Without it you can see that a kext did
-          # not load, but not whether anything ever ASKED for it -- which is
-          # exactly the distinction that cost a day on nextbsd-kernel#170 and
-          # #249. It costs boot time under single-thread TCG, so it is an
-          # input rather than hard-coded.
-          if {$env(VERBOSE) eq "true"} {
-              loader_set "set boot_verbose=YES"
-          }
 
-          # Not loader_set: a successful boot LEAVES the OK prompt, so waiting for
-          # another OK would time out on success.
-          set timeout 20
-          for {set try 1} {$try <= 5} {incr try} {
-              sleep 0.3
-              expect *
-              send -s -- "boot\r"
-              expect {
-                  "unknown command" { puts "\n==> garbled 'boot' ($try/5); resending"; continue }
-                  -re "Booting|/boot/kernel/kernel|Loading kernel|---<<" { break }
-                  "OK "   { puts "\n==> still at OK ($try/5); resending"; continue }
-                  timeout { puts "\n==> no response ($try/5); resending"; continue }
-              }
+          # `boot -v`, and this lane is the reason it matters: the IOKit
+          # catalogue's present-scan prints
+          #   iokit: present-scan: <dev> (0x<id>) present + unmatched -> request load <bundle>
+          # ONLY under bootverbose. Without it a failing run tells you a kext did
+          # not load but not whether anything ever ASKED for it -- exactly the
+          # distinction that cost a day on nextbsd-kernel#170 and #249. It is an
+          # input, not hard-coded, because verbose is synchronous kernel writes
+          # over a 115200 emulated UART and measurably slows arm64 under
+          # single-thread TCG.
+          if {$env(VERBOSE) eq "true"} {
+              loader_boot "boot -v"
+          } else {
+              loader_boot "boot"
           }
 
           set timeout 900
@@ -290,6 +261,8 @@ jobs:
               eof     { puts "\nFAIL: qemu exited before the kexts loaded"; exit 1 }
           }
           EXP
+          curl -fsSL https://raw.githubusercontent.com/nextbsd-redux/nextbsd/main/tests/loader.exp.inc \
+            -o loader.exp.inc
           expect -f boot.exp
 
       - name: Show what loaded
