@@ -1499,271 +1499,332 @@ jobs:
       - name: Run i915/amdgpu/radeon personality generators against fixtures
         run: ./tests/personalities-selftest.sh
 
-  # PR-only kext proof-of-concept (#183): convert a leaf .ko to a .kext and
-  # prove it loads via the Apple-shaped kextload in a booted VM. Wraps nmdm.ko
-  # (null-modem pseudo-tty — a dependency-free leaf, so no dep resolution is
-  # needed) and boots the nextbsd `continuous` image, which must already ship
-  # the kextload/kextstat/kextunload trio (nextbsd Phase 1). Mirrors the
-  # nextbsd-kernel boot smoke test. PR-only, never publishes.
-  kext-smoke-test:
-    name: kext PoC (Nmdm/IntelWiFi load + BochsGraphics bind, in a booted VM)
+  # Boot the kexts built in THIS run, on BOTH arches, in a real full image.
+  #
+  # Two stages. The first assembles a bootable disk.img exactly the way
+  # nextbsd-kernel's own CI does (its ci/assemble-image.sh, fetched from main
+  # rather than copied): the latest published kernel + base + userland +
+  # contrib from each component's `continuous` release, /etc seeded from
+  # nextbsd-overlays -- and the graphics kexts from the drm-kmod job above,
+  # NOT from a release. So what boots is the current kernel with the kexts
+  # this run just built against it, which is the combination the release job
+  # would ship. The second stage boots that image under qemu with a virtio
+  # GPU and waits for the drm fb console handover, which only happens if the
+  # whole chain (DMABuf <- IOGraphics <- ... <- VirtIOGraphics) loaded via
+  # kextd and bound. Test only: nothing here publishes anything.
+  assemble-test-image:
+    name: assemble test image (this run's kexts + latest kernel, ${{ matrix.target }})
     needs: [modules, drm-kmod]
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: amd64
+            target_arch: amd64
+          - target: arm64
+            target_arch: aarch64
+    # assemble-image.sh host-builds makefs/mkimg/pwd_mkdb/cap_mkdb from the
+    # /usr/src baked into this image (make.py _legacy, via $CROSS_BINDIR from
+    # the image ENV), so it has to run in the toolchain container.
+    container:
+      image: ghcr.io/nextbsd/nextbsd-kernel-toolchain:${{ matrix.target }}-${{ inputs.fbsd_sha && format('fbsd-{0}', inputs.fbsd_sha) || 'latest' }}
     steps:
-      - name: Checkout (tools/ + tests/)
+      - name: Checkout tools (ko2kext)
         uses: actions/checkout@v4
-
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: false
-          swap-storage: false
+          path: nbkm-tools
 
-      # The graphics stack (drm core + TTM + the helpers + bochs) comes from the
-      # drm-kmod job, already wrapped and validated there.
-      - name: Download graphics kexts (amd64)
+      - name: Download graphics kexts built in this run
         uses: actions/download-artifact@v4
         with:
-          name: graphics-kexts-amd64
+          name: graphics-kexts-${{ matrix.target }}
           path: gfx-dl
 
-      - name: Download built modules (amd64)
+      - name: Download modules built in this run
         uses: actions/download-artifact@v4
         with:
-          name: nextbsd-modules-amd64
+          name: nextbsd-modules-${{ matrix.target }}
           path: modules-dl
 
-      - name: Download IntelWiFi personalities
-        uses: actions/download-artifact@v4
-        with:
-          name: intelwifi-personalities
-          path: personalities
-
-      - name: Download IntelEthernet personalities
-        uses: actions/download-artifact@v4
-        with:
-          name: intelethernet-personalities
-          path: personalities
-
-      - name: Convert nmdm.ko -> Nmdm.kext and if_iwlwifi.ko -> IntelWiFi.kext
+      # assemble-image.sh takes MODULES_TGZ, a space-separated list of tarballs
+      # whose contents it extracts straight into /System/Library/Extensions, so
+      # each one must have the *.kext/ directories at its top level. Packed the
+      # same way build.yml's publish job packs graphics-kexts-<arch>.tar.gz
+      # (find the dir holding the kexts, tar its contents), so the image gets
+      # the kexts in the shape a release would ship them.
+      - name: Pack this run's kexts for the assembler
         run: |
-          chmod +x tools/ko2kext.sh
-          # Nmdm.kext: dependency-free leaf — full load/unload canary.
+          set -eu
+          mkdir -p art
+          GFX=$(find gfx-dl -maxdepth 3 -name '*.kext' -type d 2>/dev/null | head -1)
+          [ -n "$GFX" ] || { echo "ERROR: graphics-kexts-${{ matrix.target }} artifact has no kexts" >&2; find gfx-dl -maxdepth 2 | head; exit 1; }
+          GDIR=$(dirname "$GFX")
+          # The boot stage gives the guest a virtio GPU on both arches and
+          # gates on drmfb taking the console, which needs this whole chain.
+          # Fail here, with the name, rather than 30 minutes later on a
+          # timeout that cannot say which kext was missing.
+          for k in DMABuf IOGraphics IOGraphicsExtras IOGraphicsShmem LinuxVirtIO VirtIOGraphics; do
+            [ -d "$GDIR/$k.kext" ] || { echo "ERROR: $k.kext missing from this run's graphics kexts (${{ matrix.target }}); the virtio-gpu chain cannot load" >&2; ls "$GDIR"; exit 1; }
+          done
+          tar -C "$GDIR" -czf "art/graphics-kexts-${{ matrix.target }}.tar.gz" .
+          echo "==> graphics kexts from this run:"; ls "$GDIR"
+          # Nmdm.kext from this run's nmdm.ko: the dependency-free leaf the
+          # smoke test has always shipped. Nothing in qemu asks for it, so it
+          # stays dormant; it is here so the modules artifact is in the image
+          # too, and so a broken kext bundle shape shows up in kextd's log.
           KO=$(find modules-dl -type f -name nmdm.ko | head -1)
-          test -n "$KO" || { echo "nmdm.ko not found in modules artifact" >&2; find modules-dl -name '*.ko' | head; exit 1; }
-          echo "==> wrapping $KO"
-          tools/ko2kext.sh "$KO" Nmdm org.nextbsd.kext.nmdm
-          ls -lR Nmdm.kext
-          # IntelWiFi.kext: if_iwlwifi — Tier-0 real driver. Its linuxkpi /
-          # linuxkpi_wlan deps are baked into the kernel (options COMPAT_LINUXKPI
-          # + device wlan), so it needs no OSBundleLibraries.
-          IWKO=$(find modules-dl -type f -name if_iwlwifi.ko | head -1)
-          test -n "$IWKO" || { echo "if_iwlwifi.ko not found in modules artifact" >&2; find modules-dl -name 'if_*.ko' | head; exit 1; }
-          # Boot-test bundle stays lightweight: it only proves the kext LOADS
-          # (firmware is untouched in QEMU and ~200MB of it would overflow the
-          # fixed-size test image). One small firmware file exercises the bundle
-          # path end-to-end. The FULL iwlwifi firmware set is bundled into the
-          # SHIPPED kext by the publish (continuous) job below.
-          FW_TAG=20260519
-          FW_BASE="https://gitlab.com/kernel-firmware/linux-firmware/-/raw/${FW_TAG}"
-          curl -fL --retry 3 -o iwlwifi-8000C-36.ucode "${FW_BASE}/intel/iwlwifi/iwlwifi-8000C-36.ucode"
-          curl -fL --retry 3 -o LICENCE.iwlwifi_firmware "${FW_BASE}/LICENCE.iwlwifi_firmware"
-          echo "==> wrapping $IWKO (with a sample iwlwifi firmware file + IOKitPersonalities)"
-          PERS=personalities/IntelWiFi.iokitpersonalities
-          test -f "$PERS" || { echo "personalities fragment missing: $PERS" >&2; exit 1; }
-          tools/ko2kext.sh -f iwlwifi-8000C-36.ucode -f LICENCE.iwlwifi_firmware \
-              -p "$PERS" \
-              "$IWKO" IntelWiFi org.nextbsd.kext.intelwifi
-          ls -lR IntelWiFi.kext
+          if [ -n "$KO" ]; then
+            chmod +x nbkm-tools/tools/ko2kext.sh
+            mkdir -p kexts-extra
+            nbkm-tools/tools/ko2kext.sh -o kexts-extra "$KO" Nmdm org.nextbsd.kext.nmdm
+            tar -C kexts-extra -czf "art/nmdm-kext-${{ matrix.target }}.tar.gz" .
+            echo "==> Nmdm.kext wrapped from $KO"
+          else
+            echo "WARN: nmdm.ko not in nextbsd-modules-${{ matrix.target }}; image ships graphics kexts only" >&2
+          fi
+          ls -l art
 
-      - name: Validate IntelWiFi.kext Info.plist + IOKitPersonalities
-        run: |
-          python3 - <<'PY'
-          import plistlib, sys
-          with open('IntelWiFi.kext/Contents/Info.plist','rb') as f:
-              d = plistlib.load(f)
-          assert d['CFBundleIdentifier'] == 'org.nextbsd.kext.intelwifi', d['CFBundleIdentifier']
-          p = d['IOKitPersonalities']['IntelWiFi']
-          assert p['IOProviderClass'] == 'IOPCIDevice', p['IOProviderClass']
-          assert p['IOClass'] == 'IntelWiFi', p['IOClass']
-          ids = p['IOPCIPrimaryMatch'].split()
-          assert all(x.startswith('0x') and x.endswith('8086') and len(x) == 10 for x in ids), ids[:3]
-          assert '0x24f38086' in ids, "Intel 8260 (0x24f3) missing from match table"
-          print(f"Info.plist valid: {len(ids)} Intel device ids; 8260 (0x24f38086) present")
-          PY
-
-      # #219 (D1): build IntelEthernet.kext from if_em.ko and validate its
-      # Info.plist + IOKitPersonalities. NOT boot-loaded here: the nextbsd
-      # `continuous` image still has `device em` built into its kernel, so
-      # kextload'ing if_em.ko would collide with the in-kernel driver. The live
-      # auto-load + bind proof comes in the kernel PR that flips `nodevice em`
-      # (by which point the e1000 hits device_nomatch and kextd loads this kext).
-      # Stage 1 here proves the bundle is well-formed and ships correct ids.
-      - name: Convert if_em.ko -> IntelEthernet.kext + validate
-        run: |
-          EMKO=$(find modules-dl -type f -name if_em.ko | head -1)
-          test -n "$EMKO" || { echo "if_em.ko not found in modules artifact" >&2; find modules-dl -name 'if_*.ko' | head; exit 1; }
-          PERS=personalities/IntelEthernet.iokitpersonalities
-          test -f "$PERS" || { echo "personalities fragment missing: $PERS" >&2; exit 1; }
-          echo "==> wrapping $EMKO (no firmware — em is a pure driver)"
-          tools/ko2kext.sh -p "$PERS" "$EMKO" IntelEthernet org.nextbsd.kext.intelethernet
-          ls -lR IntelEthernet.kext
-          python3 - <<'PY'
-          import plistlib
-          with open('IntelEthernet.kext/Contents/Info.plist','rb') as f:
-              d = plistlib.load(f)
-          assert d['CFBundleIdentifier'] == 'org.nextbsd.kext.intelethernet', d['CFBundleIdentifier']
-          p = d['IOKitPersonalities']['IntelEthernet']
-          assert p['IOProviderClass'] == 'IOPCIDevice', p['IOProviderClass']
-          assert p['IOClass'] == 'IntelEthernet', p['IOClass']
-          ids = p['IOPCIPrimaryMatch'].split()
-          assert all(x.startswith('0x') and x.endswith('8086') and len(x) == 10 for x in ids), ids[:3]
-          assert '0x100e8086' in ids, "qemu 82540EM (0x100e8086) missing from match table"
-          print(f"Info.plist valid: {len(ids)} Intel e1000 device ids; 82540EM (0x100e8086) present")
-          PY
-
-      - name: Download nextbsd continuous image
+      - name: Assemble disk.img (latest kernel + published userland stack + this run's kexts)
         env:
-          # Reads a public `continuous` release asset — no PAT needed; the
-          # built-in github.token authenticates gh for public reads and lets
-          # fork PRs run this step (they get a read-only github.token, no secrets).
+          # Reads public `continuous` release assets and a public tarball --
+          # the built-in github.token is enough, no PAT.
           GH_TOKEN: ${{ github.token }}
+          ARCH: ${{ matrix.target }}
+          WORK: ${{ github.workspace }}/nbimg
+          OUT: ${{ github.workspace }}/nbimg/out
         run: |
-          # Arch-scoped: `continuous` carries BOTH NextBSD-amd64-*.img.zip and
-          # NextBSD-arm64-*.img.zip since the arm64 lane was restored
-          # (nextbsd#407). A bare '*.img.zip' downloads two files, and then
-          # `unzip -Z1 iso/*.img.zip` globs to two paths -- unzip reads the first
-          # as the archive and the SECOND as a member filter inside it, matches
-          # nothing, and the step dies with "no .img member in published zip".
-          # This PoC boots qemu-system-x86_64, so it wants the amd64 image
-          # specifically; ZIP is the single-image invariant, not the release.
-          gh release download continuous -R nextbsd-redux/nextbsd \
-            --pattern 'NextBSD-amd64-*.img.zip' --dir iso --clobber
-          ZIP=$(ls iso/NextBSD-amd64-*.img.zip | head -1)
-          [ -n "$ZIP" ] || { echo "no amd64 .img.zip on the continuous release" >&2; exit 1; }
-          MEMBER=$(unzip -Z1 "$ZIP" | grep -E '\.img$' | head -1)
-          [ -n "$MEMBER" ] || { echo "no .img member in $ZIP" >&2; exit 1; }
-          unzip -p "$ZIP" "$MEMBER" > disk.img
-          rm -rf iso
-          ls -lh disk.img
+          set -eu
+          mkdir -p art "$WORK"
+          gh release download continuous -R nextbsd-redux/nextbsd-freebsd-compat \
+            --pattern 'nextbsd-base-${{ matrix.target }}.tar.gz' --dir art --clobber
+          gh release download continuous -R nextbsd-redux/nextbsd-kernel \
+            --pattern 'nextbsd-kernel-${{ matrix.target }}.tar.gz' --dir art --clobber
+          gh release download continuous -R nextbsd-redux/nextbsd-userland \
+            --pattern 'nextbsd-userland-${{ matrix.target }}.tar.gz' --dir art --clobber
+          gh release download continuous -R nextbsd/nextbsd-contrib \
+            --pattern 'nextbsd-contrib-${{ matrix.target }}.tar.gz' --dir art --clobber
+          export BASE_TGZ="$PWD/art/nextbsd-base-${{ matrix.target }}.tar.gz"
+          export KERNEL_TGZ="$PWD/art/nextbsd-kernel-${{ matrix.target }}.tar.gz"
+          export USERLAND_TGZ="$PWD/art/nextbsd-userland-${{ matrix.target }}.tar.gz"
+          export CONTRIB_TGZ="$PWD/art/nextbsd-contrib-${{ matrix.target }}.tar.gz"
+          # Only the kexts packed from THIS run's artifacts -- no release kexts.
+          export MODULES_TGZ="$PWD/art/graphics-kexts-${{ matrix.target }}.tar.gz $(ls "$PWD"/art/nmdm-kext-*.tar.gz 2>/dev/null | tr '\n' ' ')"
+          echo "MODULES_TGZ=$MODULES_TGZ"
+          # pkg-free /etc seed from nextbsd-overlays, exactly as nextbsd-kernel
+          # does it (no git in the container).
+          gh api repos/nextbsd-redux/nextbsd-overlays/tarball/main > /tmp/overlays.tar.gz
+          mkdir -p "$WORK/seed"
+          tar -C "$WORK/seed" --strip-components=1 -xzf /tmp/overlays.tar.gz
+          export SEED_ROOTFS="$WORK/seed/rootfs"
+          # The assembler itself, from nextbsd-kernel main, not a copy.
+          curl -fsSL https://raw.githubusercontent.com/nextbsd/nextbsd-kernel/main/ci/assemble-image.sh \
+            -o assemble-image.sh
+          chmod +x assemble-image.sh
+          ./assemble-image.sh
+          ls -lh "$OUT/disk.img"
 
-      # Root is freebsd-ufs (not writable from Linux): md-attach the image,
-      # mount ROOTFS, drop Nmdm.kext into /System/Library/Extensions, unmount.
-      # copyback brings the mutated disk.img back to the runner.
-      - name: Inject Nmdm.kext + IntelWiFi.kext into the image's UFS root
-        uses: vmactions/freebsd-vm@v1
+      - name: Upload test image
+        uses: actions/upload-artifact@v4
         with:
-          release: '15.0'
-          usesh: true
-          sync: rsync
-          copyback: true
-          run: |
-            set -eu
-            md=$(mdconfig -a -t vnode -f disk.img)
-            gpart show -p "$md"
-            part=$(gpart show -p "$md" | awk '/freebsd-ufs/{print $3; exit}')
-            [ -n "$part" ] || { echo "no freebsd-ufs partition" >&2; exit 1; }
-            mkdir -p /mnt-root
-            mount "/dev/$part" /mnt-root
-            mkdir -p /mnt-root/System/Library/Extensions
-            cp -R Nmdm.kext IntelWiFi.kext /mnt-root/System/Library/Extensions/
-            # Graphics stack: the whole OSBundleLibraries chain has to be
-            # present or BochsGraphics cannot resolve -- DMABuf <- IOGraphics
-            # <- TTM <- IOGraphicsExtras <- BochsGraphics.
-            GFXDIR=$(find gfx-dl -maxdepth 3 -name 'BochsGraphics.kext' -type d 2>/dev/null | head -1)
-            if [ -n "$GFXDIR" ]; then
-              GFXDIR=$(dirname "$GFXDIR")
-              missing=""
-              for k in DMABuf IOGraphics TTM IOGraphicsExtras BochsGraphics; do
-                [ -d "$GFXDIR/$k.kext" ] || { missing="$missing $k"; continue; }
-                cp -R "$GFXDIR/$k.kext" /mnt-root/System/Library/Extensions/
-                chown -R root:wheel /mnt-root/System/Library/Extensions/$k.kext
-                chmod -R go-w /mnt-root/System/Library/Extensions/$k.kext
-              done
-              # VBoxGraphics is injected separately and is OPTIONAL: it shares
-              # the whole dependency chain above but cannot bind here (qemu
-              # emulates no 80ee:beef), so its stage only asserts kldload +
-              # kextstat. Keeping it out of the required list means a skipped
-              # or failed vboxvideo build costs the VBOX stage and nothing
-              # else, rather than taking the proven bochs path down with it.
-              if [ -d "$GFXDIR/VBoxGraphics.kext" ]; then
-                cp -R "$GFXDIR/VBoxGraphics.kext" /mnt-root/System/Library/Extensions/
-                chown -R root:wheel /mnt-root/System/Library/Extensions/VBoxGraphics.kext
-                chmod -R go-w /mnt-root/System/Library/Extensions/VBoxGraphics.kext
-                echo "==> VBoxGraphics.kext injected"
-              else
-                echo "==> VBoxGraphics.kext absent — VBOX stages will be skipped"
-              fi
-              # The virtio-gpu trio. Optional like VBoxGraphics so an iterating
-              # build cannot take the proven bochs path down -- but unlike
-              # VBoxGraphics these can actually BIND here, because the qemu
-              # invocation carries -device virtio-gpu-pci. All three are needed:
-              # VirtIOGraphics resolves through LinuxVirtIO (the virtio shim)
-              # and IOGraphicsShmem (the shmem GEM layer).
-              virtio_missing=""
-              for k in LinuxVirtIO IOGraphicsShmem VirtIOGraphics; do
-                [ -d "$GFXDIR/$k.kext" ] || { virtio_missing="$virtio_missing $k"; continue; }
-                cp -R "$GFXDIR/$k.kext" /mnt-root/System/Library/Extensions/
-                chown -R root:wheel /mnt-root/System/Library/Extensions/$k.kext
-                chmod -R go-w /mnt-root/System/Library/Extensions/$k.kext
-              done
-              if [ -n "$virtio_missing" ]; then
-                echo "==> virtio-gpu kexts absent —$virtio_missing — VIRTIO stages will be skipped"
-              else
-                echo "==> virtio-gpu kexts injected (LinuxVirtIO, IOGraphicsShmem, VirtIOGraphics)"
-              fi
-              if [ -n "$missing" ]; then
-                echo "==> INCOMPLETE graphics stack (missing:$missing) — graphics stages will be skipped"
-                rm -rf /mnt-root/System/Library/Extensions/BochsGraphics.kext
-              else
-                echo "==> graphics stack injected"
-              fi
-            else
-              echo "==> no BochsGraphics.kext in artifact; graphics stages will be skipped"
-            fi
-            # OSKext authenticates kexts: every bundle component must be
-            # root:wheel and not group/other-writable (cp -R into the VM does
-            # not guarantee this). This mirrors how kexts must be deployed.
-            chown -R root:wheel /mnt-root/System/Library/Extensions/Nmdm.kext \
-                                /mnt-root/System/Library/Extensions/IntelWiFi.kext
-            chmod -R go-w /mnt-root/System/Library/Extensions/Nmdm.kext \
-                          /mnt-root/System/Library/Extensions/IntelWiFi.kext
-            ls -lR /mnt-root/System/Library/Extensions/
-            umount /mnt-root
-            mdconfig -d -u "$md"
-            echo "==> Nmdm.kext + IntelWiFi.kext injected"
+          name: test-image-${{ matrix.target }}
+          path: nbimg/out/disk.img
+          retention-days: 1
+          compression-level: 0
 
-      - name: Install qemu + expect + OVMF
+  # Stage two: boot the image on the runner itself (qemu, not the container),
+  # drive the loader over serial with nextbsd's shared handshake, and wait for
+  # the drm fb console handover that proves the kexts loaded and bound.
+  kext-boot-test:
+    name: boot test (this run's kexts, ${{ matrix.target }})
+    needs: assemble-test-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: amd64
+            qemu_pkgs: qemu-system-x86 ovmf expect
+            # How long to keep reading AFTER login for the drmfb line. kextd
+            # loads the graphics chain seconds after login on hardware; give
+            # the emulated guest minutes.
+            post_login_secs: 300
+          - target: arm64
+            qemu_pkgs: qemu-system-arm qemu-efi-aarch64 expect
+            # arm64 runs under TCG on the x86 runner, so everything after
+            # login is slower too.
+            post_login_secs: 600
+    steps:
+      - name: Download the test image
+        uses: actions/download-artifact@v4
+        with:
+          name: test-image-${{ matrix.target }}
+          path: .
+
+      - name: Install qemu + expect + UEFI firmware
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 expect ovmf
+          sudo apt-get install -y --no-install-recommends ${{ matrix.qemu_pkgs }}
 
-      - name: Boot test (kextload the converted kext)
+      # The loader serial handshake nextbsd hardened over its own flaky runs
+      # (paced input, sync on the next OK rather than the echo, resend a
+      # garbled boot). Fetched from nextbsd main, not rewritten here.
+      - name: Fetch nextbsd's shared loader handshake
         run: |
-          chmod +x tests/kext-boot-test.sh
-          # Skip the graphics stages if the stack was not injected.
-          if [ -d "$GITHUB_WORKSPACE/gfx-dl" ] \
-             && find "$GITHUB_WORKSPACE/gfx-dl" -name BochsGraphics.kext -type d | grep -q . \
-             && find "$GITHUB_WORKSPACE/gfx-dl" -name IOGraphicsExtras.kext -type d | grep -q .; then
-            export GFX_TEST=1
-          else
-            export GFX_TEST=0
-          fi
-          echo "GFX_TEST=$GFX_TEST"
-          ./tests/kext-boot-test.sh disk.img
+          curl -fsSL https://raw.githubusercontent.com/nextbsd-redux/nextbsd/main/tests/loader.exp.inc \
+            -o loader.exp.inc
+          grep -q 'proc loader_boot' loader.exp.inc
 
-      - name: Upload kext boot log
+      - name: Boot test (virtio-gpu; wait for drmfb after login)
+        env:
+          ARCH: ${{ matrix.target }}
+          POST_LOGIN_SECS: ${{ matrix.post_login_secs }}
+        run: |
+          set -eu
+          ls -lh disk.img
+          case "$ARCH" in
+            amd64)
+              # OVMF as two pflash volumes (CODE read-only + a writable VARS
+              # copy). CODE and VARS must come from the same size family, so
+              # they are picked as a pair.
+              CODE=""; VARS=""
+              for pair in \
+                  "/usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd" \
+                  "/usr/share/OVMF/OVMF_CODE.fd /usr/share/OVMF/OVMF_VARS.fd"; do
+                set -- $pair
+                if [ -f "$1" ] && [ -f "$2" ]; then CODE=$1; VARS=$2; break; fi
+              done
+              [ -n "$CODE" ] || { echo "ERROR: no OVMF CODE/VARS pair" >&2; ls /usr/share/OVMF; exit 1; }
+              if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm 2>/dev/null || true; fi
+              if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then ACCEL="-accel kvm"; else ACCEL="-accel tcg,thread=single"; fi
+              QEMU="qemu-system-x86_64 -machine q35 $ACCEL -cpu max"
+              DISK="-drive file=disk.img,format=raw,if=virtio -nic user,model=e1000"
+              ;;
+            arm64)
+              # AAVMF wants two pflash volumes and a WRITABLE vars copy. Fall
+              # back to the bare QEMU_EFI.fd padded to the 64M the virt
+              # machine's pflash expects.
+              if [ -f /usr/share/AAVMF/AAVMF_CODE.fd ] && [ -f /usr/share/AAVMF/AAVMF_VARS.fd ]; then
+                CODE=/usr/share/AAVMF/AAVMF_CODE.fd; VARS=/usr/share/AAVMF/AAVMF_VARS.fd
+              elif [ -f /usr/share/qemu-efi-aarch64/QEMU_EFI.fd ]; then
+                truncate -s 64M code.fd
+                dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=code.fd conv=notrunc status=none
+                truncate -s 64M vars-src.fd
+                CODE=$PWD/code.fd; VARS=$PWD/vars-src.fd
+              else
+                echo "ERROR: no AAVMF/QEMU_EFI firmware" >&2; ls /usr/share/AAVMF /usr/share/qemu-efi-aarch64 2>&1; exit 1
+              fi
+              QEMU="qemu-system-aarch64 -machine virt -accel tcg,thread=single -cpu max"
+              DISK="-drive if=none,id=hd0,format=raw,file=disk.img -device virtio-blk-device,drive=hd0 -netdev user,id=net0 -device virtio-net-device,netdev=net0"
+              ;;
+            *) echo "unsupported ARCH=$ARCH" >&2; exit 1 ;;
+          esac
+          cp "$VARS" vars.fd
+          chmod u+w vars.fd
+          echo "==> $QEMU"
+          echo "==> firmware: $CODE (+ vars.fd from $VARS)"
+          export QEMU CODE DISK
+          cat > boot.exp <<'EXP'
+          set timeout 1800
+          log_file -noappend boot.log
+          log_user 1
+          set arch $env(ARCH)
+          set post_login $env(POST_LOGIN_SECS)
+
+          # -device virtio-gpu-pci on BOTH arches: that is the GPU the kexts
+          # under test have to bind. (q35 also keeps its default stdvga, which
+          # BochsGraphics may take; either handover prints the VT: line.)
+          eval spawn $env(QEMU) \
+              -m 4096 -smp 2 \
+              -drive if=pflash,format=raw,unit=0,readonly=on,file=$env(CODE) \
+              -drive if=pflash,format=raw,unit=1,file=vars.fd \
+              $env(DISK) \
+              -device virtio-gpu-pci \
+              -display none -serial stdio \
+              -no-reboot
+
+          # nextbsd's handshake: loader_prompt / loader_set / loader_boot.
+          source loader.exp.inc
+          loader_prompt 60
+          loader_set "set console=comconsole"
+          loader_set "set boot_serial=YES"
+          loader_set "set comconsole_speed=115200"
+          loader_set "set boot_multicons=YES"
+          # =NO, not unset: the shipped loader.conf mutes the kernel console
+          # (boot_mutemsgs=YES) and nothing reaches the serial line otherwise.
+          loader_set "set boot_mutemsgs=NO"
+          # -v: the IOKit catalogue's present-scan line prints only under
+          # bootverbose, and it is the only evidence of what ASKED for a kext.
+          loader_boot "boot -v"
+
+          # 1. panic anywhere is a failure, matched before anything else.
+          # 2. login: a getty prompt, the autologin syslog line, a shell prompt,
+          #    or getty's banner "NextBSD/<arch> (<host>) (console)" -- the
+          #    banner is the deterministic one, since with autologin no prompt
+          #    is ever printed and the syslog line needs syslogd up.
+          set timeout 1800
+          expect {
+              -re {panic:[^\r\n]*}       { puts "\nFAIL: PANIC before login: $expect_out(0,string)"; exit 1 }
+              -re {login: *$}            { puts "\n==> reached the getty login prompt." }
+              -re {login on console as } { puts "\n==> getty autologin fired." }
+              -re {NextBSD/[a-z0-9]+ \([^)]*\) \(console\)} { puts "\n==> getty banner: $expect_out(0,string)" }
+              -re {[#%$] $}              { puts "\n==> reached a shell prompt." }
+              timeout                    { puts "\nFAIL: no login prompt, banner or shell within 1800s"; exit 1 }
+              eof                        { puts "\nFAIL: qemu exited before login"; exit 1 }
+          }
+
+          # 3. Do NOT exit here. kextd loads the graphics chain SECONDS AFTER
+          #    login; exiting at the prompt kills qemu before the thing under
+          #    test runs, and the job goes green having tested nothing (this
+          #    happened). Keep reading for $post_login seconds.
+          # 4. Success is a VT: line naming drmfb, in either form:
+          #      Replacing driver "..." with new "drmfb"
+          #      initialize with new VT driver "drmfb"
+          #    which one appears depends on whether vt(4) had a backend.
+          #    "VT: Switching back from X to X" is NOT a failure: a correct
+          #    kernel prints it.
+          # 5. No drmfb line in the window = the kexts did not load and bind.
+          set timeout $post_login
+          expect {
+              -re {panic:[^\r\n]*}    { puts "\nFAIL: PANIC after login: $expect_out(0,string)"; exit 1 }
+              -re {VT: [^\r\n]*drmfb} { puts "\nOK ($arch): the console was handed to drmfb: $expect_out(0,string)"; exit 0 }
+              timeout {
+                  puts "\nFAIL ($arch): booted to login, but no 'VT: ... drmfb' line within ${post_login}s after login."
+                  puts "The graphics kexts built in this run did not load and bind against this kernel."
+                  exit 1
+              }
+              eof {
+                  puts "\nFAIL ($arch): qemu exited after login with no 'VT: ... drmfb' line."
+                  puts "The graphics kexts built in this run did not load and bind against this kernel."
+                  exit 1
+              }
+          }
+          EXP
+          expect -f boot.exp
+
+      # Everything a failure needs to be diagnosed from the job page: what
+      # asked for a kext, what kextd did, what the linker loaded, every VT:
+      # and drm line, any panic.
+      - name: Boot log digest
+        if: always()
+        run: |
+          {
+            echo "## kext boot digest (${{ matrix.target }})"
+            echo
+            echo '```'
+            grep -anE 'kextd|linker_load_file|^VT:|\[drm\]|vtgpu|drmfb|panic|iokit:|present-scan|request load' boot.log 2>/dev/null \
+              || echo "(no matching lines in boot.log)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload boot log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kext-boot-log
-          path: tests/kext-boot.log
+          name: test-boot-log-${{ matrix.target }}
+          path: boot.log
           if-no-files-found: ignore
 
   # EXPERIMENTAL (NVIDIA kext series, step 2 / nextbsd#384): prove NVIDIA's
