@@ -115,7 +115,7 @@ send "set console=comconsole\r";        expect "set console=comconsole";        
 send "set boot_serial=YES\r";           expect "set boot_serial=YES";           expect "OK "
 send "set comconsole_speed=115200\r";   expect "set comconsole_speed=115200";   expect "OK "
 send "set boot_multicons=YES\r";        expect "set boot_multicons=YES";        expect "OK "
-send "boot -v\r"
+send "boot\r"
 
 # Stage 1: reach the login prompt (boot completes: mach.ko -> root -> launchd -> getty).
 expect {
