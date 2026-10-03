@@ -1781,6 +1781,14 @@ jobs:
             chmod -R go-w /mnt-root/System/Library/Extensions/Nmdm.kext \
                           /mnt-root/System/Library/Extensions/IntelWiFi.kext
             ls -lR /mnt-root/System/Library/Extensions/
+            # Install the on-image kext GPU validation test (T4). The shared
+            # harness runs it after login; it kextstat-checks the GPU kext that
+            # kextd autoloaded on the q35 default VGA and emits the sentinel the
+            # harness reads. /usr/tests is the FreeBSD base tests directory.
+            mkdir -p /mnt-root/usr/tests/nextbsd/kext
+            cp tests/kext-on-image-run.sh /mnt-root/usr/tests/nextbsd/kext/run.sh
+            chown root:wheel /mnt-root/usr/tests/nextbsd/kext/run.sh
+            chmod 755 /mnt-root/usr/tests/nextbsd/kext/run.sh
             umount /mnt-root
             mdconfig -d -u "$md"
             echo "==> Nmdm.kext + IntelWiFi.kext injected"
@@ -1790,18 +1798,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 expect ovmf
 
-      - name: Boot test (kextload the converted kext)
+      # The on-image test (tests/kext-on-image-run.sh, installed into the image
+      # by the mutation step) does the GPU validation: kextd autoloads the GPU
+      # kext on the q35 default VGA, and it kextstat-checks it + emits the
+      # sentinel. The thin wrapper runs it via the shared harness; the old
+      # host-side GFX_TEST staging is gone with the self-contained expect.
+      - name: Boot test (shared harness, on-image GPU kextstat)
         run: |
           chmod +x tests/kext-boot-test.sh
-          # Skip the graphics stages if the stack was not injected.
-          if [ -d "$GITHUB_WORKSPACE/gfx-dl" ] \
-             && find "$GITHUB_WORKSPACE/gfx-dl" -name BochsGraphics.kext -type d | grep -q . \
-             && find "$GITHUB_WORKSPACE/gfx-dl" -name IOGraphicsExtras.kext -type d | grep -q .; then
-            export GFX_TEST=1
-          else
-            export GFX_TEST=0
-          fi
-          echo "GFX_TEST=$GFX_TEST"
           ./tests/kext-boot-test.sh disk.img
 
       - name: Upload kext boot log
@@ -1809,7 +1813,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kext-boot-log
-          path: tests/kext-boot.log
+          path: boot-test.log
           if-no-files-found: ignore
 
   # Refresh the rolling `continuous` release from a successful main build, so
