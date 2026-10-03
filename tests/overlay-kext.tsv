@@ -1,0 +1,10 @@
+# kext-local marker overlay (T4). The shared nextbsd-ci manifest (markers.tsv)
+# is checked out at the pinned tag and loaded first; this overlay adds the GPU
+# marker the kext image's booted qemu binds, so the kext repo version-codes its
+# own assertion without a nextbsd-ci tag bump.
+#
+# BOCHS: q35's default VGA is a stdvga device, so the binding GPU kext on the
+# shared amd64 lane is BochsGraphics. fail-gates: a -FAIL (the GPU kext did not
+# come up) is a real graphics regression and fails the boot; a bare absence does
+# not gate (the marker only exists if the on-image suite actually ran the check).
+BOCHS	nextbsd-kernel-extensions	both	fail-gates	480	T4 GPU validation: kext image's booted q35 (default stdvga VGA) must have BochsGraphics autoloaded + bound; a -FAIL is a graphics regression.
