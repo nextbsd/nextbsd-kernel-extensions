@@ -32,7 +32,7 @@ echo "==> kext boot test: $IMG — shared harness, on-image GPU (bochs) kextstat
 ls -lh "$IMG"
 
 # Fetch the shared harness at the pinned lockstep tag (absent = first run).
-[ -d nextbsd-ci/.git ] || git clone --depth 1 --branch v0.2.1 \
+[ -d nextbsd-ci/.git ] || git clone --depth 1 --branch v0.2.2 \
   https://github.com/nextbsd/nextbsd-ci.git nextbsd-ci
 
 NB_SUITE=/usr/tests/nextbsd/kext/run.sh \
