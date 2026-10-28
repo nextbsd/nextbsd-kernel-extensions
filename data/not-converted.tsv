@@ -1,4 +1,8 @@
 ko	arches	reason
+accf_data	amd64 arm64	drop: server networking
+accf_dns	amd64 arm64	drop: server networking
+accf_http	amd64 arm64	drop: server networking
+accf_tls	amd64 arm64	drop: server networking
 acpi_asus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 acpi_asus_wmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 acpi_dock	amd64	drop: old vendor laptop extras or sensors
@@ -18,12 +22,14 @@ ahc_pci	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 ahd	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 aibs	amd64	drop: old vendor laptop extras or sensors
 alias_dummy	amd64 arm64	drop: old NAT protocol helper
+alias_ftp	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
 alias_irc	amd64 arm64	drop: old NAT protocol helper
 alias_nbt	amd64 arm64	drop: old NAT protocol helper
 alias_pptp	amd64 arm64	drop: old NAT protocol helper
 alias_skinny	amd64 arm64	drop: old NAT protocol helper
 alias_smedia	amd64 arm64	drop: old NAT protocol helper
 alpm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+alq	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 amd_ecc_inject	amd64	drop: not reviewed
 amdgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 amdpm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
@@ -80,19 +86,32 @@ bhnd_pci_hostb	amd64 arm64	drop: legacy Wi-Fi
 bhnd_pcib	amd64 arm64	drop: legacy Wi-Fi
 bhndb	amd64 arm64	drop: legacy Wi-Fi
 bhndb_pci	amd64 arm64	drop: legacy Wi-Fi
+blake2	amd64	drop: nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
 blank_saver	amd64	drop: not reviewed
+bnxt_re	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
+bridgestp	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+carp	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 cc_cdg	amd64 arm64	drop: research congestion control
 cc_chd	amd64 arm64	drop: research congestion control
+cc_dctcp	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 cc_hd	amd64 arm64	drop: research congestion control
+cc_htcp	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
+cc_newreno	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 cc_vegas	amd64 arm64	drop: research congestion control
 ccp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ccr	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ccr	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cd9660_iconv	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+cfiscsi	amd64 arm64	drop: storage target; server role
 cfumass	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 cfumass	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 chromebook_platform	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 chvgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 coretemp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cpuctl	amd64	drop: CPU microcode updates; not needed
+cryptodev	amd64 arm64	drop: nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
+ctl	amd64 arm64	drop: storage target; server role
+cuse	amd64 arm64	drop: already compiled into the kernel
 cxgb_t3fw	amd64 arm64	drop: not reviewed
 cxgbei	amd64 arm64	held: needs if_cxgbe and t4_tom, held (Chelsio iSCSI offload)
 cyapa	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -100,6 +119,8 @@ cyapa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matche
 daemon_saver	amd64	drop: not reviewed
 dcons	amd64 arm64	drop: not reviewed
 dcons_crom	amd64 arm64	drop: not reviewed
+dpdk_lpm4	amd64 arm64	drop: server networking
+dpdk_lpm6	amd64 arm64	drop: server networking
 dpms	amd64	drop: VESA/syscons-era video helper
 dragon_saver	amd64	drop: not reviewed
 ds1307	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -108,13 +129,26 @@ ds1672	amd64	held: no PNP table, so it cannot autoload (identify- or class-match
 ds1672	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ds3231	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ds3231	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+dtaudit	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtmalloc	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtnfscl	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtrace	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 dtrace_test	amd64 arm64	drop: not reviewed
+dtraceall	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 dummymbuf	amd64 arm64	drop: not reviewed
+dummynet	amd64 arm64	drop: traffic shaping/emulation; not needed
 e6000sw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 e6000sw	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+etherswitch	amd64 arm64	drop: nothing in NextBSD loads it
+ext2fs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 fade_saver	amd64	drop: not reviewed
+fasttrap	amd64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+fbt	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 fdc	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+fdt_slicer	arm64	drop: nothing would ever load it
 felix	arm64	drop: not reviewed
+fib_dxr	amd64 arm64	drop: server networking
+filemon	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
 fire_saver	amd64	drop: not reviewed
 firewire	amd64 arm64	drop: not reviewed
 ftgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -129,9 +163,18 @@ g_mouse	amd64	held: no PNP table, so it cannot autoload (identify- or class-matc
 g_mouse	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 geom_cache	amd64 arm64	drop: obsolete GEOM class
 geom_ccd	amd64 arm64	drop: obsolete GEOM class
+geom_gate	amd64 arm64	drop: GEOM class nothing needs
 geom_journal	amd64 arm64	drop: obsolete GEOM class
+geom_linux_lvm	amd64 arm64	drop: GEOM class nothing needs
+geom_mountver	amd64 arm64	drop: GEOM class nothing needs
+geom_nop	amd64 arm64	drop: GEOM class nothing needs
+geom_part_apm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+geom_part_bsd64	amd64 arm64	drop: GEOM class nothing needs
+geom_part_ebr	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+geom_part_ldm	amd64 arm64	drop: GEOM class nothing needs
 geom_raid3	amd64 arm64	drop: obsolete GEOM class
 geom_shsec	amd64 arm64	drop: obsolete GEOM class
+geom_union	amd64 arm64	drop: GEOM class nothing needs
 geom_virstor	amd64 arm64	drop: obsolete GEOM class
 geom_zero	amd64 arm64	drop: obsolete GEOM class
 gpioaei	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -142,6 +185,7 @@ gpiospi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matc
 gpiospi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 gpioths	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 green_saver	amd64	drop: not reviewed
+h_ertt	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 hcons	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
 hcons	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 hidraw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -157,7 +201,10 @@ htu21	amd64	held: no PNP table, so it cannot autoload (identify- or class-matche
 hv_hid	amd64	held: no ID table the kernel matches on amd64 yet (vmbus)
 hv_hid	arm64	held: no ID table the kernel matches on arm64 yet (vmbus)
 hv_sock	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+hwpmc	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
+hwt	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
 i2ctinyusb	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ibcore	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
 ice_ddp	amd64 arm64	drop: not reviewed
 icee	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ichwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -172,6 +219,7 @@ if_aue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
 if_axa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_bce	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_bfe	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_bridge	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_bwi	amd64 arm64	drop: legacy Wi-Fi
 if_bwn	amd64 arm64	drop: legacy Wi-Fi
 if_cas	amd64 arm64	drop: legacy PCI/PCIe Ethernet
@@ -188,20 +236,26 @@ if_cxlv	amd64 arm64	held: needs if_cxgbe (module cxlv), which has no PNP table a
 if_dc	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_disc	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
 if_edsc	amd64 arm64	drop: not reviewed
+if_enc	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+if_epair	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_fwe	amd64 arm64	drop: not reviewed
 if_fwip	amd64 arm64	drop: not reviewed
 if_fxp	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_gem	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_gre	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_ic	amd64 arm64	drop: not reviewed
+if_infiniband	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
 if_iwm	amd64	drop: IntelWiFi already matches these chips (two kexts would claim one device)
 if_iwn	amd64	borderline: Intel 6205/6300-era Wi-Fi, still in 2010-2013 ThinkPads
 if_iwx	amd64	drop: IntelWiFi already matches these chips (two kexts would claim one device)
 if_jme	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_kue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_lagg	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_le	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_lge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_lio	amd64	drop: old or niche server NIC
 if_malo	amd64 arm64	drop: legacy Wi-Fi
+if_me	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_mgb	amd64	drop: legacy PCI/PCIe Ethernet
 if_mos	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
 if_msk	amd64 arm64	borderline: Marvell Yukon, still on some 2008-2012 boards
@@ -215,6 +269,7 @@ if_nge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_ntb	amd64	drop: old or niche server NIC
 if_oce	amd64 arm64	drop: old or niche server NIC
 if_otus	amd64 arm64	drop: legacy Wi-Fi
+if_ovpn	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_qlnxe	amd64	drop: old or niche server NIC
 if_qlnxev	amd64	drop: old or niche server NIC
 if_qlxgb	amd64	drop: old or niche server NIC
@@ -241,18 +296,35 @@ if_urtw	amd64	drop: legacy Wi-Fi
 if_vge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_vr	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_vte	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_vxlan	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
+if_wg	amd64 arm64	drop: tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_xl	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_zyd	amd64 arm64	drop: legacy Wi-Fi
+iicmux	amd64 arm64	drop: nothing would ever load it
 iicsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 iicsmb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 imcsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+imgact_binmisc	amd64 arm64	drop: nothing in NextBSD loads it
+ip6_mroute	amd64 arm64	drop: server networking
+ip_mroute	amd64 arm64	drop: server networking
+ipdivert	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+ipfw	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+ipfw_nat	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+ipfw_nat64	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+ipfw_nptv6	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+ipfw_pmod	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
 ipl	amd64 arm64	drop: not reviewed
 ipmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ipmi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ipmi_linux	amd64	held: needs linux (the 32-bit Linux ABI), which is not converted
+ipoib	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
+ipsec	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 ipw_bss	amd64	drop: not reviewed
 ipw_ibss	amd64	drop: not reviewed
 ipw_monitor	amd64	drop: not reviewed
+irdma	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
+iscsi	amd64 arm64	drop: iSCSI initiator; not in macOS
+iser	amd64 arm64	drop: iSCSI initiator; not in macOS
 isl	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 isl	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 isl12xx	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -286,33 +358,53 @@ iwn6050fw	amd64	drop: not reviewed
 jedec_dimm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 jedec_dimm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 kern_testfrwk	amd64 arm64	drop: not reviewed
+kgssapi	amd64 arm64	drop: only NFS Kerberos (kgssapi_krb5, dropped) used it
 kgssapi_krb5	amd64 arm64	drop: NFS Kerberos not supported; its stale MODULE_DEPEND on rc4 (dropped) makes kldload refuse it
+kinst	amd64 arm64	drop: niche DTrace provider; the rest of DTrace is compiled in
 krping	amd64 arm64	drop: not reviewed
+ksyms	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
 ktest	amd64 arm64	drop: not reviewed
 ktest_example	amd64 arm64	drop: not reviewed
 ktest_netlink_message_writer	amd64 arm64	drop: not reviewed
+libalias	amd64 arm64	drop: ipfw; pf replaces it, as on macOS
+libiconv	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+libmchain	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 linux	amd64	drop: not reviewed
 logo_saver	amd64	drop: not reviewed
 lpbb	amd64 arm64	drop: not reviewed
 lpt	amd64 arm64	drop: parallel port / ISA-era serial
 ltc430x	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 mac_biba	amd64 arm64	drop: research MLS-style MAC policy
+mac_bsdextended	amd64 arm64	drop: MAC policy; not wanted for now
+mac_do	amd64 arm64	drop: MAC policy; not wanted for now
 mac_ifoff	amd64 arm64	drop: research MLS-style MAC policy
+mac_ipacl	amd64 arm64	drop: MAC policy; not wanted for now
 mac_lomac	amd64 arm64	drop: research MLS-style MAC policy
 mac_mls	amd64 arm64	drop: research MLS-style MAC policy
 mac_none	amd64 arm64	drop: not reviewed
+mac_ntpd	amd64 arm64	drop: MAC policy; not wanted for now
 mac_partition	amd64 arm64	drop: research MLS-style MAC policy
+mac_pimd	amd64 arm64	drop: MAC policy; not wanted for now
+mac_portacl	amd64 arm64	drop: MAC policy; not wanted for now
+mac_priority	amd64 arm64	drop: MAC policy; not wanted for now
+mac_seeotheruids	amd64 arm64	drop: MAC policy; not wanted for now
 mac_stub	amd64 arm64	drop: not reviewed
 mac_test	amd64 arm64	drop: not reviewed
 max44009	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mdio	amd64 arm64	drop: nothing in NextBSD loads it
 mfi	amd64 arm64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
 mfi_linux	amd64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
 mfip	amd64 arm64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
 miiproxy	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 mlx	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+mlx4	amd64 arm64	drop: ConnectX-3: the Ethernet half can never autoload
+mlx4en	amd64 arm64	drop: ConnectX-3: the Ethernet half can never autoload
+mlx4ib	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
+mlx5ib	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
 mpt	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 mrsas	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 mrsas_linux	amd64	held: needs linux (the 32-bit Linux ABI), which is not converted
+msdosfs_iconv	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 mthca	amd64 arm64	drop: RDMA for dropped/legacy hardware
 mvs	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 mw88W8363fw	amd64 arm64	drop: not reviewed
@@ -326,43 +418,84 @@ ncthwm	amd64	held: no PNP table, so it cannot autoload (identify- or class-match
 nfsmb	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 ng_UI	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_async	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_bpf	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_bridge	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_car	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_checksum	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_cisco	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_deflate	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_device	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_echo	amd64 arm64	drop: netgraph test node
+ng_eiface	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_etf	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_ether	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_ether_echo	amd64 arm64	drop: netgraph test node
 ng_frame_relay	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_gif	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_gif_demux	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_hole	amd64 arm64	drop: netgraph test node
+ng_hub	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_iface	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_ip_input	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_ipfw	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_ksocket	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_l2tp	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_lmi	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_macfilter	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_mppc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_nat	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_netflow	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_one2many	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_patch	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_pipe	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_ppp	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_pppoe	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_pptpgre	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_pred1	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_rfc1490	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_source	amd64 arm64	drop: netgraph test node
+ng_split	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_tag	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_tcpmss	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_tee	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_tty	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_vjc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_vlan	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+ng_vlan_rotate	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
+nlsysevent	amd64 arm64	drop: server networking
+nmdm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 ntb	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_plx	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_tool	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_transport	amd64	drop: NTB (PCIe non-transparent bridge), niche
+nvdimm	amd64	drop: nothing would ever load it
 nvmf	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 nvmf	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+nvmf_tcp	amd64 arm64	drop: storage target; server role
+nvmf_transport	amd64 arm64	drop: storage target; server role
+nvmft	amd64 arm64	drop: storage target; server role
 nvram	amd64	drop: not reviewed
 nxprtc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+opensolaris	amd64 arm64	drop: comes with the compiled-in DTrace
+ossl	amd64 arm64	drop: nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
 otusfw_init	amd64 arm64	drop: not reviewed
 otusfw_main	amd64 arm64	drop: not reviewed
 ow_temp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ow_temp	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 owc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 p2sb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+p9fs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 padlock	amd64	drop: legacy crypto card
 pca954x	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 pcf	amd64 arm64	drop: not reviewed
 pcf8574	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 pcf8591	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+pf	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+pflog	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+pflow	amd64 arm64	drop: pf failover and flow export; not in macOS, revisit later
+pfsync	amd64 arm64	drop: pf failover and flow export; not in macOS, revisit later
 plasma_saver	amd64	drop: not reviewed
 plip	amd64 arm64	drop: not reviewed
 pmspcv	amd64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
@@ -371,10 +504,12 @@ ppc	amd64 arm64	drop: parallel port / ISA-era serial
 ppi	amd64 arm64	drop: parallel port / ISA-era serial
 pps	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 pps	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+profile	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 proto	amd64 arm64	borderline: PCI debug access (proto)
 prototype	amd64 arm64	drop: not reviewed
 ps4dshock	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
 ps4dshock	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+pt	amd64	drop: nothing in NextBSD loads it
 pwmbus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 pwmc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 qat	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -413,15 +548,21 @@ safexcel	amd64	held: no PNP table, so it cannot autoload (identify- or class-mat
 sbp	amd64 arm64	drop: not reviewed
 sbp_targ	amd64 arm64	drop: not reviewed
 scc	amd64 arm64	drop: parallel port / ISA-era serial
+sctp	amd64 arm64	drop: server networking
+sdio	amd64 arm64	drop: nothing would ever load it
+sdt	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+sem	amd64 arm64	drop: pre-FreeBSD-9 semaphore syscalls; libc's sem_open() doesn't use them
 send	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
 sfxge	amd64	drop: old or niche server NIC
 sgx	amd64	drop: not reviewed
 sgx_linux	amd64	drop: not reviewed
 siba	amd64 arm64	drop: legacy Wi-Fi
 siba_bhndb	amd64 arm64	drop: legacy Wi-Fi
+siftr	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 siis	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 smb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 smb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+smbfs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 snake_saver	amd64	drop: not reviewed
 snd_als4000	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
 snd_atiixp	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
@@ -455,6 +596,8 @@ splash_txt	amd64	drop: not reviewed
 star_saver	amd64	drop: not reviewed
 superio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 sym	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+systrace	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+systrace_freebsd32	amd64 arm64	drop: niche DTrace provider; the rest of DTrace is compiled in
 systrace_linux	amd64	borderline: Linux syscall tracing for the Linuxulator
 systrace_linux32	amd64	drop: 32-bit syscall tracing (no 32-bit userland)
 t4_tom	amd64 arm64	held: needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)
@@ -462,7 +605,9 @@ t4fw_cfg	amd64 arm64	drop: not reviewed
 t5fw_cfg	amd64 arm64	drop: not reviewed
 t6fw_cfg	amd64 arm64	drop: not reviewed
 t7fw_cfg	amd64 arm64	drop: not reviewed
+tcphpts	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
 tcpmd5	amd64 arm64	drop: not reviewed
+toecore	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
 tpm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 tpm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 tws	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
@@ -479,6 +624,8 @@ ucycom	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 udbc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 udbc	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 udbp	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+udf	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+udf_iconv	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 udl	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 udl	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 uep	amd64 arm64	drop: niche HID
@@ -496,6 +643,7 @@ umcs	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 umct	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 umoscom	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 urio	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+usb_template	amd64 arm64	drop: nothing in NextBSD loads it
 usfs	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 usie	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 uvisor	amd64 arm64	drop: old USB serial/PDA/sensor gadget
@@ -506,8 +654,11 @@ viawd	amd64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 videomode	amd64 arm64	drop: not reviewed
 virtio_balloon	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
 virtio_console	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
+virtio_p9fs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 virtio_random	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
 virtio_random	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
+vkbd	amd64 arm64	drop: only bthidd used it; E16 Bluetooth is being re-planned without it
+vmm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 vpd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 warp_saver	amd64	drop: not reviewed
 wbwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)

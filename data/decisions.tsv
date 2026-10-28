@@ -3,10 +3,10 @@
 # | held (kept, but not converted yet: it needs a module that is not converted).
 ko	decision	reason
 if_iwlwifi	keep	Intel Wi-Fi (iwlwifi): every model 7260 to BE200
-accf_data	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-accf_dns	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-accf_http	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-accf_tls	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
+accf_data	drop	server networking
+accf_dns	drop	server networking
+accf_http	drop	server networking
+accf_tls	drop	server networking
 acpi_asus	keep	laptop/platform support (backlight, hotkeys, WMI)
 acpi_asus_wmi	keep	laptop/platform support (backlight, hotkeys, WMI)
 acpi_dock	drop	old vendor laptop extras or sensors
@@ -27,14 +27,14 @@ ahc_pci	drop	legacy SCSI/IDE/SATA/RAID controller
 ahd	drop	legacy SCSI/IDE/SATA/RAID controller
 aibs	drop	old vendor laptop extras or sensors
 alias_dummy	drop	old NAT protocol helper
-alias_ftp	keep	packet filter / shaping (pf, dummynet, ipfw)
+alias_ftp	drop	ipfw; pf replaces it, as on macOS
 alias_irc	drop	old NAT protocol helper
 alias_nbt	drop	old NAT protocol helper
 alias_pptp	drop	old NAT protocol helper
 alias_skinny	drop	old NAT protocol helper
 alias_smedia	drop	old NAT protocol helper
 alpm	drop	old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
-alq	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
+alq	drop	TCP research and tuning; default TCP is compiled in
 amdgpio	keep	CPU/chipset temperature, power, GPIO, SMBus
 amdpm	drop	old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 amdsbwd	keep	CPU/chipset temperature, power, GPIO, SMBus
@@ -92,56 +92,56 @@ bhnd_pci_hostb	drop	legacy Wi-Fi
 bhnd_pcib	drop	legacy Wi-Fi
 bhndb	drop	legacy Wi-Fi
 bhndb_pci	drop	legacy Wi-Fi
-blake2	keep	software crypto
-bnxt_re	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
-bridgestp	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+blake2	drop	nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
+bnxt_re	drop	RDMA/InfiniBand data-center fabric
+bridgestp	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 bytgpio	keep	CPU/chipset temperature, power, GPIO, SMBus
-carp	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+carp	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 cc_cdg	drop	research congestion control
 cc_chd	drop	research congestion control
-cc_dctcp	keep	TCP congestion control / stacks in current use
+cc_dctcp	drop	TCP research and tuning; default TCP is compiled in
 cc_hd	drop	research congestion control
-cc_htcp	keep	TCP congestion control / stacks in current use
-cc_newreno	keep	TCP congestion control / stacks in current use
+cc_htcp	drop	TCP research and tuning; default TCP is compiled in
+cc_newreno	drop	TCP research and tuning; default TCP is compiled in
 cc_vegas	drop	research congestion control
 ccp	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
 ccr	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
-cd9660_iconv	keep	filesystem (loaded on mount through #436)
-cfiscsi	keep	storage/network target (iSCSI, CTL, NVMe-oF)
+cd9660_iconv	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+cfiscsi	drop	storage target; server role
 cfumass	keep	USB device-side gadget (Pi OTG)
 chromebook_platform	keep	laptop/platform support (backlight, hotkeys, WMI)
 chvgpio	keep	CPU/chipset temperature, power, GPIO, SMBus
 coretemp	keep	CPU/chipset temperature, power, GPIO, SMBus
 cp2112	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
-cpuctl	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
-cryptodev	keep	software crypto
-ctl	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-cuse	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
+cpuctl	drop	CPU microcode updates; not needed
+cryptodev	drop	nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
+ctl	drop	storage target; server role
+cuse	drop	already compiled into the kernel
 cxgbei	held	needs if_cxgbe and t4_tom, held (Chelsio iSCSI offload)
 cyapa	keep	laptop/platform support (backlight, hotkeys, WMI)
-dpdk_lpm4	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-dpdk_lpm6	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
+dpdk_lpm4	drop	server networking
+dpdk_lpm6	drop	server networking
 dpms	drop	VESA/syscons-era video helper
 ds1307	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 ds13rtc	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 ds1672	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 ds3231	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
-dtaudit	keep	DTrace / profiling / tracing
-dtmalloc	keep	DTrace / profiling / tracing
-dtnfscl	keep	DTrace / profiling / tracing
-dtrace	keep	DTrace / profiling / tracing
-dtraceall	keep	DTrace / profiling / tracing
-dummynet	keep	packet filter / shaping (pf, dummynet, ipfw)
+dtaudit	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtmalloc	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtnfscl	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtrace	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+dtraceall	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+dummynet	drop	traffic shaping/emulation; not needed
 dwwdt	keep	CPU/chipset temperature, power, GPIO, SMBus
 e6000sw	keep	embedded Ethernet switch support
-etherswitch	keep	embedded Ethernet switch support
-ext2fs	keep	filesystem (loaded on mount through #436)
-fasttrap	keep	DTrace / profiling / tracing
-fbt	keep	DTrace / profiling / tracing
+etherswitch	drop	nothing in NextBSD loads it
+ext2fs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
+fasttrap	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+fbt	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 fdc	drop	legacy SCSI/IDE/SATA/RAID controller
-fdt_slicer	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
-fib_dxr	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-filemon	keep	DTrace / profiling / tracing
+fdt_slicer	drop	nothing would ever load it
+fib_dxr	drop	server networking
+filemon	drop	developer tool; its loader loads by name, which NextBSD doesn't do
 flexspi	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 ftgpio	keep	CPU/chipset temperature, power, GPIO, SMBus
 ftwd	keep	CPU/chipset temperature, power, GPIO, SMBus
@@ -154,21 +154,21 @@ geom_cache	drop	obsolete GEOM class
 geom_ccd	drop	obsolete GEOM class
 geom_concat	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
 geom_eli	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_gate	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+geom_gate	drop	GEOM class nothing needs
 geom_journal	drop	obsolete GEOM class
-geom_linux_lvm	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+geom_linux_lvm	drop	GEOM class nothing needs
 geom_mirror	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_mountver	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+geom_mountver	drop	GEOM class nothing needs
 geom_multipath	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_nop	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_part_apm	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_part_bsd64	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_part_ebr	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_part_ldm	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+geom_nop	drop	GEOM class nothing needs
+geom_part_apm	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+geom_part_bsd64	drop	GEOM class nothing needs
+geom_part_ebr	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+geom_part_ldm	drop	GEOM class nothing needs
 geom_raid3	drop	obsolete GEOM class
 geom_shsec	drop	obsolete GEOM class
 geom_stripe	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
-geom_union	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+geom_union	drop	GEOM class nothing needs
 geom_virstor	drop	obsolete GEOM class
 geom_zero	drop	obsolete GEOM class
 gpioaei	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
@@ -179,7 +179,7 @@ gpioled	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 gpiopps	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 gpiospi	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 gpioths	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
-h_ertt	keep	TCP congestion control / stacks in current use
+h_ertt	drop	TCP research and tuning; default TCP is compiled in
 hcons	keep	HID input (game controllers, security keys, multitouch, raw HID)
 hgame	keep	HID input (game controllers, security keys, multitouch, raw HID)
 hidraw	keep	HID input (game controllers, security keys, multitouch, raw HID)
@@ -188,11 +188,11 @@ hsctrl	keep	HID input (game controllers, security keys, multitouch, raw HID)
 htu21	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 hv_hid	keep	VM guest support (Hyper-V, VMware, virtio extras)
 hv_sock	keep	VM guest support (Hyper-V, VMware, virtio extras)
-hwpmc	keep	DTrace / profiling / tracing
-hwt	keep	DTrace / profiling / tracing
+hwpmc	drop	developer tool; its loader loads by name, which NextBSD doesn't do
+hwt	drop	developer tool; its loader loads by name, which NextBSD doesn't do
 hym8563	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 i2ctinyusb	drop	old USB serial/PDA/sensor gadget
-ibcore	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
+ibcore	drop	RDMA/InfiniBand data-center fabric
 icee	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 ichsmb	keep	CPU/chipset temperature, power, GPIO, SMBus
 ichwd	keep	CPU/chipset temperature, power, GPIO, SMBus
@@ -211,7 +211,7 @@ if_bce	drop	legacy PCI/PCIe Ethernet
 if_bfe	drop	legacy PCI/PCIe Ethernet
 if_bge	keep	common desktop/laptop/server NIC
 if_bnxt	keep	server 10G+ NIC
-if_bridge	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_bridge	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_bwi	drop	legacy Wi-Fi
 if_bwn	drop	legacy Wi-Fi
 if_bxe	drop	legacy PCI/PCIe Ethernet
@@ -231,20 +231,20 @@ if_dc	drop	legacy PCI/PCIe Ethernet
 if_disc	drop	deprecated or test pseudo-interface (6to4, SEND, discard)
 if_em	keep	common desktop/laptop/server NIC
 if_ena	keep	cloud / VM NIC
-if_enc	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_enc	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_enetc	keep	arm64 board Ethernet (Pi 3/4/5, Allwinner, Marvell, NXP)
 if_enic	keep	cloud / VM NIC
-if_epair	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_epair	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_et	drop	legacy PCI/PCIe Ethernet
 if_fxp	drop	legacy PCI/PCIe Ethernet
 if_gem	drop	legacy PCI/PCIe Ethernet
 if_genet	keep	arm64 board Ethernet (Pi 3/4/5, Allwinner, Marvell, NXP)
-if_gre	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_gre	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_gve	keep	cloud / VM NIC
 if_iavf	keep	server 10G+ NIC
 if_ice	keep	server 10G+ NIC
 if_igc	keep	common desktop/laptop/server NIC
-if_infiniband	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
+if_infiniband	drop	RDMA/InfiniBand data-center fabric
 if_ipheth	keep	USB-C/USB Ethernet or tethering
 if_ipw	drop	legacy Wi-Fi
 if_iwi	drop	legacy Wi-Fi
@@ -256,13 +256,13 @@ if_ixl	keep	server 10G+ NIC
 if_ixv	keep	server 10G+ NIC
 if_jme	drop	legacy PCI/PCIe Ethernet
 if_kue	drop	old USB 1.1/2.0 Ethernet
-if_lagg	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_lagg	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 if_le	drop	legacy PCI/PCIe Ethernet
 if_lge	drop	legacy PCI/PCIe Ethernet
 if_lio	drop	old or niche server NIC
 if_malo	drop	legacy Wi-Fi
 if_mana	keep	cloud / VM NIC
-if_me	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_me	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_mgb	drop	legacy PCI/PCIe Ethernet
 if_mos	drop	old USB 1.1/2.0 Ethernet
 if_msk	borderline	Marvell Yukon, still on some 2008-2012 boards
@@ -277,7 +277,7 @@ if_nge	drop	legacy PCI/PCIe Ethernet
 if_ntb	drop	old or niche server NIC
 if_oce	drop	old or niche server NIC
 if_otus	drop	legacy Wi-Fi
-if_ovpn	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_ovpn	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_qlnxe	drop	old or niche server NIC
 if_qlnxev	drop	old or niche server NIC
 if_qlxgb	drop	old or niche server NIC
@@ -312,80 +312,80 @@ if_vge	drop	legacy PCI/PCIe Ethernet
 if_vmx	keep	cloud / VM NIC
 if_vr	drop	legacy PCI/PCIe Ethernet
 if_vte	drop	legacy PCI/PCIe Ethernet
-if_vxlan	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
-if_wg	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
+if_vxlan	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
+if_wg	drop	tunnel or failover interface macOS lacks; userland VPNs use the built-in tun
 if_wpi	drop	legacy Wi-Fi
 if_xl	drop	legacy PCI/PCIe Ethernet
 if_zyd	drop	legacy Wi-Fi
 iic_gpiomux	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
-iicmux	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
+iicmux	drop	nothing would ever load it
 iicsmb	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 imcsmb	keep	CPU/chipset temperature, power, GPIO, SMBus
-imgact_binmisc	keep	ABI support
+imgact_binmisc	drop	nothing in NextBSD loads it
 intelspi	keep	CPU/chipset temperature, power, GPIO, SMBus
 intpm	keep	CPU/chipset temperature, power, GPIO, SMBus
 ioat	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
-ip6_mroute	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-ip_mroute	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-ipdivert	keep	packet filter / shaping (pf, dummynet, ipfw)
-ipfw	keep	packet filter / shaping (pf, dummynet, ipfw)
-ipfw_nat	keep	packet filter / shaping (pf, dummynet, ipfw)
-ipfw_nat64	keep	packet filter / shaping (pf, dummynet, ipfw)
-ipfw_nptv6	keep	packet filter / shaping (pf, dummynet, ipfw)
-ipfw_pmod	keep	packet filter / shaping (pf, dummynet, ipfw)
+ip6_mroute	drop	server networking
+ip_mroute	drop	server networking
+ipdivert	drop	ipfw; pf replaces it, as on macOS
+ipfw	drop	ipfw; pf replaces it, as on macOS
+ipfw_nat	drop	ipfw; pf replaces it, as on macOS
+ipfw_nat64	drop	ipfw; pf replaces it, as on macOS
+ipfw_nptv6	drop	ipfw; pf replaces it, as on macOS
+ipfw_pmod	drop	ipfw; pf replaces it, as on macOS
 ipmi	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 ipmi_linux	held	needs linux (the 32-bit Linux ABI), which is not converted
-ipoib	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
-ipsec	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
-irdma	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
-iscsi	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-iser	keep	storage/network target (iSCSI, CTL, NVMe-oF)
+ipoib	drop	RDMA/InfiniBand data-center fabric
+ipsec	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+irdma	drop	RDMA/InfiniBand data-center fabric
+iscsi	drop	iSCSI initiator; not in macOS
+iser	drop	iSCSI initiator; not in macOS
 isl	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 isl12xx	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 ismt	keep	CPU/chipset temperature, power, GPIO, SMBus
 isp	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 itwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 jedec_dimm	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
-kgssapi	keep	storage/network target (iSCSI, CTL, NVMe-oF)
+kgssapi	drop	only NFS Kerberos (kgssapi_krb5, dropped) used it
 kgssapi_krb5	drop	NFS Kerberos not supported; its stale MODULE_DEPEND on rc4 (dropped) makes kldload refuse it
-kinst	keep	DTrace / profiling / tracing
-ksyms	keep	DTrace / profiling / tracing
-libalias	keep	packet filter / shaping (pf, dummynet, ipfw)
-libiconv	keep	filesystem (loaded on mount through #436)
-libmchain	keep	filesystem (loaded on mount through #436)
+kinst	drop	niche DTrace provider; the rest of DTrace is compiled in
+ksyms	drop	developer tool; its loader loads by name, which NextBSD doesn't do
+libalias	drop	ipfw; pf replaces it, as on macOS
+libiconv	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+libmchain	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 lpt	drop	parallel port / ISA-era serial
 ltc430x	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 mac_biba	drop	research MLS-style MAC policy
-mac_bsdextended	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
-mac_do	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
+mac_bsdextended	drop	MAC policy; not wanted for now
+mac_do	drop	MAC policy; not wanted for now
 mac_ifoff	drop	research MLS-style MAC policy
-mac_ipacl	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
+mac_ipacl	drop	MAC policy; not wanted for now
 mac_lomac	drop	research MLS-style MAC policy
 mac_mls	drop	research MLS-style MAC policy
-mac_ntpd	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
+mac_ntpd	drop	MAC policy; not wanted for now
 mac_partition	drop	research MLS-style MAC policy
-mac_pimd	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
-mac_portacl	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
-mac_priority	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
-mac_seeotheruids	keep	MAC policy in use today (ugidfw, portacl, seeotheruids, mac_do, ipacl, ntpd, priority)
+mac_pimd	drop	MAC policy; not wanted for now
+mac_portacl	drop	MAC policy; not wanted for now
+mac_priority	drop	MAC policy; not wanted for now
+mac_seeotheruids	drop	MAC policy; not wanted for now
 max44009	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
-mdio	keep	embedded Ethernet switch support
+mdio	drop	nothing in NextBSD loads it
 mfi	borderline	older MegaRAID (mfi) and PMC-Sierra SAS
 mfi_linux	borderline	older MegaRAID (mfi) and PMC-Sierra SAS
 mfip	borderline	older MegaRAID (mfi) and PMC-Sierra SAS
 miiproxy	keep	embedded Ethernet switch support
 mlx	drop	legacy SCSI/IDE/SATA/RAID controller
-mlx4	keep	server 10G+ NIC
-mlx4en	keep	server 10G+ NIC
-mlx4ib	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
-mlx5ib	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
+mlx4	drop	ConnectX-3: the Ethernet half can never autoload
+mlx4en	drop	ConnectX-3: the Ethernet half can never autoload
+mlx4ib	drop	RDMA/InfiniBand data-center fabric
+mlx5ib	drop	RDMA/InfiniBand data-center fabric
 mpi3mr	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mpr	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mps	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mpt	drop	legacy SCSI/IDE/SATA/RAID controller
 mrsas	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mrsas_linux	held	needs linux (the 32-bit Linux ABI), which is not converted
-msdosfs_iconv	keep	filesystem (loaded on mount through #436)
+msdosfs_iconv	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 mthca	drop	RDMA for dropped/legacy hardware
 mvs	drop	legacy SCSI/IDE/SATA/RAID controller
 mx25l	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
@@ -400,94 +400,94 @@ nfsmb	drop	old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 ng_UI	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_async	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_bluetooth	keep	netgraph core and Bluetooth stack
-ng_bpf	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_bridge	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_bpf	drop	netgraph plumbing for mpd-style tools; none in base
+ng_bridge	drop	netgraph plumbing for mpd-style tools; none in base
 ng_btsocket	keep	netgraph core and Bluetooth stack
-ng_car	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_checksum	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_car	drop	netgraph plumbing for mpd-style tools; none in base
+ng_checksum	drop	netgraph plumbing for mpd-style tools; none in base
 ng_cisco	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_deflate	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
-ng_device	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_device	drop	netgraph plumbing for mpd-style tools; none in base
 ng_echo	drop	netgraph test node
-ng_eiface	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_etf	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_ether	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_eiface	drop	netgraph plumbing for mpd-style tools; none in base
+ng_etf	drop	netgraph plumbing for mpd-style tools; none in base
+ng_ether	drop	netgraph plumbing for mpd-style tools; none in base
 ng_ether_echo	drop	netgraph test node
 ng_frame_relay	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_gif	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_gif_demux	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_hci	keep	netgraph core and Bluetooth stack
 ng_hole	drop	netgraph test node
-ng_hub	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_iface	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_ip_input	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_ipfw	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_ksocket	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_hub	drop	netgraph plumbing for mpd-style tools; none in base
+ng_iface	drop	netgraph plumbing for mpd-style tools; none in base
+ng_ip_input	drop	netgraph plumbing for mpd-style tools; none in base
+ng_ipfw	drop	netgraph plumbing for mpd-style tools; none in base
+ng_ksocket	drop	netgraph plumbing for mpd-style tools; none in base
 ng_l2cap	keep	netgraph core and Bluetooth stack
-ng_l2tp	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_l2tp	drop	netgraph plumbing for mpd-style tools; none in base
 ng_lmi	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
-ng_macfilter	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_macfilter	drop	netgraph plumbing for mpd-style tools; none in base
 ng_mppc	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
-ng_nat	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_netflow	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_one2many	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_patch	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_pipe	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_ppp	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_pppoe	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_nat	drop	netgraph plumbing for mpd-style tools; none in base
+ng_netflow	drop	netgraph plumbing for mpd-style tools; none in base
+ng_one2many	drop	netgraph plumbing for mpd-style tools; none in base
+ng_patch	drop	netgraph plumbing for mpd-style tools; none in base
+ng_pipe	drop	netgraph plumbing for mpd-style tools; none in base
+ng_ppp	drop	netgraph plumbing for mpd-style tools; none in base
+ng_pppoe	drop	netgraph plumbing for mpd-style tools; none in base
 ng_pptpgre	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_pred1	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_rfc1490	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_socket	keep	netgraph core and Bluetooth stack
 ng_source	drop	netgraph test node
-ng_split	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_tag	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_tcpmss	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_tee	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
+ng_split	drop	netgraph plumbing for mpd-style tools; none in base
+ng_tag	drop	netgraph plumbing for mpd-style tools; none in base
+ng_tcpmss	drop	netgraph plumbing for mpd-style tools; none in base
+ng_tee	drop	netgraph plumbing for mpd-style tools; none in base
 ng_tty	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
 ng_ubt	keep	Bluetooth USB / helper
 ng_vjc	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
-ng_vlan	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-ng_vlan_rotate	keep	netgraph plumbing used by PPPoE/L2TP/VPN/NAT tools (mpd and similar)
-nlsysevent	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-nmdm	keep	virtualization (bhyve, null modem)
+ng_vlan	drop	netgraph plumbing for mpd-style tools; none in base
+ng_vlan_rotate	drop	netgraph plumbing for mpd-style tools; none in base
+nlsysevent	drop	server networking
+nmdm	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 ntb	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_plx	drop	NTB (PCIe non-transparent bridge), niche
 ntb_tool	drop	NTB (PCIe non-transparent bridge), niche
 ntb_transport	drop	NTB (PCIe non-transparent bridge), niche
-nvdimm	keep	GEOM: encryption, RAID, multipath, partitions, NVDIMM
+nvdimm	drop	nothing would ever load it
 nvmf	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
-nvmf_tcp	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-nvmf_transport	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-nvmft	keep	storage/network target (iSCSI, CTL, NVMe-oF)
+nvmf_tcp	drop	storage target; server role
+nvmf_transport	drop	storage target; server role
+nvmft	drop	storage target; server role
 nxprtc	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
-opensolaris	keep	DTrace / profiling / tracing
-ossl	keep	software crypto
+opensolaris	drop	comes with the compiled-in DTrace
+ossl	drop	nothing uses it; the kernel compiles in AES-NI / ARMv8 crypto
 ow	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 ow_temp	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 owc	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 p2sb	keep	CPU/chipset temperature, power, GPIO, SMBus
-p9fs	keep	filesystem (loaded on mount through #436)
+p9fs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 padlock	drop	legacy crypto card
 pca954x	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 pcf8574	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 pcf8591	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 pchtherm	keep	CPU/chipset temperature, power, GPIO, SMBus
-pf	keep	packet filter / shaping (pf, dummynet, ipfw)
-pflog	keep	packet filter / shaping (pf, dummynet, ipfw)
-pflow	keep	packet filter / shaping (pf, dummynet, ipfw)
-pfsync	keep	packet filter / shaping (pf, dummynet, ipfw)
+pf	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+pflog	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+pflow	drop	pf failover and flow export; not in macOS, revisit later
+pfsync	drop	pf failover and flow export; not in macOS, revisit later
 pmspcv	borderline	older MegaRAID (mfi) and PMC-Sierra SAS
 ppbus	drop	parallel port / ISA-era serial
 ppc	drop	parallel port / ISA-era serial
 ppi	drop	parallel port / ISA-era serial
 pps	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
-profile	keep	DTrace / profiling / tracing
+profile	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 proto	borderline	PCI debug access (proto)
 ps4dshock	keep	HID input (game controllers, security keys, multitouch, raw HID)
-pt	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
+pt	drop	nothing in NextBSD loads it
 puc	keep	PCI multi-port serial cards
 pwm_backlight	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 pwmbus	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
@@ -509,18 +509,18 @@ s35390a	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chip
 safe	drop	legacy crypto card
 safexcel	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
 scc	drop	parallel port / ISA-era serial
-sctp	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
-sdio	keep	SD/SDIO bus support
-sdt	keep	DTrace / profiling / tracing
-sem	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
+sctp	drop	server networking
+sdio	drop	nothing would ever load it
+sdt	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+sem	drop	pre-FreeBSD-9 semaphore syscalls; libc's sem_open() doesn't use them
 send	drop	deprecated or test pseudo-interface (6to4, SEND, discard)
 sfxge	drop	old or niche server NIC
 siba	drop	legacy Wi-Fi
 siba_bhndb	drop	legacy Wi-Fi
-siftr	keep	TCP congestion control / stacks in current use
+siftr	drop	TCP research and tuning; default TCP is compiled in
 siis	drop	legacy SCSI/IDE/SATA/RAID controller
 smb	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
-smbfs	keep	filesystem (loaded on mount through #436)
+smbfs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 smbus	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 snd_als4000	drop	legacy PCI sound card (HDA and USB audio are compiled in)
 snd_atiixp	drop	legacy PCI sound card (HDA and USB audio are compiled in)
@@ -549,14 +549,14 @@ spibus	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 spigen	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 superio	keep	CPU/chipset temperature, power, GPIO, SMBus
 sym	drop	legacy SCSI/IDE/SATA/RAID controller
-systrace	keep	DTrace / profiling / tracing
-systrace_freebsd32	keep	dtraceall depends on it, and dtrace(1) loads dtraceall
+systrace	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+systrace_freebsd32	drop	niche DTrace provider; the rest of DTrace is compiled in
 systrace_linux	borderline	Linux syscall tracing for the Linuxulator
 systrace_linux32	drop	32-bit syscall tracing (no 32-bit userland)
 t4_tom	held	needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)
-tcphpts	keep	TCP congestion control / stacks in current use
+tcphpts	drop	TCP research and tuning; default TCP is compiled in
 tmp461	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
-toecore	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
+toecore	drop	RDMA/InfiniBand data-center fabric
 tpm	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 tws	drop	legacy SCSI/IDE/SATA/RAID controller
 u2f	keep	HID input (game controllers, security keys, multitouch, raw HID)
@@ -571,8 +571,8 @@ ucom	keep	USB serial (FTDI, Prolific, CP210x, CH340, CDC ACM), cellular, printer
 ucycom	drop	old USB serial/PDA/sensor gadget
 udbc	keep	USB serial (FTDI, Prolific, CP210x, CH340, CDC ACM), cellular, printers
 udbp	drop	old USB serial/PDA/sensor gadget
-udf	keep	filesystem (loaded on mount through #436)
-udf_iconv	keep	filesystem (loaded on mount through #436)
+udf	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+udf_iconv	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 udl	keep	DisplayLink USB display
 uep	drop	niche HID
 uether	keep	USB Ethernet support library
@@ -595,7 +595,7 @@ umoscom	drop	old USB serial/PDA/sensor gadget
 ums	keep	HID input (game controllers, security keys, multitouch, raw HID)
 uplcom	keep	USB serial (FTDI, Prolific, CP210x, CH340, CDC ACM), cellular, printers
 urio	drop	old USB serial/PDA/sensor gadget
-usb_template	keep	USB device-side gadget (Pi OTG)
+usb_template	drop	nothing in NextBSD loads it
 usfs	drop	old USB serial/PDA/sensor gadget
 usie	drop	old USB serial/PDA/sensor gadget
 uslcom	keep	USB serial (FTDI, Prolific, CP210x, CH340, CDC ACM), cellular, printers
@@ -605,11 +605,11 @@ viapm	drop	old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 viawd	drop	old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 virtio_balloon	keep	VM guest support (Hyper-V, VMware, virtio extras)
 virtio_console	keep	VM guest support (Hyper-V, VMware, virtio extras)
-virtio_p9fs	keep	filesystem (loaded on mount through #436)
+virtio_p9fs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
 virtio_random	keep	VM guest support (Hyper-V, VMware, virtio extras)
-vkbd	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
+vkbd	drop	only bthidd used it; E16 Bluetooth is being re-planned without it
 vmci	keep	VM guest support (Hyper-V, VMware, virtio extras)
-vmm	keep	virtualization (bhyve, null modem)
+vmm	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 vpd	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 wbwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 wdatwd	keep	CPU/chipset temperature, power, GPIO, SMBus
