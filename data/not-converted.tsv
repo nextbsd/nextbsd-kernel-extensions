@@ -166,7 +166,10 @@ ichwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matche
 if_ae	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_age	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_ale	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_aq	amd64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); Aquantia/Marvell AQC 5G/10G (2017+ boards); in releng/15.1 source, not built by FreeBSD release
 if_ath	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+if_ath11k	amd64 arm64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); Qualcomm Wi-Fi 6/6E (ath11k, LinuxKPI)
+if_ath12k	amd64 arm64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); Qualcomm Wi-Fi 7 (ath12k, LinuxKPI)
 if_aue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
 if_axa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_bce	amd64 arm64	drop: legacy PCI/PCIe Ethernet
@@ -201,6 +204,9 @@ if_malo	amd64 arm64	drop: legacy Wi-Fi
 if_mgb	amd64	drop: legacy PCI/PCIe Ethernet
 if_mos	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
 if_msk	amd64 arm64	borderline: Marvell Yukon, still on some 2008-2012 boards
+if_mt76_core	amd64 arm64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek mt76 common code, library of the mt7921/mt7925 kexts
+if_mt7921	amd64 arm64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek MT7921/7922 Wi-Fi 6/6E (mt76, LinuxKPI); common in AMD laptops
+if_mt7925	amd64 arm64	drop: does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek MT7925 Wi-Fi 7 (mt76, LinuxKPI)
 if_mwl	amd64 arm64	drop: legacy Wi-Fi
 if_mxge	amd64 arm64	drop: old or niche server NIC
 if_my	amd64 arm64	drop: legacy PCI/PCIe Ethernet

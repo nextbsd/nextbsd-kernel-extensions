@@ -52,9 +52,6 @@ if_cdceem	IfCdceem	org.nextbsd.driver.IfCdceem
 if_cxl	IfCxl	org.nextbsd.net.IfCxl
 if_cxlv	IfCxlv	org.nextbsd.net.IfCxlv
 if_ipheth	IfIpheth	org.nextbsd.driver.IfIpheth
-if_mt76_core	IfMt76Core	org.nextbsd.kpi.IfMt76Core
-if_mt7921	IfMt7921	org.nextbsd.driver.IfMt7921
-if_mt7925	IfMt7925	org.nextbsd.driver.IfMt7925
 if_mtw	IfMtw	org.nextbsd.driver.IfMtw
 if_muge	IfMuge	org.nextbsd.driver.IfMuge
 if_run	IfRun	org.nextbsd.driver.IfRun

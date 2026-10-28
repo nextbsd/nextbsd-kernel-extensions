@@ -615,14 +615,14 @@ wdatwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 wmt	keep	HID input (game controllers, security keys, multitouch, raw HID)
 wsp	keep	Apple Intel Mac hardware (SMC, keyboard, trackpads)
 xb360gp	keep	HID input (game controllers, security keys, multitouch, raw HID)
-if_aq	keep	Aquantia/Marvell AQC 5G/10G (2017+ boards); in releng/15.1 source, not built by FreeBSD release
+if_aq	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); Aquantia/Marvell AQC 5G/10G (2017+ boards); in releng/15.1 source, not built by FreeBSD release
 if_rtw88	keep	Realtek Wi-Fi 5 (rtw88, LinuxKPI)
 if_rtw89	keep	Realtek Wi-Fi 6/6E (rtw89, LinuxKPI)
-if_mt76_core	keep	MediaTek mt76 common code, library of the mt7921/mt7925 kexts
-if_mt7921	keep	MediaTek MT7921/7922 Wi-Fi 6/6E (mt76, LinuxKPI); common in AMD laptops
-if_mt7925	keep	MediaTek MT7925 Wi-Fi 7 (mt76, LinuxKPI)
+if_mt76_core	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek mt76 common code, library of the mt7921/mt7925 kexts
+if_mt7921	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek MT7921/7922 Wi-Fi 6/6E (mt76, LinuxKPI); common in AMD laptops
+if_mt7925	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); MediaTek MT7925 Wi-Fi 7 (mt76, LinuxKPI)
 if_ath10k	keep	Qualcomm Wi-Fi 5 (ath10k, LinuxKPI)
-if_ath11k	keep	Qualcomm Wi-Fi 6/6E (ath11k, LinuxKPI)
-if_ath12k	keep	Qualcomm Wi-Fi 7 (ath12k, LinuxKPI)
+if_ath11k	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); Qualcomm Wi-Fi 6/6E (ath11k, LinuxKPI)
+if_ath12k	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); Qualcomm Wi-Fi 7 (ath12k, LinuxKPI)
 if_rge	drop	RTL8125 is covered by Realtek's own driver (vendored as the re kext, E21 D14)
 linuxkpi_wlan	keep	LinuxKPI 802.11 layer for iwlwifi/rtw88/rtw89/mt76/ath1xk; a kext once wlan leaves the kernel (E21 D11)

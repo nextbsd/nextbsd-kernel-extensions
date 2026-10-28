@@ -91,9 +91,15 @@ jobs:
             TARGET_ARCH="${{ matrix.target_arch }}" \
             kernel-toolchain -j"$(nproc)"
 
-      # Every kext's module in one pass, from freebsd-src's sys/modules against
-      # the SDK: SYSDIR for the kernel's (patched) headers and kmod.mk,
-      # KERNBUILDDIR for its opt_*.h and opt_global.h, as buildkernel would
+      # The SYSDIR the modules build against: freebsd-src's sys/ (module source,
+      # some of which Makefiles take from ${SYSDIR}) with the kernel SDK's sys/
+      # laid over it, so every header and kmod.mk input is the kernel's own
+      # (patched) one. /usr/src is the toolchain image's throwaway copy.
+      - name: Lay the kernel SDK over the source tree
+        run: cp -R "$KERNEL_SDK/sys/." /usr/src/sys/
+
+      # Every kext's module in one pass, from sys/modules: SYSDIR as above,
+      # KERNBUILDDIR the SDK's opt_*.h and opt_global.h, as buildkernel would
       # pass. -k keeps going past a module that fails, so one run reports every
       # failure (the inputs step names the modules that were not built).
       - name: Build the kexts' modules
@@ -105,7 +111,7 @@ jobs:
             --cross-bindir="${CROSS_BINDIR}" \
             TARGET="${{ matrix.target }}" \
             TARGET_ARCH="${{ matrix.target_arch }}" \
-            buildenv BUILDENV_SHELL="make -k -C /usr/src/sys/modules -j$(nproc) MODULES_OVERRIDE='$MODS' SYSDIR=$KERNEL_SDK/sys KERNBUILDDIR=$KERNEL_SDK/obj" || true
+            buildenv BUILDENV_SHELL="make -k -C /usr/src/sys/modules -j$(nproc) MODULES_OVERRIDE='$MODS' SYSDIR=/usr/src/sys KERNBUILDDIR=$KERNEL_SDK/obj" || true
 
       # Kexts built from this repo's own Makefiles: the net80211 family and the
       # vendored Realtek driver.
@@ -117,7 +123,7 @@ jobs:
               --cross-bindir="${CROSS_BINDIR}" \
               TARGET="${{ matrix.target }}" \
               TARGET_ARCH="${{ matrix.target_arch }}" \
-              buildenv BUILDENV_SHELL="make -C $d -j$(nproc) SRCTOP=/usr/src SYSDIR=$KERNEL_SDK/sys KERNBUILDDIR=$KERNEL_SDK/obj") || true
+              buildenv BUILDENV_SHELL="make -C $d -j$(nproc) SRCTOP=/usr/src SYSDIR=/usr/src/sys KERNBUILDDIR=$KERNEL_SDK/obj") || true
           done
 
       # Each kext's module, its metadata (kldxref: MODULE_DEPEND, MODULE_PNP_INFO)

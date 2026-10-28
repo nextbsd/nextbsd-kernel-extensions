@@ -94,7 +94,8 @@ inputs)
 		(
 		load "$d"
 		if [ "$KEXT_MODULE" = local ]; then
-			ko=$(find "$obj" -type f -name "$KEXT_KO" -path "*/$KEXT_NAME/*" | head -1)
+			# An out-of-tree build leaves its objects beside the source.
+			ko=$(find "$d" "$obj" -type f -name "$KEXT_KO" -path "*/$KEXT_NAME/*" 2>/dev/null | head -1)
 		else
 			ko=$(find "$obj" -type f -name "$KEXT_KO" -path "*/modules/$KEXT_MODULE/*" | head -1)
 			[ -n "$ko" ] || ko=$(find "$obj" -type f -name "$KEXT_KO" -path '*/modules/*' | head -1)
