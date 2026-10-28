@@ -75,8 +75,6 @@ ath_rate	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its H
 atopcase	amd64	held: no ID table the kernel matches on amd64 yet (spibus)
 atp	amd64 arm64	drop: old vendor laptop extras or sensors
 bcm283x_pwm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
-bcm5974	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-bcm5974	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 bcma	amd64 arm64	drop: legacy Wi-Fi
 bcma_bhndb	amd64 arm64	drop: legacy Wi-Fi
 beastie_saver	amd64	drop: not reviewed
@@ -185,8 +183,6 @@ gpiospi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matc
 gpioths	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 green_saver	amd64	drop: not reviewed
 h_ertt	amd64 arm64	drop: TCP research and tuning; default TCP is compiled in
-hcons	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-hcons	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 hidraw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 hidraw	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 hifn	amd64 arm64	drop: legacy crypto card
@@ -194,11 +190,7 @@ hpt27xx	amd64	drop: not reviewed
 hptmv	amd64	drop: not reviewed
 hptnr	amd64	drop: not reviewed
 hptrr	amd64	drop: not reviewed
-hsctrl	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-hsctrl	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 htu21	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
-hv_hid	amd64	held: no ID table the kernel matches on amd64 yet (vmbus)
-hv_hid	arm64	held: no ID table the kernel matches on arm64 yet (vmbus)
 hv_sock	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 hwpmc	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
 hwt	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
@@ -506,8 +498,6 @@ pps	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched;
 profile	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 proto	amd64 arm64	borderline: PCI debug access (proto)
 prototype	amd64 arm64	drop: not reviewed
-ps4dshock	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-ps4dshock	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 pt	amd64	drop: nothing in NextBSD loads it
 pwmbus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 pwmc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -610,8 +600,6 @@ toecore	amd64 arm64	drop: RDMA/InfiniBand data-center fabric
 tpm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 tpm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 tws	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
-u2f	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-u2f	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 uacpi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 uacpi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 uark	amd64 arm64	drop: old USB serial/PDA/sensor gadget
@@ -651,11 +639,7 @@ vesa	amd64	drop: not reviewed
 viapm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 viawd	amd64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
 videomode	amd64 arm64	drop: not reviewed
-virtio_balloon	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
-virtio_console	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
 virtio_p9fs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ext, VM shared folders)
-virtio_random	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
-virtio_random	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
 vkbd	amd64 arm64	drop: only bthidd used it; E16 Bluetooth is being re-planned without it
 vmm	amd64 arm64	drop: bhyve; left for a separate, optional bhyve repo later
 vpd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)

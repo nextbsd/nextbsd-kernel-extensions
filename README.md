@@ -12,7 +12,7 @@ into the kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E2
 
 ## What is here
 
-116 kexts (82 on amd64, 93 on arm64), one directory each, named after the kext (`IntelEM/`,
+125 kexts (90 on amd64, 101 on arm64), one directory each, named after the kext (`IntelEM/`,
 `RealtekRE/`, `Wlan/`, `AutoFS/`, …). Which modules are converted, and what each kext is called, is
 decided by data, not by the workflow:
 
@@ -32,7 +32,8 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
 
 - **A hardware driver ships as a kext only if it autoloads** on the hardware it supports (E21 D12):
   it needs a personality the in-kernel IOKit matcher handles (PCI vendor/device and class, USB,
-  ACPI `_HID`, device tree). Drivers that cannot autoload yet are held back and listed in
+  ACPI `_HID`, device tree, HID usage and vendor/product, virtio and VMBus). Drivers that cannot
+  autoload yet are held back and listed in
   `data/not-converted.tsv`. The build fails if a hardware kext ends up without one.
 - **Network drivers are kexts** (E21 D11): the modern PCI NICs moved out of the kernel, the
   net80211 stack is the `Wlan` family kext, and `RealtekRE` is Realtek's own driver, vendored

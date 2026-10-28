@@ -4,6 +4,7 @@ acpi_wmi	ACPIWMI	org.nextbsd.driver.ACPIWMI
 ads111x	Ads111x	org.nextbsd.driver.Ads111x
 aw_pwm	AwPWM	org.nextbsd.driver.AwPWM
 aw_spi	AwSPI	org.nextbsd.driver.AwSPI
+bcm5974	Bcm5974	org.nextbsd.driver.Bcm5974
 cp2112	Cp2112	org.nextbsd.driver.Cp2112
 ds1307	Ds1307	org.nextbsd.driver.Ds1307
 ds13rtc	Ds13rtc	org.nextbsd.driver.Ds13rtc
@@ -18,8 +19,11 @@ gpiobus	GPIOBus	org.nextbsd.driver.GPIOBus
 gpioiic	Gpioiic	org.nextbsd.driver.Gpioiic
 gpiopps	Gpiopps	org.nextbsd.driver.Gpiopps
 gpioths	Gpioths	org.nextbsd.driver.Gpioths
+hcons	Hcons	org.nextbsd.driver.Hcons
 hgame	HIDGame	org.nextbsd.driver.HIDGame
+hsctrl	Hsctrl	org.nextbsd.driver.Hsctrl
 htu21	Htu21	org.nextbsd.driver.Htu21
+hv_hid	HvHID	org.nextbsd.driver.HvHID
 hym8563	Hym8563	org.nextbsd.driver.Hym8563
 ichsmb	Ichsmb	org.nextbsd.driver.Ichsmb
 if_axe	IfAxe	org.nextbsd.driver.IfAxe
@@ -49,6 +53,7 @@ ng_ubt	NgUbt	org.nextbsd.net.NgUbt
 owc	Owc	org.nextbsd.driver.Owc
 pcf8574	Pcf8574	org.nextbsd.driver.Pcf8574
 pcf8591	Pcf8591	org.nextbsd.driver.Pcf8591
+ps4dshock	Ps4dshock	org.nextbsd.driver.Ps4dshock
 pwm_backlight	PWMBacklight	org.nextbsd.driver.PWMBacklight
 rtc8583	Rtc8583	org.nextbsd.driver.Rtc8583
 rv3032	Rv3032	org.nextbsd.driver.Rv3032
@@ -56,6 +61,7 @@ rx8803	Rx8803	org.nextbsd.driver.Rx8803
 smbus	Smbus	org.nextbsd.kpi.Smbus
 spibus	SPIBus	org.nextbsd.driver.SPIBus
 tmp461	Tmp461	org.nextbsd.driver.Tmp461
+u2f	U2f	org.nextbsd.driver.U2f
 u3g	U3g	org.nextbsd.driver.U3g
 ucom	Ucom	org.nextbsd.kpi.Ucom
 uether	USBEthernet	org.nextbsd.driver.USBEthernet
@@ -66,6 +72,9 @@ umodem	Umodem	org.nextbsd.driver.Umodem
 ums	Ums	org.nextbsd.driver.Ums
 uplcom	Uplcom	org.nextbsd.driver.Uplcom
 uslcom	Uslcom	org.nextbsd.driver.Uslcom
+virtio_balloon	VirtioBalloon	org.nextbsd.driver.VirtioBalloon
+virtio_console	VirtioConsole	org.nextbsd.driver.VirtioConsole
+virtio_random	VirtioRandom	org.nextbsd.driver.VirtioRandom
 vmci	Vmci	org.nextbsd.driver.Vmci
 wmt	Wmt	org.nextbsd.driver.Wmt
 wsp	Wsp	org.nextbsd.driver.Wsp
