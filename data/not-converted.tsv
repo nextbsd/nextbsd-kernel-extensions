@@ -463,7 +463,7 @@ ng_vjc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, o
 ng_vlan	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_vlan_rotate	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 nlsysevent	amd64 arm64	drop: server networking
-nmdm	amd64 arm64	drop: bhyve; left for a separate, optional bhyve repo later
+nmdm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365)
 ntb	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	amd64	drop: NTB (PCIe non-transparent bridge), niche

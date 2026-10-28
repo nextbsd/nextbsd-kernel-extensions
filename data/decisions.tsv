@@ -450,7 +450,7 @@ ng_vjc	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compressio
 ng_vlan	drop	netgraph plumbing for mpd-style tools; none in base
 ng_vlan_rotate	drop	netgraph plumbing for mpd-style tools; none in base
 nlsysevent	drop	server networking
-nmdm	drop	bhyve; left for a separate, optional bhyve repo later
+nmdm	drop	compiled into the kernel (nextbsd-kernel#365)
 ntb	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	drop	NTB (PCIe non-transparent bridge), niche
