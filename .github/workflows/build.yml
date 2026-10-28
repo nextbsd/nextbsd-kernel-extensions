@@ -61,37 +61,44 @@ jobs:
         with:
           path: nbkx
 
-      # The kernel obj tree from nextbsd-kernel's `continuous` release, and
-      # /usr/src prepared by that same commit's ci/prepare-src.sh, so these
-      # modules build from exactly the kernel's tree (nextbsd-kernel#325). Also
-      # leaves the kernel's KERNEL-BUILD-ID in /tmp/kernel-build-id
-      # (nextbsd-kernel#326).
-      - name: Kernel obj tree + prepared source (same nextbsd-kernel commit)
+      # The kernel SDK from nextbsd-kernel's `continuous` release
+      # (nextbsd-kernel#327): the kernel's headers, generated options and
+      # KERNEL-BUILD-ID. No kernel source or obj tree, no relink (#2). Leaves
+      # the ID in /tmp/kernel-build-id and KERNEL_SDK in the environment.
+      - name: Kernel SDK
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCHED_SHA: ${{ github.event.client_payload.sha }}
-        run: nbkx/tools/prepare-kernel-src.sh ${{ matrix.target }} ${{ matrix.target_arch }}
+        run: nbkx/tools/fetch-kernel-sdk.sh ${{ matrix.target }}
 
-      - name: Build the kexts' modules
+      # buildenv needs the host build tools (bmake, the legacy and bootstrap
+      # tools) that make.py builds into /usr/obj. They come from the toolchain
+      # image's freebsd-src, not from the kernel.
+      - name: Host build tools
         run: |
-          MODS=$(nbkx/tools/kexts.sh modules ${{ matrix.target }})
-          echo "MODULES_OVERRIDE: $MODS"
           cd /usr/src
-          # --cross-bindir points at the external Clang 19 cross toolchain
-          # (CROSS_BINDIR), inherited from the toolchain image ENV.
-          # NO_KERNEL=yes is not a knob buildkernel honours: this re-runs
-          # config(8) and relinks the kernel in the downloaded obj tree before
-          # building modules. That is why the source must be the kernel's own
-          # prepared tree (previous step). Building against a kernel SDK
-          # instead, without relinking, is nextbsd-kernel#327 / nextbsd#555.
           ./tools/build/make.py \
             --cross-bindir="${CROSS_BINDIR}" \
             TARGET="${{ matrix.target }}" \
             TARGET_ARCH="${{ matrix.target_arch }}" \
-            KERNCONF=NEXTBSD \
-            NO_KERNEL=yes \
-            MODULES_OVERRIDE="$MODS" \
-            buildkernel -j"$(nproc)"
+            kernel-toolchain -j"$(nproc)"
+
+      # Each kext's module, from freebsd-src's sys/modules/<module>, against the
+      # SDK: SYSDIR for the kernel's (patched) headers and kmod.mk, KERNBUILDDIR
+      # for its opt_*.h and opt_global.h, as buildkernel would pass.
+      - name: Build the kexts' modules
+        run: |
+          MODS=$(nbkx/tools/kexts.sh modules ${{ matrix.target }})
+          echo "modules: $MODS"
+          cd /usr/src
+          for m in $MODS; do
+            echo "==> sys/modules/$m"
+            ./tools/build/make.py \
+              --cross-bindir="${CROSS_BINDIR}" \
+              TARGET="${{ matrix.target }}" \
+              TARGET_ARCH="${{ matrix.target_arch }}" \
+              buildenv BUILDENV_SHELL="make -C /usr/src/sys/modules/$m -j$(nproc) SYSDIR=$KERNEL_SDK/sys KERNBUILDDIR=$KERNEL_SDK/obj"
+          done
 
       # Each kext's .ko, and its personalities generated from the same source
       # tree the module was compiled from.

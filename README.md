@@ -27,8 +27,8 @@ add a directory.
 - `tools/kexts.sh`: builds every kext from its directory's data.
 - `tools/ko2kext.sh`: wraps a `.ko` in a kext bundle.
 - `tools/gen-*-personalities.sh`: IOKitPersonalities from a driver's own PCI id tables.
-- `tools/prepare-kernel-src.sh`, `tools/stamp-kernel-build-id.py`: build against the published kernel
-  and record its `KERNEL-BUILD-ID` in each kext.
+- `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-build-id.py`: build against the published kernel
+  SDK and record its `KERNEL-BUILD-ID` in each kext.
 
 The tools were copied from nextbsd-kernel-extensions-graphics at `24bac54`.
 
@@ -41,7 +41,9 @@ nextbsd-kernel ──kernel-updated──▶ this repo ──▶ continuous: fre
                                     nextbsd-pkg: NextBSD-kernel-extensions
 ```
 
-The modules are built against the kernel obj tree and prepared source from nextbsd-kernel's
-`continuous` release, with `MODULES_OVERRIDE` set to just the modules a kext ships. Every kext
+The modules are built from freebsd-src's `sys/modules/<module>` against the **kernel SDK** from
+nextbsd-kernel's `continuous` release (`kernel-sdk-<arch>.tar.gz`, nextbsd-kernel#327): its headers as
+`SYSDIR`, its generated options as `KERNBUILDDIR`. Only the modules a kext ships are built, and
+nothing needs the kernel's source or obj tree or relinks the kernel. Every kext
 carries `NBSDKernelBuildID` in its Info.plist, and packaging and the image lanes refuse kexts built
 for another kernel. After a kernel merge, rebuild with a merge here or a manual run of the workflow.
