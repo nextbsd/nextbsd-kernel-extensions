@@ -40,8 +40,8 @@ jobs:
   # it as nextbsd-modules-<arch>.tar.gz. This builds only the modules a kext
   # ships (MODULES_OVERRIDE) and publishes only kexts.
   #
-  # amd64 only for now: no kext lists arm64 yet. Add an arm64 matrix entry
-  # (target_arch aarch64) with the first one that does.
+  # A kext ships on the arches its kext.env lists; each arch builds and
+  # publishes its own set, freebsd-kexts-<arch>.tar.gz.
   modules:
     name: modules (${{ matrix.target }})
     runs-on: ubuntu-24.04
@@ -51,6 +51,8 @@ jobs:
         include:
           - target: amd64
             target_arch: amd64
+          - target: arm64
+            target_arch: aarch64
     container:
       # Same per-arch toolchain image the kernel was built in, by tag only.
       # Cross-builds on the x86_64 runner (no emulation).
@@ -121,7 +123,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [amd64]
+        target: [amd64, arm64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -194,8 +196,8 @@ jobs:
           name: Continuous kernel extensions build
           body: |
             Rolling build of the FreeBSD-derived kexts, refreshed on every successful `main` build.
-            `freebsd-kexts-<arch>.tar.gz` holds the kext bundles (today amd64: IntelWiFi with
-            its iwlwifi firmware), unpacked into /System/Library/Extensions and
+            `freebsd-kexts-<arch>.tar.gz` holds the kext bundles (amd64: IntelWiFi with its
+            iwlwifi firmware, autofs; arm64: autofs), unpacked into /System/Library/Extensions and
             packaged by nextbsd-pkg as `NextBSD-kernel-extensions`.
 
             Every kext carries `NBSDKernelBuildID` in its Info.plist: the nextbsd-kernel

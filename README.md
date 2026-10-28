@@ -15,6 +15,7 @@ kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E21-FreeBSD
 | Kext | Arches | From | Notes |
 |---|---|---|---|
 | `IntelWiFi.kext` | amd64 | `if_iwlwifi.ko` | every iwlwifi model (7260 to BE200), with linux-firmware's iwlwifi set |
+| `autofs.kext` | amd64, arm64 | `autofs.ko` | the automounter filesystem; no personalities, loaded on demand by automount |
 
 ## Layout
 
