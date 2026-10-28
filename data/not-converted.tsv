@@ -94,6 +94,7 @@ chromebook_platform	amd64	held: no PNP table, so it cannot autoload (identify- o
 chvgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 coretemp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 cxgb_t3fw	amd64 arm64	drop: not reviewed
+cxgbei	amd64 arm64	held: needs if_cxgbe and t4_tom, held (Chelsio iSCSI offload)
 cyapa	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 cyapa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 daemon_saver	amd64	drop: not reviewed
@@ -134,7 +135,6 @@ geom_shsec	amd64 arm64	drop: obsolete GEOM class
 geom_virstor	amd64 arm64	drop: obsolete GEOM class
 geom_zero	amd64 arm64	drop: obsolete GEOM class
 gpioaei	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
-gpiobus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 gpioiic	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 gpiokeys	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 gpioled	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -144,8 +144,6 @@ gpioths	amd64	held: no PNP table, so it cannot autoload (identify- or class-matc
 green_saver	amd64	drop: not reviewed
 hcons	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
 hcons	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
-hgame	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
-hgame	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
 hidraw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 hidraw	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 hifn	amd64 arm64	drop: legacy crypto card
@@ -350,8 +348,6 @@ nvram	amd64	drop: not reviewed
 nxprtc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 otusfw_init	amd64 arm64	drop: not reviewed
 otusfw_main	amd64 arm64	drop: not reviewed
-ow	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
-ow	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ow_temp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ow_temp	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 owc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
@@ -378,11 +374,13 @@ pwmc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched
 qat	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 qat_200xx_fw	amd64	drop: not reviewed
 qat_4xxx_fw	amd64	drop: not reviewed
+qat_api	amd64	held: the qat driver has no PNP table and is held
 qat_c2xxx	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 qat_c2xxxfw	amd64	drop: not reviewed
 qat_c3xxx_fw	amd64	drop: not reviewed
 qat_c4xxx_fw	amd64	drop: not reviewed
 qat_c62x_fw	amd64	drop: not reviewed
+qat_common	amd64	held: the qat driver has no PNP table and is held
 qat_dh895xcc_fw	amd64	drop: not reviewed
 qat_hw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 qlnxr	amd64	drop: RDMA for dropped/legacy hardware
@@ -444,7 +442,6 @@ snd_via82c686	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are com
 snd_vibes	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
 snp	amd64 arm64	drop: not reviewed
 speaker	amd64	drop: not reviewed
-spibus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 spigen	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 splash_bmp	amd64	drop: not reviewed
 splash_pcx	amd64	drop: not reviewed
@@ -455,6 +452,7 @@ sym	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 systrace_freebsd32	amd64 arm64	drop: 32-bit syscall tracing (no 32-bit userland)
 systrace_linux	amd64	borderline: Linux syscall tracing for the Linuxulator
 systrace_linux32	amd64	drop: 32-bit syscall tracing (no 32-bit userland)
+t4_tom	amd64 arm64	held: needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)
 t4fw_cfg	amd64 arm64	drop: not reviewed
 t5fw_cfg	amd64 arm64	drop: not reviewed
 t6fw_cfg	amd64 arm64	drop: not reviewed
@@ -479,7 +477,6 @@ udbp	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 udl	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 udl	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 uep	amd64 arm64	drop: niche HID
-uether	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ufoma	amd64 arm64	drop: old USB serial/PDA/sensor gadget
 ufshci	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ugensa	amd64 arm64	drop: old USB serial/PDA/sensor gadget

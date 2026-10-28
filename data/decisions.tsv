@@ -1,5 +1,6 @@
 # Which FreeBSD modules NextBSD converts (E21 D13: about 2012+ hardware; reviewed 2026-10-28).
-# decision: keep | drop | borderline (not converted until the maintainer decides).
+# decision: keep | drop | borderline (not converted until the maintainer decides)
+# | held (kept, but not converted yet: it needs a module that is not converted).
 ko	decision	reason
 if_iwlwifi	keep	Intel Wi-Fi (iwlwifi): every model 7260 to BE200
 accf_data	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
@@ -116,7 +117,7 @@ cpuctl	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd
 cryptodev	keep	software crypto
 ctl	keep	storage/network target (iSCSI, CTL, NVMe-oF)
 cuse	keep	kernel facility used by userland (cpucontrol, CUSE, semaphores, vkbd, alq, Processor Trace)
-cxgbei	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
+cxgbei	held	needs if_cxgbe and t4_tom, held (Chelsio iSCSI offload)
 cyapa	keep	laptop/platform support (backlight, hotkeys, WMI)
 dpdk_lpm4	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
 dpdk_lpm6	keep	server networking (accept filters, SCTP, multicast routing, FIB algorithms, netlink events)
@@ -492,9 +493,9 @@ pwm_backlight	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 pwmbus	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 pwmc	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 qat	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
-qat_api	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
+qat_api	held	the qat driver has no PNP table and is held
 qat_c2xxx	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
-qat_common	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
+qat_common	held	the qat driver has no PNP table and is held
 qat_hw	keep	hardware crypto (AMD CCP, Intel QAT, Chelsio, Marvell Armada)
 qlnxr	drop	RDMA for dropped/legacy hardware
 rc4	drop	insecure cipher
@@ -552,7 +553,7 @@ systrace	keep	DTrace / profiling / tracing
 systrace_freebsd32	drop	32-bit syscall tracing (no 32-bit userland)
 systrace_linux	borderline	Linux syscall tracing for the Linuxulator
 systrace_linux32	drop	32-bit syscall tracing (no 32-bit userland)
-t4_tom	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
+t4_tom	held	needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)
 tcphpts	keep	TCP congestion control / stacks in current use
 tmp461	keep	board peripherals: RTC, sensor, EEPROM, flash and I/O-expander chips
 toecore	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
@@ -626,3 +627,4 @@ if_ath11k	drop	does not build in releng/15.1 yet (FreeBSD's default module list 
 if_ath12k	drop	does not build in releng/15.1 yet (FreeBSD's default module list omits it); Qualcomm Wi-Fi 7 (ath12k, LinuxKPI)
 if_rge	drop	RTL8125 is covered by Realtek's own driver (vendored as the re kext, E21 D14)
 linuxkpi_wlan	keep	LinuxKPI 802.11 layer for iwlwifi/rtw88/rtw89/mt76/ath1xk; a kext once wlan leaves the kernel (E21 D11)
+athk_common	keep	regulatory code ath10k links against (LinuxKPI Qualcomm Wi-Fi)

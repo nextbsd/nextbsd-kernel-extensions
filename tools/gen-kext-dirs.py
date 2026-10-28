@@ -61,6 +61,7 @@ EXTRA = {
     "if_mt7921": ("mt76/mt7921", ARCHES, "hwdriver"),
     "if_mt7925": ("mt76/mt7925", ARCHES, "hwdriver"),
     "if_ath10k": ("ath10k", ARCHES, "hwdriver"),
+    "athk_common": ("athk_common", ARCHES, "hw-support-lib"),
     "if_ath11k": ("ath11k", ARCHES, "hwdriver"),
     "if_ath12k": ("ath12k", ARCHES, "hwdriver"),
 }
@@ -77,6 +78,12 @@ LOCAL = {"wlan", "wlan_wep", "wlan_tkip", "wlan_ccmp", "wlan_gcmp", "wlan_amrr",
          "wlan_rssadapt", "wlan_xauth", "wlan_acl", "if_re"}
 ALWAYS_BOTH = {"if_em", "linuxkpi_wlan"}  # out of the kernel on both arches now
 
+# Hardware-category modules that are libraries other kexts link against (bus
+# and support code, no device of their own to match): converted without a
+# personality, loaded as a dependency (OSBundleLibraries) of the drivers that
+# use them.
+LIBRARY = {"uether", "gpiobus", "spibus", "ow", "hgame"}
+
 ACRONYMS = {
     "acpi", "ahci", "amd", "api", "arm", "ata", "bcm", "bpf", "bsd", "can", "car",
     "cc", "cd", "cpu", "crc", "dhcp", "dma", "dns", "dpdk", "dsp", "efi", "ehci",
@@ -92,6 +99,9 @@ FS_NAMES = {
     "udf": "UDF", "udf_iconv": "UDFIconv", "virtio_p9fs": "VirtIOP9FS",
     "libiconv": "LibIconv", "libmchain": "LibMChain",
 }
+# Names camel() would get wrong because the module name runs words together.
+FS_NAMES.update({"gpiobus": "GPIOBus", "spibus": "SPIBus", "uether": "USBEthernet",
+                 "hgame": "HIDGame"})
 
 
 def camel(ko):
@@ -177,6 +187,9 @@ def main():
             if s in ("MODULE", "PARTIAL") or (s != "-" and moving) or (ko in ALWAYS_BOTH):
                 if s == "BUILTIN" and not moving:
                     continue
+                if ko in LIBRARY:
+                    arches.append(a)
+                    continue
                 if (category in HARDWARE and is_driver and ko in hints[a]
                         and not autoloads(hints[a][ko], a)):
                     skipped.append((ko, a, "held: no ID table the kernel matches on "
@@ -204,7 +217,7 @@ def main():
         if os.path.exists(d):
             continue
         os.makedirs(d)
-        match = "required" if (category in HARDWARE and is_driver) else "none"
+        match = "required" if (category in HARDWARE and is_driver and ko not in LIBRARY) else "none"
         with open(os.path.join(d, "kext.env"), "w") as out:
             out.write(f"# {name}.kext: FreeBSD's {ko} module (sys/modules/{moddir}), category {category}.\n")
             out.write("# Seeded by tools/gen-kext-dirs.py from data/; edit here.\n")
