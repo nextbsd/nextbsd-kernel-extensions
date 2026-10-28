@@ -10,6 +10,11 @@
 #       MacOS/<Name>          the .ko, verbatim (kextload kldload's it)
 #       Resources/firmware/   optional bundled firmware blobs (-f)
 #
+# NBSDModuleFile names the .ko the bundle wraps, and NBSDModules (-m) the
+# module and interface names it provides: the names kldload(2) and
+# MODULE_DEPEND look a module up by. kextd indexes them to find the bundle
+# (nextbsd-userland#439), as FreeBSD's linker.hints does for the .ko tree.
+#
 # OSBundleLibraries (-l) is what the OSKext engine / kextdeps resolve to load
 # dependencies in order (e.g. IntelWiFi -> LinuxKPIWlan). Firmware (-f) is
 # bundled Apple-style under Contents/Resources/firmware. Still no codesign
@@ -18,12 +23,14 @@ set -eu
 
 usage() {
 	cat >&2 <<'U'
-usage: ko2kext.sh [-o outdir] [-v version] [-l dep-bundle-id]... [-f firmware]... [-p personalities] <input.ko> <Name> <bundle-id>
+usage: ko2kext.sh [-o outdir] [-v version] [-l dep-bundle-id]... [-m module]... [-f firmware]... [-p personalities] <input.ko> <Name> <bundle-id>
 
   -o outdir        where to write <Name>.kext       (default: .)
   -v version       CFBundleVersion                   (default: 1.0)
   -l dep-bundle-id add an OSBundleLibraries dependency (repeatable)
                      e.g. -l org.nextbsd.kpi.LinuxKPIWlan
+  -m module        a module or interface name the .ko provides, listed in
+                     NBSDModules (repeatable)
   -f firmware      bundle firmware into Contents/Resources/firmware (repeatable).
                      A file is copied in; a directory has its contents copied in
                      flat (symlinks dereferenced) so e.g. all iwlwifi *.ucode
@@ -44,11 +51,14 @@ VERSION="1.0"
 DEPS=""        # newline-separated bundle ids
 FWS=""         # newline-separated firmware paths
 PERS=""        # path to an IOKitPersonalities plist fragment
-while getopts "o:v:l:f:p:h" opt; do
+MODS=""        # newline-separated module names
+while getopts "o:v:l:m:f:p:h" opt; do
 	case "$opt" in
 	o) OUTDIR="$OPTARG" ;;
 	v) VERSION="$OPTARG" ;;
 	l) DEPS="${DEPS}${OPTARG}
+" ;;
+	m) MODS="${MODS}${OPTARG}
 " ;;
 	f) FWS="${FWS}${OPTARG}
 " ;;
@@ -105,6 +115,25 @@ EOF
 "
 fi
 
+# The names kextd indexes the bundle by.
+NBSM="	<key>NBSDModuleFile</key>
+	<string>$(basename "$KO")</string>
+"
+if [ -n "$MODS" ]; then
+	NBSM="${NBSM}	<key>NBSDModules</key>
+	<array>
+"
+	while IFS= read -r m; do
+		[ -n "$m" ] || continue
+		NBSM="${NBSM}		<string>${m}</string>
+"
+	done <<EOF
+$MODS
+EOF
+	NBSM="${NBSM}	</array>
+"
+fi
+
 # IOKitPersonalities block (-p): the device-id match table. Injected verbatim;
 # the generator (e.g. gen-iwlwifi-personalities.sh) emits a complete
 # `<key>IOKitPersonalities</key><dict>...</dict>` block already indented for the
@@ -139,7 +168,7 @@ cat > "${KEXT}/Contents/Info.plist" <<EOF
 	<string>${VERSION}</string>
 	<key>OSBundleCompatibleVersion</key>
 	<string>${VERSION}</string>
-${OSBL}${IOKP}	<key>OSBundleRequired</key>
+${NBSM}${OSBL}${IOKP}	<key>OSBundleRequired</key>
 	<string>Root</string>
 </dict>
 </plist>

@@ -42,7 +42,7 @@
 #       into <out>/<KEXT_NAME>/ (in the toolchain container)
 #   kexts.sh wrap <arch> <inputs> <out>
 #       wrap each into <out>/<KEXT_NAME>.kext with its personalities,
-#       dependencies and firmware, and stamp every kext with
+#       dependencies, provided module names and firmware, and stamp every kext with
 #       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326). With
 #       <inputs>/kernel.modules (from the kernel SDK), every MODULE_DEPEND
 #       must be met by a kext in the set or by the kernel
@@ -163,9 +163,11 @@ wrap)
 			# Generated: dependencies always, personalities unless a
 			# hand-written generator already produced them.
 			gen="$in/$KEXT_NAME/$KEXT_NAME.generated"
-			libs=$(python3 "$HERE/kext-meta.py" "$in" "$KEXT_NAME" "$gen" 2>> "$nodep") || [ $? -eq 3 ] ||
+			mods="$in/$KEXT_NAME/$KEXT_NAME.modules"
+			libs=$(python3 "$HERE/kext-meta.py" "$in" "$KEXT_NAME" "$gen" "$mods" 2>> "$nodep") || [ $? -eq 3 ] ||
 			    die "$KEXT_NAME: kext-meta.py failed"
 			[ -s "$pers" ] || { [ ! -s "$gen" ] || cp "$gen" "$pers"; }
+			for m in $(cat "$mods"); do set -- "$@" -m "$m"; done
 		fi
 		for l in $libs; do set -- "$@" -l "$l"; done
 		if [ -s "$pers" ]; then
