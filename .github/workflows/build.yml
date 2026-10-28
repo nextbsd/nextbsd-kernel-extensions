@@ -108,6 +108,7 @@ jobs:
         run: |
           nbkx/tools/kexts.sh inputs ${{ matrix.target }} /usr/src /usr/obj kext-inputs
           cp /tmp/kernel-build-id/KERNEL-BUILD-ID kext-inputs/
+          cp "$KERNEL_SDK/kernel.symbols" kext-inputs/
 
       - name: Upload kext inputs
         uses: actions/upload-artifact@v4
@@ -156,6 +157,12 @@ jobs:
               ids = p['IOPCIPrimaryMatch'].split() if p else []
               print(f"{n}: {d['CFBundleIdentifier']}, {len(ids)} device ids, built for {kbid}")
           PY
+
+      # Every symbol a kext leaves undefined must be defined by the kernel (the
+      # SDK's exported-symbol list) or by another kext in the set; otherwise it
+      # builds and packages fine and then fails kldload with ENOEXEC (#6).
+      - name: Check every kext resolves (no ENOEXEC at kldload)
+        run: python3 tools/check-kext-symbols.py kext-inputs/kernel.symbols kexts
 
       # Only kexts go in the asset: it is unpacked straight into
       # /System/Library/Extensions.

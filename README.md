@@ -26,6 +26,7 @@ add a directory.
 
 - `tools/kexts.sh`: builds every kext from its directory's data.
 - `tools/ko2kext.sh`: wraps a `.ko` in a kext bundle.
+- `tools/check-kext-symbols.py`: fails the build if a kext would not resolve at kldload (copied from the graphics repo).
 - `tools/gen-*-personalities.sh`: IOKitPersonalities from a driver's own PCI id tables.
 - `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-build-id.py`: build against the published kernel
   SDK and record its `KERNEL-BUILD-ID` in each kext.
