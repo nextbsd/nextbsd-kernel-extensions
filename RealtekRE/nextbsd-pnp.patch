@@ -1,0 +1,15 @@
+--- a/src/if_re.c
++++ b/src/if_re.c
+@@ -427,6 +427,12 @@
+ #endif
+ MODULE_DEPEND(if_re, pci, 1, 1, 1);
+ MODULE_DEPEND(if_re, ether, 1, 1, 1);
++/*
++ * NextBSD: publish the device table as PNP metadata, so the kext gets a
++ * generated PCI personality and autoloads (E21 D12/D14). Not upstream.
++ */
++MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, if_re, re_devs,
++    nitems(re_devs) - 1);
+ 
+ static void
+ re_clear_set_eth_phy_bit(

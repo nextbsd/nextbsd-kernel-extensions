@@ -52,10 +52,12 @@ SYNTHESIZED = frozenset(("__this_linker_file",))
 STB_WEAK = 2
 SHN_UNDEF = 0
 SHT_SYMTAB = 2
+STT_OBJECT, STT_FUNC = 1, 2
 
 
-def elf_symbols(path):
-    """Return (defined_globals, undefined_strong) for an ELF64 little-endian file."""
+def elf_symbols(path, local=False):
+    """Return (defined, undefined_strong) for an ELF64 little-endian file.
+    defined holds global and weak definitions, and local ones too if local."""
     with open(path, "rb") as f:
         data = f.read()
     if len(data) < 64 or data[:4] != b"\x7fELF":
@@ -100,7 +102,7 @@ def elf_symbols(path):
             if st_shndx == SHN_UNDEF:
                 if bind != STB_WEAK:
                     undefined.add(name)
-            elif bind != 0:  # global or weak definition
+            elif bind != 0 or (local and (st_info & 0xF) in (STT_OBJECT, STT_FUNC)):
                 defined.add(name)
     return defined, undefined
 
@@ -131,7 +133,7 @@ def main():
         base = name[:-len(".kext")]
         binary = os.path.join(kextdir, name, "Contents", "MacOS", base)
         if os.path.exists(binary):
-            kexts[base] = elf_symbols(binary)
+            kexts[base] = elf_symbols(binary, local=True)
 
     if not kexts:
         print(f"check-kext-symbols: no kexts found under {kextdir}", file=sys.stderr)
@@ -140,6 +142,12 @@ def main():
     # Any kext may satisfy any other: kldload walks OSBundleLibraries, and the
     # dependency ORDER is validated separately by the Info.plist checks. What is
     # asserted here is only that the symbol exists SOMEWHERE in the shipped set.
+    # A kext's local symbols count: kmod.mk localizes every symbol of a module
+    # without EXPORT_SYMS (p9fs, hwt, ice, ...), and the kernel linker still
+    # resolves a dependent module against them, because
+    # debug.link_elf_obj_leak_locals and debug.link_elf_leak_locals default to
+    # true (sys/kern/link_elf_obj.c, link_elf.c). The kernel's own locals do
+    # not: kernel.symbols lists only its globals.
     for defined, _ in kexts.values():
         provided |= defined
 
