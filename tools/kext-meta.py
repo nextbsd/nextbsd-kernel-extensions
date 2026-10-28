@@ -33,6 +33,12 @@ of table (nextbsd-kernel#329):
              IOUSBHostInterface + bInterfaceClass/SubClass/Protocol for each
              interface-class entry (host-mode tables only)
   acpi       IOACPIPlatformDevice + IONameMatch (the _HID strings)
+  hidbus     IOHIDDevice + VendorID/ProductID for each vendor/product entry,
+             and one IOHIDDevice + DeviceUsagePairs for the top-level
+             collection usages (page + usage entries) (nextbsd-kernel#360)
+  virtio_pci, virtio_mmio
+             IOVirtIODevice + VirtIODeviceType (NextBSD's key)
+  vmbus      IOVMBusDevice + IONameMatch (the channel class GUIDs)
   simplebus, ofwbus, iicbus, spibus, gpiobus
              IOPlatformDevice + IONameMatch (the compatible strings)
 """
@@ -50,6 +56,8 @@ FDT_BUSES = {"simplebus", "ofwbus", "iicbus", "spibus", "gpiobus"}
 # usb_device_id's match flags (sys/dev/usb/usbdi.h), the M16 "mask" field.
 USB_VENDOR, USB_PRODUCT = 0x001, 0x002
 USB_INT_CLASS, USB_INT_SUBCLASS, USB_INT_PROTOCOL = 0x080, 0x100, 0x200
+# hid_device_id's match flags (sys/dev/hid/hidbus.h), the M16 "mask" field.
+HID_PAGE, HID_USAGE, HID_VENDOR, HID_PRODUCT = 0x01, 0x02, 0x08, 0x10
 
 
 def parse(path):
@@ -150,6 +158,7 @@ def valid(v, width=0xFFFF):
 def personalities(name, bundle_id, pnp):
     """[(provider, {key: value}), ...] in Darwin's keys."""
     pci_ids, pci_class, usb_dev, usb_if, acpi, fdt = set(), set(), set(), set(), [], []
+    hid_dev, hid_usage, virtio, vmbus = set(), set(), set(), []
     for bus, fmt, entries in pnp:
         if bus == "pci":
             for e in entries:
@@ -180,6 +189,22 @@ def personalities(name, bundle_id, pnp):
                 hid = e.get("_HID")
                 if hid and hid not in acpi:
                     acpi.append(hid)
+        elif bus == "hidbus":
+            for e in entries:
+                fl = e.get("mask", 0)
+                if fl & HID_VENDOR and fl & HID_PRODUCT:
+                    hid_dev.add((e.get("vendor", 0) & 0xFFFF, e.get("product", 0) & 0xFFFF))
+                elif fl & HID_PAGE and fl & HID_USAGE:
+                    hid_usage.add((e.get("page", 0) & 0xFFFF, e.get("usage", 0) & 0xFFFF))
+        elif bus in ("virtio_pci", "virtio_mmio"):
+            for e in entries:
+                if e.get("device_type") is not None:
+                    virtio.add(e["device_type"])
+        elif bus == "vmbus":
+            for e in entries:
+                g = e.get("classid")
+                if g and g not in vmbus:
+                    vmbus.append(g)
         elif bus in FDT_BUSES:
             for e in entries:
                 c = e.get("compat")
@@ -206,6 +231,16 @@ def personalities(name, bundle_id, pnp):
         out.append(p)
     if acpi:
         out.append({"IOProviderClass": "IOACPIPlatformDevice", "IONameMatch": acpi})
+    for v, pid in sorted(hid_dev):
+        out.append({"IOProviderClass": "IOHIDDevice", "VendorID": v, "ProductID": pid})
+    if hid_usage:
+        out.append({"IOProviderClass": "IOHIDDevice", "DeviceUsagePairs": [
+            {"DeviceUsagePage": pg, "DeviceUsage": u} for pg, u in sorted(hid_usage)]})
+    if virtio:
+        out.append({"IOProviderClass": "IOVirtIODevice",
+                    "VirtIODeviceType": sorted(virtio)})
+    if vmbus:
+        out.append({"IOProviderClass": "IOVMBusDevice", "IONameMatch": vmbus})
     if fdt:
         out.append({"IOProviderClass": "IOPlatformDevice", "IONameMatch": fdt})
     return out
@@ -215,8 +250,12 @@ def plist_value(v, ind):
     if isinstance(v, int):
         return f"{ind}<integer>{v}</integer>\n"
     if isinstance(v, list):
-        return (f"{ind}<array>\n" + "".join(f"{ind}\t<string>{escape(s)}</string>\n" for s in v)
+        return (f"{ind}<array>\n" + "".join(plist_value(e, ind + "\t") for e in v)
                 + f"{ind}</array>\n")
+    if isinstance(v, dict):
+        return (f"{ind}<dict>\n" + "".join(f"{ind}\t<key>{escape(k)}</key>\n" +
+                                            plist_value(e, ind + "\t") for k, e in v.items())
+                + f"{ind}</dict>\n")
     return f"{ind}<string>{escape(str(v))}</string>\n"
 
 

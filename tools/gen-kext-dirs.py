@@ -19,10 +19,11 @@ and writes <KextName>/kext.env for every kept module, per arch:
 
 Autoload rule (E21 D12): a hardware driver ships as a kext on an arch only if
 the kernel can match it there. With linker.hints from a FreeBSD release (one
-per arch), a driver's PNP buses decide: pci, uhub (USB) and acpi match on both
-arches; device-tree buses (simplebus, ofwbus, iicbus, spibus, gpiobus) only on
-arm64. A driver with no table, or only on a bus the matcher does not handle
-yet (hidbus, virtio, vmbus, ...), is held back on that arch. The kext build
+per arch), a driver's PNP buses decide: pci, uhub (USB), acpi, hidbus, virtio
+(virtio_pci, virtio_mmio) and vmbus match on both arches (the last three with
+nextbsd-kernel#360); device-tree buses (simplebus, ofwbus, iicbus, spibus,
+gpiobus) only on arm64. A driver with no table, or only on a bus the matcher
+does not handle yet, is held back on that arch. The kext build
 re-checks this against each .ko's own metadata. Libraries and non-hardware
 kexts (netgraph, GEOM, protocols, filesystems) load on request and need none.
 
@@ -146,7 +147,8 @@ def hints_buses(path):
 
 
 def autoloads(buses, arch):
-    if buses & {"pci", "uhub", "acpi"}:
+    if buses & {"pci", "uhub", "acpi", "hidbus", "virtio_pci", "virtio_mmio",
+                "vmbus"}:
         return True
     return arch == "arm64" and bool(buses & {"simplebus", "ofwbus", "iicbus",
                                              "spibus", "gpiobus"})
