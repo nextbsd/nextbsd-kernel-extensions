@@ -1,0 +1,476 @@
+# Maintainer catalog (pkgdemon.github.io/nextbsd-kld-to-kext-catalog.html?v=20260607): bundle ID and kext name per .ko (E21 D7).
+ko	dir	category	purpose	bundle id	kext	notes
+3dfx	3dfx	driver/graphics	PCI driver for 3Dfx Voodoo (tdfx) graphics cards	org.nextbsd.driver.Tdfx	Tdfx	
+3dfx_linux	3dfx_linux	compat	Linux ioctl shim for /dev/tdfx (3Dfx Voodoo)	org.nextbsd.compat.TdfxLinux	TdfxLinux	sub of 3dfx
+aac	aac	driver/storage	Adaptec FSA family SCSI RAID adapter (older AAC)	org.nextbsd.driver.AdaptecAAC	AdaptecAAC	
+aacraid	aacraid	driver/storage	Adaptec Series 6/7/8+ RAID controller	org.nextbsd.driver.AdaptecAACRAID	AdaptecAACRAID	
+accf_data	accf_data	net/infra	Accept filter: hold connection until data arrives	org.nextbsd.net.AccfData	AccfData	
+accf_dns	accf_dns	net/infra	Accept filter: hold until complete DNS request	org.nextbsd.net.AccfDNS	AccfDNS	
+accf_http	accf_http	net/infra	Accept filter: hold until complete HTTP request	org.nextbsd.net.AccfHTTP	AccfHTTP	
+accf_tls	accf_tls	net/infra	Accept filter: hold until TLS client hello	org.nextbsd.net.AccfTLS	AccfTLS	
+acl_nfs4	acl_nfs4	security/mac	NFSv4 ACL implementation for VFS	org.nextbsd.security.AclNFS4	AclNFS4	
+acl_posix1e	acl_posix1e	security/mac	POSIX.1e ACL implementation for VFS	org.nextbsd.security.AclPosix1e	AclPosix1e	
+(subdir)	acpi	driver/platform	ACPI sub-drivers (asus, dock, video, wmi, ...)			subdir-only
+adlink	adlink	driver/misc	Adlink PCI-9812/9810 high-speed ADC DAQ cards	org.nextbsd.driver.AdlinkDAQ	AdlinkDAQ	
+if_ae	ae	driver/network	Attansic/Atheros L2 Fast Ethernet	org.nextbsd.driver.AttansicL2	AttansicL2	
+aesni	aesni	driver/crypto-hw	x86 AES-NI/GHASH/SHA hardware crypto accel	org.nextbsd.driver.AESNI	AESNI	
+if_age	age	driver/network	Attansic/Atheros L1 Gigabit Ethernet	org.nextbsd.driver.AttansicL1G	AttansicL1G	
+agp	agp	driver/graphics	AGP bridge and GART driver	org.nextbsd.driver.AGP	AGP	
+ahci	ahci	driver/storage	AHCI SATA host controller	org.nextbsd.driver.AHCI	AHCI	
+(subdir)	aic7xxx	driver/storage	Adaptec AIC-7xxx/79xx SCSI HBA (ahc, ahd)			subdir-only
+if_alc	alc	driver/network	Atheros AR813x/815x/816x Gigabit Ethernet	org.nextbsd.driver.AtherosALC	AtherosALC	
+if_ale	ale	driver/network	Atheros AR8121/8113 Fast/Gigabit Ethernet	org.nextbsd.driver.AtherosALE	AtherosALE	
+(subdir)	allwinner	driver/platform	Allwinner SoC peripherals (MMC/PWM/RTC/SPI/thermal)			subdir-only
+alq	alq	tracing/debug	Async logging queue KPI for in-kernel tracing	org.nextbsd.kext.ALQ	ALQ	
+am335x_dmtpps	am335x_dmtpps	driver/platform	TI AM335x DMTimer PPS capture	org.nextbsd.driver.AM335xDMTPPS	AM335xDMTPPS	
+amd_ecc_inject	amd_ecc_inject	tracing/debug	AMD DRAM ECC error injection (test)	org.nextbsd.kext.AmdEccInject	AmdEccInject	test
+amdgpio	amdgpio	driver/serial-bus	AMD FCH/Ryzen ACPI GPIO controller	org.nextbsd.driver.AmdGPIO	AmdGPIO	
+amdsbwd	amdsbwd	driver/platform	AMD SB600/SB7xx/SB8xx watchdog	org.nextbsd.driver.AmdSBWD	AmdSBWD	
+amdsmb	amdsmb	driver/serial-bus	AMD-8111 SMBus 2.0 controller	org.nextbsd.driver.AmdSMBus	AmdSMBus	
+amdsmn	amdsmn	driver/platform	AMD Family 15h-1Ah SMN access (KPI for amdtemp)	org.nextbsd.driver.AmdSMN	AmdSMN	
+amdsmu	amdsmu	driver/platform	AMD System Management Unit power/freq mgmt	org.nextbsd.driver.AmdSMU	AmdSMU	
+amdtemp	amdtemp	driver/platform	AMD CPU on-die thermal sensor	org.nextbsd.driver.AmdTemp	AmdTemp	
+aout	aout	compat	a.out legacy executable image activator	org.nextbsd.compat.Aout	Aout	
+if_aq	aq	driver/network	Aquantia AQtion 10 Gigabit Ethernet	org.nextbsd.driver.AquantiaAQ	AquantiaAQ	
+arcmsr	arcmsr	driver/storage	Areca SATA/SAS RAID host adapter	org.nextbsd.driver.ArecaRAID	ArecaRAID	
+(subdir)	arm_ti	driver/platform	TI ARM SoC drivers (AM335x, TI I2C)			subdir-only
+armv8_rng	armv8_rng	driver/crypto-hw	ARMv8.5 RNDR hardware RNG	org.nextbsd.driver.ARMv8RNG	ARMv8RNG	
+armv8crypto	armv8crypto	driver/crypto-hw	ARMv8 AES/GHASH hardware crypto accel	org.nextbsd.driver.ARMv8Crypto	ARMv8Crypto	
+asmc	asmc	driver/platform	Apple System Management Controller (sensors/fans)	org.nextbsd.driver.AppleSMC	AppleSMC	
+(subdir)	ata	driver/storage	Legacy ATA/IDE subsystem (atacore/ataisa/atapci)			subdir-only
+if_ath	ath	driver/wireless	Atheros 802.11abgn PCI glue/attach	org.nextbsd.driver.AtherosATH	AtherosATH	sub of ath stack
+ath_dfs	ath_dfs	driver/wireless	Atheros DFS null stub for ath	org.nextbsd.driver.AthDFS	AthDFS	sub of ath
+ath_hal	ath_hal	driver/wireless	Atheros HAL core (chip-independent)	org.nextbsd.driver.AthHAL	AthHAL	sub of ath
+ath_hal_ar5210	ath_hal_ar5210	driver/wireless	Atheros AR5210 HAL (802.11a)	org.nextbsd.driver.AthHALar5210	AthHALar5210	sub of ath
+ath_hal_ar5211	ath_hal_ar5211	driver/wireless	Atheros AR5211 HAL (802.11a/b)	org.nextbsd.driver.AthHALar5211	AthHALar5211	sub of ath
+ath_hal_ar5212	ath_hal_ar5212	driver/wireless	Atheros AR5212 HAL (legacy a/b/g)	org.nextbsd.driver.AthHALar5212	AthHALar5212	sub of ath
+ath_hal_ar5416	ath_hal_ar5416	driver/wireless	Atheros AR5416/92xx HAL (802.11n)	org.nextbsd.driver.AthHALar5416	AthHALar5416	sub of ath
+ath_hal_ar9300	ath_hal_ar9300	driver/wireless	Atheros AR9300 HAL (802.11n gen3)	org.nextbsd.driver.AthHALar9300	AthHALar9300	sub of ath
+ath_main	ath_main	driver/wireless	Atheros 802.11n main driver body	org.nextbsd.driver.AthMain	AthMain	sub of ath
+ath_rate	ath_rate	driver/wireless	Atheros TX rate control (sample/onoe/amrr)	org.nextbsd.driver.AthRate	AthRate	sub of ath
+if_ath10k	ath10k	driver/wireless	Qualcomm/Atheros QCA988x/99xx 802.11ac (LinuxKPI)	org.nextbsd.driver.Ath10k	Ath10k	
+if_ath11k	ath11k	driver/wireless	Qualcomm QCA6390/WCN6855 802.11ax (LinuxKPI)	org.nextbsd.driver.Ath11k	Ath11k	
+if_ath12k	ath12k	driver/wireless	Qualcomm QCN9274/WCN7850 802.11be (LinuxKPI)	org.nextbsd.driver.Ath12k	Ath12k	
+athk_common	athk_common	driver/wireless	Shared lib for ath10k/11k/12k (LinuxKPI)	org.nextbsd.driver.AthkCommon	AthkCommon	sub/shared
+autofs	autofs	filesystem	Automounter FS (triggers automountd)	org.nextbsd.filesystems.autofs	autofs	
+(subdir)	axgbe	driver/network	AMD 10GbE XGMAC (if_axa/if_axp)			subdir-only
+backlight	backlight	kpi/infra	Display backlight control framework/KPI	org.nextbsd.kpi.Backlight	Backlight	
+if_bce	bce	driver/network	Broadcom BCM570x NetXtreme II Gigabit	org.nextbsd.driver.BroadcomBCE	BroadcomBCE	
+bcm283x_clkman	bcm283x_clkman	driver/platform	BCM2835 (RPi) CPRMAN clock manager	org.nextbsd.driver.BCM2835ClkMan	BCM2835ClkMan	
+bcm283x_pwm	bcm283x_pwm	driver/platform	BCM2835 (RPi) PWM controller	org.nextbsd.driver.BCM2835PWM	BCM2835PWM	
+if_bfe	bfe	driver/network	Broadcom BCM4401 Fast Ethernet	org.nextbsd.driver.BroadcomBFE	BroadcomBFE	
+if_bge	bge	driver/network	Broadcom BCM57xx NetXtreme/Tigon III Gigabit	org.nextbsd.driver.BroadcomBGE	BroadcomBGE	
+bhnd	bhnd	kpi/infra	Broadcom HND SoC/bus framework (BCM wifi SoCs)	org.nextbsd.kpi.BHND	BHND	parent of bwi/bwn
+(subdir)	bios	misc	SMBIOS/VPD/SMAPI firmware info modules			subdir-only
+blake2	blake2	crypto	BLAKE2b/2s hash with SIMD for opencrypto	org.nextbsd.crypto.BLAKE2	BLAKE2	
+if_bnxt	bnxt	driver/network	Broadcom NetXtreme-C/E NIC + RDMA (bnxt_re)	org.nextbsd.driver.Bnxt	Bnxt	subdir
+(subdir)	brcm80211	driver/wireless	Broadcom FullMAC wifi (brcmfmac) + brcmutil			subdir-only
+bridgestp	bridgestp	net/infra	802.1D STP/RSTP for if_bridge	org.nextbsd.kpi.BridgeSTP	BridgeSTP	sub of if_bridge
+if_bwi	bwi	driver/wireless	Broadcom BCM430x 802.11b/g (bhnd)	org.nextbsd.driver.BWi	BWi	
+if_bwn	bwn	driver/wireless	Broadcom BCM43xx 802.11b/g/n (bhnd)	org.nextbsd.driver.BWn	BWn	
+if_bxe	bxe	driver/network	QLogic/Broadcom BCM5771x 10GbE	org.nextbsd.driver.BXE	BXE	
+bytgpio	bytgpio	driver/serial-bus	Intel Bay Trail ACPI GPIO controller	org.nextbsd.driver.BytGPIO	BytGPIO	
+cam	cam	kpi/infra	CAM SCSI/ATA/NVMe transport + peripherals	org.nextbsd.kpi.CAM	CAM	core storage KPI
+cardbus	cardbus	driver/platform	CardBus (32-bit PC Card) bus + CIS	org.nextbsd.driver.CardBus	CardBus	
+carp	carp	net/protocol	Common Address Redundancy Protocol (failover)	org.nextbsd.net.CARP	CARP	
+if_cas	cas	driver/network	Sun Cassini / NS DP83065 Gigabit	org.nextbsd.driver.CAS	CAS	
+cbb	cbb	driver/platform	PCI-to-CardBus bridge (pccbb)	org.nextbsd.driver.CBB	CBB	
+(subdir)	cc	net/infra	TCP congestion control algos (newreno/cubic/...)			subdir-only
+ccp	ccp	driver/crypto-hw	AMD Cryptographic Co-Processor (CCP-5) + TRNG	org.nextbsd.driver.CCP	CCP	
+cd9660	cd9660	filesystem	ISO 9660 (CD-ROM) FS with Rock Ridge	org.nextbsd.filesystems.cd9660	cd9660	
+cd9660_iconv	cd9660_iconv	filesystem	iconv charset plugin for cd9660	org.nextbsd.filesystems.cd9660-iconv	cd9660-iconv	sub of cd9660
+cfi	cfi	driver/storage	Common Flash Interface NOR flash	org.nextbsd.driver.CFI	CFI	
+cfiscsi	cfiscsi	net/protocol	CTL iSCSI frontend (storage target over iSCSI)	org.nextbsd.net.CFiSCSI	CFiSCSI	sub of ctl
+chromebook_platform	chromebook_platform	driver/platform	Chromebook I2C kbd/touchpad platform glue	org.nextbsd.driver.ChromebookPlatform	ChromebookPlatform	
+chvgpio	chvgpio	driver/serial-bus	Intel Cherry View ACPI GPIO controller	org.nextbsd.driver.ChvGPIO	ChvGPIO	
+ciss	ciss	driver/storage	Compaq/HP Smart Array RAID (CISS)	org.nextbsd.driver.CISS	CISS	
+coretemp	coretemp	driver/platform	Intel on-die thermal sensor (MSR)	org.nextbsd.driver.CoreTemp	CoreTemp	
+if_cpsw	cpsw	driver/network	TI CPSW Ethernet switch (AM335x)	org.nextbsd.driver.CPSW	CPSW	
+cpuctl	cpuctl	driver/platform	/dev/cpuctl MSR/CPUID access	org.nextbsd.driver.CPUCtl	CPUCtl	
+cpufreq	cpufreq	driver/platform	CPU frequency scaling (EST/PowerNow/HWPstate)	org.nextbsd.driver.CPUFreq	CPUFreq	
+crypto	crypto	crypto	OpenCrypto framework + software ciphers	org.nextbsd.crypto.Crypto	Crypto	core crypto KPI
+cryptodev	cryptodev	crypto	/dev/crypto userland interface to opencrypto	org.nextbsd.crypto.CryptoDev	CryptoDev	sub of crypto
+ctl	ctl	kpi/infra	CAM Target Layer (SCSI/NVMe target emulation)	org.nextbsd.kpi.CTL	CTL	
+cuse	cuse	kpi/infra	Userspace character-device framework	org.nextbsd.kpi.CUSE	CUSE	
+if_cxgb	cxgb	driver/network	Chelsio T3 10GbE (+t3fw firmware)	org.nextbsd.driver.CXGB	CXGB	subdir
+if_cxgbe	cxgbe	driver/network	Chelsio T4/5/6/7 10-100GbE (TOE/iWARP/NVMeoF)	org.nextbsd.driver.CXGBE	CXGBE	subdir
+if_dc	dc	driver/network	DEC 21143 Tulip & compatibles Fast Ethernet	org.nextbsd.driver.DC	DC	
+dcons	dcons	tracing/debug	Dumb console over shmem/FireWire for debugging	org.nextbsd.kext.dcons	dcons	
+dcons_crom	dcons_crom	tracing/debug	FireWire CROM attach for dcons	org.nextbsd.kext.dconsCROM	dconsCROM	sub of dcons
+dpaa2	dpaa2	driver/network	NXP DPAA2 Management Complex + NIC (Layerscape)	org.nextbsd.driver.DPAA2	DPAA2	
+dpdk_lpm4	dpdk_lpm4	net/infra	DPDK IPv4 LPM routing table for FIB	org.nextbsd.net.DpdkLPM4	DpdkLPM4	
+dpdk_lpm6	dpdk_lpm6	net/infra	DPDK IPv6 LPM6 routing table for FIB	org.nextbsd.net.DpdkLPM6	DpdkLPM6	
+dpms	dpms	driver/graphics	VESA DPMS monitor power management via VBE	org.nextbsd.driver.DPMS	DPMS	
+(subdir)	dtb	driver/platform	Pre-compiled Device Tree Blobs for ARM/RISC-V			subdir-only
+(subdir)	dtrace	tracing/debug	DTrace framework (fbt/sdt/profile/systrace/...)			subdir-only
+dummymbuf	dummymbuf	tracing/debug	Mbuf fault injection for net stack testing	org.nextbsd.kext.dummymbuf	dummymbuf	test
+dummynet	dummynet	net/infra	Traffic shaper/emulator (delay/bw/AQM) for ipfw	org.nextbsd.net.DummyNet	DummyNet	
+dwwdt	dwwdt	driver/platform	Synopsys DesignWare watchdog (FDT)	org.nextbsd.driver.DwWDT	DwWDT	
+e6000sw	e6000sw	driver/network	Marvell 88E6000 managed Ethernet switch	org.nextbsd.driver.E6000SW	E6000SW	sub of etherswitch
+efirt	efirt	driver/platform	UEFI Runtime Services (RTC + variables)	org.nextbsd.driver.EFIrt	EFIrt	
+if_em	em	driver/network	Intel e1000 PRO/1000 Gigabit (also if_igb symlink)	org.nextbsd.driver.IntelEM	IntelEM	igb symlink
+if_ena	ena	driver/network	Amazon AWS Elastic Network Adapter (EC2)	org.nextbsd.driver.ENA	ENA	
+if_enetc	enetc	driver/network	NXP ENETC PCIe Gigabit (Layerscape)	org.nextbsd.driver.ENETC	ENETC	
+if_enic	enic	driver/network	Cisco VIC Ethernet	org.nextbsd.driver.ENIC	ENIC	
+epoch_test	epoch_test	test-internal	Kernel epoch(9) unit test	org.nextbsd.kext.epochTest	epochTest	test
+if_et	et	driver/network	Agere ET1310 Gigabit/Fast Ethernet	org.nextbsd.driver.ET	ET	
+etherswitch	etherswitch	kpi/infra	Ethernet switch management framework (KPI)	org.nextbsd.kpi.EtherSwitch	EtherSwitch	
+evdev	evdev	kpi/infra	Linux-compatible evdev input event interface	org.nextbsd.kpi.Evdev	Evdev	
+exca	exca	driver/platform	PC Card ExCA (82365) socket register access	org.nextbsd.driver.ExCA	ExCA	sub of CardBus
+ext2fs	ext2fs	filesystem	Linux ext2/3/4 filesystem	org.nextbsd.filesystems.ext2fs	ext2fs	
+fdc	fdc	driver/storage	Floppy disk controller (NEC 765)	org.nextbsd.driver.FDC	FDC	legacy
+fdescfs	fdescfs	filesystem	File-descriptor filesystem (/dev/fd)	org.nextbsd.filesystems.fdescfs	fdescfs	
+fdt_slicer	fdt	kpi/infra	FDT blob slicer for kernel consumers	org.nextbsd.kpi.FdtSlicer	FdtSlicer	subdir
+felix	felix	driver/network	NXP Felix DSA Ethernet switch (QorIQ)	org.nextbsd.driver.Felix	Felix	
+if_ffec	ffec	driver/network	Freescale Fast Ethernet Controller (i.MX)	org.nextbsd.driver.Ffec	Ffec	
+fib_dxr	fib_dxr	net/infra	DXR IPv4 FIB lookup algorithm	org.nextbsd.net.FibDxr	FibDxr	
+filemon	filemon	tracing/debug	File-op monitoring for bmake dependency tracing	org.nextbsd.kext.Filemon	Filemon	
+firewire	firewire	driver/serial-bus	IEEE 1394 FireWire OHCI + stack	org.nextbsd.driver.Firewire	Firewire	subdir
+firmware	firmware	kpi/infra	Kernel firmware loader subsystem	org.nextbsd.kpi.Firmware	Firmware	core KPI
+flash	flash	driver/misc	Flash subdir (aarch64/FDT flexspi)	org.nextbsd.driver.Flash	Flash	subdir-only
+ftgpio	ftgpio	driver/platform	Faraday FTGPIO010 GPIO controller	org.nextbsd.driver.Ftgpio	Ftgpio	
+ftwd	ftwd	driver/platform	Faraday FTWD watchdog	org.nextbsd.driver.Ftwd	Ftwd	
+fusefs	fusefs	filesystem	FUSE (Filesystem in Userspace) kernel support	org.nextbsd.filesystems.fusefs	fusefs	
+if_fxp	fxp	driver/network	Intel 8255x EtherExpress Pro/100	org.nextbsd.driver.Fxp	Fxp	
+if_gem	gem	driver/network	Sun GEM/ERI/Apple GMAC Gigabit	org.nextbsd.driver.Gem	Gem	
+if_genet	genet	driver/network	Broadcom GENET (RPi4) Gigabit	org.nextbsd.driver.Genet	Genet	
+geom	geom	kpi/infra	GEOM storage framework (cache/concat/eli/mirror/raid)	org.nextbsd.kpi.Geom	Geom	subdir umbrella
+glxiic	glxiic	driver/serial-bus	AMD Geode LX I2C/SMBus controller	org.nextbsd.driver.Glxiic	Glxiic	
+glxsb	glxsb	driver/crypto-hw	AMD Geode LX Security Block (AES/RNG)	org.nextbsd.driver.Glxsb	Glxsb	
+gpio	gpio	driver/serial-bus	GPIO bus framework (gpiobus/led/spi/iic)	org.nextbsd.driver.Gpio	Gpio	subdir umbrella
+if_gve	gve	driver/network	Google Virtual NIC (gVNIC)	org.nextbsd.driver.Gve	Gve	
+hid	hid	kpi/infra	HID bus framework + device drivers	org.nextbsd.kpi.Hid	Hid	subdir umbrella
+hpt27xx	hpt27xx	driver/storage	HighPoint RocketRAID 27xx SAS/SATA RAID	org.nextbsd.driver.Hpt27xx	Hpt27xx	binary blob
+hptiop	hptiop	driver/storage	HighPoint RocketRAID 3xxx/4xxx SAS HBA	org.nextbsd.driver.Hptiop	Hptiop	
+hptmv	hptmv	driver/storage	HighPoint RocketRAID 182x SATA RAID	org.nextbsd.driver.Hptmv	Hptmv	binary blob
+hptnr	hptnr	driver/storage	HighPoint RocketRAID NR SATA RAID	org.nextbsd.driver.Hptnr	Hptnr	binary blob
+hptrr	hptrr	driver/storage	HighPoint RocketRAID RR SATA RAID	org.nextbsd.driver.Hptrr	Hptrr	binary blob
+hwpmc	hwpmc	tracing/debug	Hardware Performance Monitoring Counters	org.nextbsd.kext.Hwpmc	Hwpmc	
+hwt	hwt	tracing/debug	Hardware Trace framework (ETM/CoreSight)	org.nextbsd.kext.Hwt	Hwt	
+hyperv	hyperv	virtualization	Microsoft Hyper-V guest drivers (vmbus/netvsc/storvsc)	org.nextbsd.kext.Hyperv	Hyperv	subdir umbrella
+i2c	i2c	driver/serial-bus	I2C/SMBus bus framework + devices	org.nextbsd.driver.I2c	I2c	subdir umbrella
+if_iavf	iavf	driver/network	Intel Adaptive Virtual Function NIC (X710 VF)	org.nextbsd.driver.Iavf	Iavf	ixlv alias
+ibcore	ibcore	kpi/infra	OFED InfiniBand core (verbs/CM/MAD/SA) KPI	org.nextbsd.kpi.Ibcore	Ibcore	OFED
+if_ice	ice	driver/network	Intel E800 (Ice Lake) 100GbE + RDMA	org.nextbsd.driver.Ice	Ice	needs ice_ddp fw
+ice_ddp	ice_ddp	firmware	Intel E800 DDP firmware package	org.nextbsd.firmware.IceDdp	IceDdp	fw; for ice
+ichwd	ichwd	driver/platform	Intel ICH/6300ESB watchdog	org.nextbsd.driver.Ichwd	Ichwd	
+ida	ida	driver/storage	Compaq Smart Array (IDA) RAID	org.nextbsd.driver.Ida	Ida	legacy
+if_bridge	if_bridge	net/infra	802.1D Ethernet bridge pseudo-interface	org.nextbsd.net.IfBridge	IfBridge	
+if_cgem	if_cgem	driver/network	Cadence GEM NIC (Xilinx/Zynq)	org.nextbsd.driver.IfCgem	IfCgem	
+if_disc	if_disc	net/infra	Discard network pseudo-interface	org.nextbsd.net.IfDisc	IfDisc	
+if_edsc	if_edsc	net/infra	Ethernet discard pseudo-interface (example)	org.nextbsd.net.IfEdsc	IfEdsc	test/example
+if_enc	if_enc	net/infra	IPsec enc0 inspection pseudo-interface	org.nextbsd.net.IfEnc	IfEnc	
+if_epair	if_epair	net/infra	Virtual Ethernet pair (vnet/jail)	org.nextbsd.net.IfEpair	IfEpair	
+if_geneve	if_geneve	net/protocol	GENEVE tunnel pseudo-interface	org.nextbsd.net.IfGeneve	IfGeneve	
+if_gif	if_gif	net/protocol	Generic IP-in-IP tunnel pseudo-interface	org.nextbsd.net.IfGif	IfGif	
+if_gre	if_gre	net/protocol	GRE tunnel pseudo-interface	org.nextbsd.net.IfGre	IfGre	
+if_infiniband	if_infiniband	net/infra	IPoIB network interface layer	org.nextbsd.net.IfInfiniband	IfInfiniband	
+if_lagg	if_lagg	net/infra	Link Aggregation (LACP/802.3ad) bonding	org.nextbsd.net.IfLagg	IfLagg	
+if_me	if_me	net/protocol	IP-in-IP minimal encapsulation (RFC 2004)	org.nextbsd.net.IfMe	IfMe	
+if_ovpn	if_ovpn	net/protocol	OpenVPN DCO kernel tunnel	org.nextbsd.net.IfOvpn	IfOvpn	
+if_stf	if_stf	net/protocol	6to4 IPv6-over-IPv4 tunnel (RFC 3056)	org.nextbsd.net.IfStf	IfStf	
+if_tuntap	if_tuntap	net/infra	TUN/TAP virtual network pseudo-interfaces	org.nextbsd.net.IfTuntap	IfTuntap	
+if_vlan	if_vlan	net/infra	802.1Q VLAN tagging pseudo-interface	org.nextbsd.net.IfVlan	IfVlan	
+if_vxlan	if_vxlan	net/protocol	VXLAN overlay tunnel pseudo-interface	org.nextbsd.net.IfVxlan	IfVxlan	
+if_wg	if_wg	net/protocol	WireGuard VPN kernel tunnel	org.nextbsd.net.IfWg	IfWg	
+iflib	iflib	kpi/infra	iflib NIC driver framework (TX/RX rings) KPI	org.nextbsd.kpi.Iflib	Iflib	
+if_igc	igc	driver/network	Intel I225/I226 2.5GbE	org.nextbsd.driver.Igc	Igc	
+imgact_binmisc	imgact_binmisc	compat	binfmt_misc-style interpreter registration	org.nextbsd.compat.ImgactBinmisc	ImgactBinmisc	
+imx	imx	driver/platform	NXP i.MX SoC drivers (AHCI/SNVS/I2C/SPI/wdog)	org.nextbsd.driver.Imx	Imx	subdir umbrella
+intelspi	intelspi	driver/serial-bus	Intel LPSS SPI controller (Lynx Point+)	org.nextbsd.driver.Intelspi	Intelspi	
+io	io	driver/misc	/dev/io privileged port/mem access (x86)	org.nextbsd.driver.Io	Io	
+ioat	ioat	driver/misc	Intel I/OAT DMA engine	org.nextbsd.driver.Ioat	Ioat	
+ip_mroute	ip_mroute_mod	net/protocol	IPv4 multicast routing / PIM	org.nextbsd.net.IpMroute	IpMroute	
+ip6_mroute	ip6_mroute_mod	net/protocol	IPv6 multicast routing / MLD	org.nextbsd.net.Ip6Mroute	Ip6Mroute	
+ipdivert	ipdivert	net/protocol	ipfw divert socket (natd)	org.nextbsd.net.IpDivert	IpDivert	
+ipl	ipfilter	net/protocol	IPFilter stateful packet filter (ipf/ipnat)	org.nextbsd.net.IpFilter	IpFilter	ko=ipl
+ipfw	ipfw	net/protocol	IP Firewall + traffic shaper engine	org.nextbsd.net.Ipfw	Ipfw	
+ipfw_nat	ipfw_nat	net/protocol	ipfw in-kernel NAT via libalias	org.nextbsd.net.IpfwNat	IpfwNat	
+ipfw_nat64	ipfw_nat64	net/protocol	ipfw NAT64 IPv6-to-IPv4 translation	org.nextbsd.net.IpfwNat64	IpfwNat64	
+ipfw_nptv6	ipfw_nptv6	net/protocol	ipfw NPTv6 IPv6 prefix translation	org.nextbsd.net.IpfwNptv6	IpfwNptv6	
+ipfw_pmod	ipfw_pmod	net/protocol	ipfw packet modification (TCP opts)	org.nextbsd.net.IpfwPmod	IpfwPmod	
+ipmi	ipmi	driver/platform	IPMI BMC driver	org.nextbsd.driver.Ipmi	Ipmi	
+ipoib	ipoib	driver/network	IP-over-InfiniBand interface driver (OFED)	org.nextbsd.driver.IpOib	IpOib	
+ips	ips	driver/storage	IBM/Adaptec ServeRAID (IPS) SCSI HBA	org.nextbsd.driver.Ips	Ips	
+ipsec	ipsec	net/protocol	IPsec (ESP/AH) kernel stack	org.nextbsd.net.Ipsec	Ipsec	
+if_ipw	ipw	driver/wireless	Intel PRO/Wireless 2100 802.11b	org.nextbsd.driver.IntelIPW	IntelIPW	
+ipwfw	ipwfw	firmware	Intel PRO/Wireless 2100 firmware	org.nextbsd.firmware.IPW	IPWFirmware	fw; for ipw
+irdma	irdma	driver/network	Intel RDMA (iWARP/RoCE) for ICE	org.nextbsd.driver.Irdma	Irdma	
+isci	isci	driver/storage	Intel SAS controller (isci/SCIL) HBA	org.nextbsd.driver.Isci	Isci	
+iscsi	iscsi	driver/storage	iSCSI initiator kernel driver (ICL)	org.nextbsd.driver.Iscsi	Iscsi	
+iser	iser	driver/storage	iSCSI Extensions for RDMA (iSER)	org.nextbsd.driver.Iser	Iser	sub of iscsi
+isp	isp	driver/storage	QLogic ISP Fibre Channel/SCSI HBA	org.nextbsd.driver.Isp	Isp	
+ispfw	ispfw	firmware	QLogic ISP FC adapter firmware	org.nextbsd.firmware.ISP	ISPFirmware	fw; for isp
+itwd	itwd	driver/platform	ITE IT87xx SuperIO watchdog	org.nextbsd.driver.Itwd	Itwd	
+if_iwi	iwi	driver/wireless	Intel PRO/Wireless 2200BG/2915ABG	org.nextbsd.driver.IntelIWI	IntelIWI	
+iwifw	iwifw	firmware	Intel 2200/2915 firmware	org.nextbsd.firmware.IWI	IWIFirmware	fw; for iwi
+if_iwlwifi	iwlwifi	driver/wireless	Intel ax200/ax210/9260 wifi (LinuxKPI)	org.nextbsd.driver.IntelIwlwifi	IntelIwlwifi	
+if_iwm	iwm	driver/wireless	Intel 7000/8000/9000 802.11ac	org.nextbsd.driver.IntelIWM	IntelIWM	
+if_iwn	iwn	driver/wireless	Intel 4965/5000/6000 802.11n	org.nextbsd.driver.IntelIWN	IntelIWN	
+iwnfw	iwnfw	firmware	Intel iwn firmware (4965/5000/6000/...)	org.nextbsd.firmware.IWN	IWNFirmware	fw; for iwn
+if_iwx	iwx	driver/wireless	Intel AX200/AX201 802.11ax (OpenBSD-derived)	org.nextbsd.driver.IntelIWX	IntelIWX	
+if_ix	ix	driver/network	Intel 82598/99/X540/X550 10GbE (ixgbe)	org.nextbsd.driver.IntelIX	IntelIX	
+if_ixl	ixl	driver/network	Intel XL710/X710 10/25/40GbE PF	org.nextbsd.driver.IntelIXL	IntelIXL	
+if_ixv	ixv	driver/network	Intel ixgbe SR-IOV Virtual Function	org.nextbsd.driver.IntelIXV	IntelIXV	sub of ix
+if_jme	jme	driver/network	JMicron JMC25x/26x Gigabit/Fast Ethernet	org.nextbsd.driver.Jme	Jme	
+kbdmux	kbdmux	driver/misc	Keyboard multiplexer (merge keyboards)	org.nextbsd.driver.Kbdmux	Kbdmux	
+kgssapi	kgssapi	kpi/infra	Kernel GSSAPI framework (NFS Kerberos)	org.nextbsd.kpi.Kgssapi	Kgssapi	
+kgssapi_krb5	kgssapi_krb5	kpi/infra	Kerberos 5 GSS mechanism for kgssapi	org.nextbsd.kpi.KgssapiKrb5	KgssapiKrb5	sub of kgssapi
+h_ertt	khelp	kpi/infra	khelp/HHOOK framework (h_ertt TCP helper)	org.nextbsd.kpi.Khelp	Khelp	TCP_HHOOK only
+krpc	krpc	net/infra	In-kernel ONC RPC + RPCSEC_GSS/TLS (NFS)	org.nextbsd.kpi.Krpc	Krpc	
+ksyms	ksyms	tracing/debug	/dev/ksyms live kernel symbol table	org.nextbsd.kext.Ksyms	Ksyms	
+ktest	ktest	test-internal	In-kernel test framework	org.nextbsd.kext.Ktest	Ktest	test; subdir
+if_lge	lge	driver/network	Level 1 LXT1001 Gigabit Ethernet	org.nextbsd.driver.Lge	Lge	
+libalias	libalias	net/protocol	Packet aliasing/NAT library + protocol plugins	org.nextbsd.net.LibAlias	LibAlias	subdir
+libiconv	libiconv	kpi/infra	In-kernel charset conversion (iconv) framework	org.nextbsd.kpi.LibIconv	LibIconv	
+libmchain	libmchain	kpi/infra	Mbuf chain helper (subr_mchain) for SMB/NFS	org.nextbsd.kpi.LibMchain	LibMchain	
+lindebugfs	lindebugfs	compat	Linux-compatible debugfs for LinuxKPI	org.nextbsd.compat.LinDebugfs	LinDebugfs	
+linprocfs	linprocfs	compat	Linux-compatible /proc	org.nextbsd.compat.LinProcfs	LinProcfs	
+linsysfs	linsysfs	compat	Linux-compatible /sys	org.nextbsd.compat.LinSysfs	LinSysfs	
+linux	linux	compat	Linux 32-bit (i386) syscall emulation	org.nextbsd.compat.Linux	Linux	
+linux_common	linux_common	compat	Shared Linux compat infrastructure	org.nextbsd.compat.LinuxCommon	LinuxCommon	
+linux64	linux64	compat	Linux 64-bit (amd64) syscall emulation	org.nextbsd.compat.Linux64	Linux64	
+linuxkpi	linuxkpi	compat	LinuxKPI shim (Linux kernel API for ported drivers)	org.nextbsd.compat.LinuxKpi	LinuxKpi	
+linuxkpi_hdmi	linuxkpi_hdmi	compat	LinuxKPI HDMI helpers for DRM/GPU	org.nextbsd.compat.LinuxKpiHdmi	LinuxKpiHdmi	sub of linuxkpi
+linuxkpi_video	linuxkpi_video	compat	LinuxKPI framebuffer/video aperture helpers	org.nextbsd.compat.LinuxKpiVideo	LinuxKpiVideo	sub of linuxkpi
+linuxkpi_wlan	linuxkpi_wlan	compat	LinuxKPI mac80211/cfg80211 WLAN shim	org.nextbsd.compat.LinuxKpiWlan	LinuxKpiWlan	sub of linuxkpi
+if_lio	lio	driver/network	Cavium LiquidIO SmartNIC (Octeon)	org.nextbsd.driver.Lio	Lio	
+lpt	lpt	driver/serial-bus	Parallel port printer/lpt (ppbus)	org.nextbsd.driver.Lpt	Lpt	
+mac_biba	mac_biba	security/mac	MAC Biba mandatory integrity policy	org.nextbsd.security.MACBiba	MACBiba	
+mac_bsdextended	mac_bsdextended	security/mac	MAC BSD Extended (ugidfw) uid/gid firewall	org.nextbsd.security.MACBsdExtended	MACBsdExtended	
+mac_ddb	mac_ddb	security/mac	MAC policy restricting ddb(4) debugger	org.nextbsd.security.MACDdb	MACDdb	
+mac_do	mac_do	security/mac	MAC/do controlled privilege-transition (run-as)	org.nextbsd.security.MACDo	MACDo	
+mac_ifoff	mac_ifoff	security/mac	MAC policy disabling network on interfaces	org.nextbsd.security.MACIfoff	MACIfoff	
+mac_ipacl	mac_ipacl	security/mac	MAC ACLs on IP bind/connect	org.nextbsd.security.MACIpacl	MACIpacl	
+mac_lomac	mac_lomac	security/mac	MAC Low-watermark (LOMAC) integrity policy	org.nextbsd.security.MACLomac	MACLomac	
+mac_mls	mac_mls	security/mac	MAC Multi-Level Security confidentiality labels	org.nextbsd.security.MACMls	MACMls	
+mac_none	mac_none	security/mac	MAC no-op reference policy	org.nextbsd.security.MACNone	MACNone	stub
+mac_ntpd	mac_ntpd	security/mac	MAC policy granting ntpd clock privileges	org.nextbsd.security.MACNtpd	MACNtpd	
+mac_partition	mac_partition	security/mac	MAC process partitioning policy	org.nextbsd.security.MACPartition	MACPartition	
+mac_pimd	mac_pimd	security/mac	MAC policy granting pimd multicast privileges	org.nextbsd.security.MACPimd	MACPimd	
+mac_portacl	mac_portacl	security/mac	MAC per-uid/gid port-bind access control	org.nextbsd.security.MACPortacl	MACPortacl	
+mac_priority	mac_priority	security/mac	MAC rt/idle scheduling priority by group	org.nextbsd.security.MACPriority	MACPriority	
+mac_seeotheruids	mac_seeotheruids	security/mac	MAC restrict process visibility to same uid	org.nextbsd.security.MACSeeotheruids	MACSeeotheruids	
+mac_stub	mac_stub	security/mac	MAC stub policy (all hooks no-op)	org.nextbsd.security.MACStub	MACStub	stub
+mac_test	mac_test	security/mac	MAC test policy (exercises label alloc)	org.nextbsd.security.MACTest	MACTest	test
+mac_veriexec	mac_veriexec	security/mac	Verified Execution MAC policy (exec integrity)	org.nextbsd.security.MACVeriexec	MACVeriexec	
+mac_veriexec_sha1	mac_veriexec_sha1	security/mac	SHA-1 fingerprint module for mac_veriexec	org.nextbsd.security.MACVeriexecSha1	MACVeriexecSha1	sub
+mac_veriexec_sha256	mac_veriexec_sha256	security/mac	SHA-256 fingerprint module for mac_veriexec	org.nextbsd.security.MACVeriexecSha256	MACVeriexecSha256	sub
+mac_veriexec_sha384	mac_veriexec_sha384	security/mac	SHA-384 fingerprint module for mac_veriexec	org.nextbsd.security.MACVeriexecSha384	MACVeriexecSha384	sub
+mac_veriexec_sha512	mac_veriexec_sha512	security/mac	SHA-512 fingerprint module for mac_veriexec	org.nextbsd.security.MACVeriexecSha512	MACVeriexecSha512	sub
+if_malo	malo	driver/wireless	Marvell 88W8335/8310 802.11a/b/g	org.nextbsd.driver.Malo	Malo	
+if_mana	mana	driver/network	Microsoft Azure Network Adapter (MANA)	org.nextbsd.driver.Mana	Mana	
+geom_md	md	driver/storage	GEOM memory/vnode-backed virtual disk (md)	org.nextbsd.driver.GeomMd	GeomMd	
+mdio	mdio	net/infra	MDIO bus framework for PHY management	org.nextbsd.kpi.Mdio	Mdio	
+mem	mem	driver/misc	/dev/mem and /dev/kmem device	org.nextbsd.driver.Mem	Mem	
+mfi	mfi	driver/storage	LSI/Broadcom MegaRAID SAS/SATA (MFI)	org.nextbsd.driver.Mfi	Mfi	
+if_mgb	mgb	driver/network	Microchip LAN7430/7431 PCIe Gigabit (iflib)	org.nextbsd.driver.Mgb	Mgb	
+miibus	mii	net/infra	MII bus framework + PHY drivers	org.nextbsd.kpi.Miibus	Miibus	core net KPI
+miiproxy	miiproxy	net/infra	MII proxy bridging etherswitch MDIO to miibus	org.nextbsd.kpi.Miiproxy	Miiproxy	sub of etherswitch
+mlx	mlx	driver/storage	Mylex DAC960/AcceleRAID RAID (legacy)	org.nextbsd.driver.Mlx	Mlx	not Mellanox
+mlx4	mlx4	driver/network	Mellanox ConnectX-2/3 core	org.nextbsd.driver.Mlx4	Mlx4	dep for mlx4en/ib
+mlx4en	mlx4en	driver/network	Mellanox ConnectX-2/3 Ethernet (10/40GbE)	org.nextbsd.driver.Mlx4en	Mlx4en	needs mlx4
+mlx4ib	mlx4ib	driver/network	Mellanox ConnectX-2/3 InfiniBand verbs	org.nextbsd.driver.Mlx4ib	Mlx4ib	needs mlx4
+mlx5	mlx5	driver/network	Mellanox ConnectX-4/5/6 core	org.nextbsd.driver.Mlx5	Mlx5	dep for mlx5en/ib
+mlx5en	mlx5en	driver/network	Mellanox ConnectX-4/5/6 Ethernet (25-100GbE)	org.nextbsd.driver.Mlx5en	Mlx5en	needs mlx5
+mlx5fpga_tools	mlx5fpga_tools	driver/misc	Mellanox ConnectX-4/5 FPGA debug/tools	org.nextbsd.driver.Mlx5fpgaTools	Mlx5fpgaTools	sub of mlx5
+mlx5ib	mlx5ib	driver/network	Mellanox ConnectX-4/5/6 InfiniBand verbs	org.nextbsd.driver.Mlx5ib	Mlx5ib	needs mlx5
+mlxfw	mlxfw	firmware	Mellanox firmware flash framework (MFA2)	org.nextbsd.firmware.Mlxfw	Mlxfw	fw; for mlx4/5
+mmc	mmc	driver/misc	MMC/SD host bus protocol + card enumeration	org.nextbsd.driver.Mmc	Mmc	KPI/bus
+mmcnull	mmcnull	test-internal	Emulated null MMC controller for testing	org.nextbsd.kext.Mmcnull	Mmcnull	test
+mmcsd	mmcsd	driver/storage	MMC/SD/SDIO block storage driver	org.nextbsd.driver.Mmcsd	Mmcsd	
+mpi3mr	mpi3mr	driver/storage	Broadcom MPI3 Tri-Mode 12Gb/s RAID/HBA	org.nextbsd.driver.Mpi3mr	Mpi3mr	
+mpr	mpr	driver/storage	LSI/Broadcom SAS3 (12Gb/s) Fusion-MPT	org.nextbsd.driver.Mpr	Mpr	
+mps	mps	driver/storage	LSI SAS2 (6Gb/s) Fusion-MPT	org.nextbsd.driver.Mps	Mps	
+mpt	mpt	driver/storage	LSI Fusion-MPT SAS/SCSI/FC (legacy)	org.nextbsd.driver.Mpt	Mpt	
+mqueuefs	mqueue	kpi/infra	POSIX message queue filesystem (mqueue)	org.nextbsd.kpi.Mqueuefs	Mqueuefs	
+mrsas	mrsas	driver/storage	Avago/Broadcom MegaRAID SAS (MR)	org.nextbsd.driver.Mrsas	Mrsas	
+msdosfs	msdosfs	filesystem	MS-DOS FAT12/16/32 filesystem	org.nextbsd.filesystems.msdosfs	msdosfs	
+msdosfs_iconv	msdosfs_iconv	filesystem	iconv charset plugin for msdosfs	org.nextbsd.filesystems.msdosfs-iconv	msdosfs-iconv	sub of msdosfs
+if_msk	msk	driver/network	Marvell/SysKonnect Yukon II Gigabit	org.nextbsd.driver.Msk	Msk	
+mt76	mt76	driver/wireless	MediaTek MT76xx 802.11ac/ax (mt7615/7921/7996)	org.nextbsd.driver.Mt76	Mt76	subdir
+mthca	mthca	driver/network	Mellanox legacy InfiniBand HCA (Tavor/Arbel)	org.nextbsd.driver.Mthca	Mthca	OFED
+mvs	mvs	driver/storage	Marvell 88SX SATA II host controller	org.nextbsd.driver.Mvs	Mvs	
+if_mwl	mwl	driver/wireless	Marvell 88W8363 802.11a/b/g/n	org.nextbsd.driver.Mwl	Mwl	needs mwlfw
+mwlfw	mwlfw	firmware	Marvell 88W8363 firmware	org.nextbsd.firmware.Mwl	MwlFirmware	fw; for mwl
+if_mxge	mxge	driver/network	Myricom Myri-10G 10GbE (+firmware subdir)	org.nextbsd.driver.Mxge	Mxge	subdir+fw
+if_my	my	driver/network	Myson MTD803 Fast Ethernet	org.nextbsd.driver.My	My	
+nctgpio	nctgpio	driver/serial-bus	Nuvoton NCT Super I/O GPIO	org.nextbsd.driver.Nctgpio	Nctgpio	
+ncthwm	ncthwm	driver/platform	Nuvoton NCT6779D/6796D hardware monitor	org.nextbsd.driver.Ncthwm	Ncthwm	
+if_mvneta	neta	driver/network	Marvell Armada NETA Ethernet (FDT)	org.nextbsd.driver.Mvneta	Mvneta	
+netgraph	netgraph	net/infra	Netgraph graph-based networking framework + nodes	org.nextbsd.kpi.Netgraph	Netgraph	subdir umbrella
+netlink	netlink	net/infra	RFC 3549 Netlink socket protocol	org.nextbsd.kpi.Netlink	Netlink	
+netmap	netmap	net/infra	Zero-copy packet I/O + VALE switch	org.nextbsd.kpi.Netmap	Netmap	+if_ptnet sub
+if_nfe	nfe	driver/network	NVIDIA nForce MCP Fast/Gigabit Ethernet	org.nextbsd.driver.Nfe	Nfe	
+nfscl	nfscl	filesystem	NFSv4 client	org.nextbsd.filesystems.nfscl	nfscl	sub; needs nfscommon
+nfscommon	nfscommon	filesystem	Shared NFS RPC/KPI for client+server	org.nextbsd.filesystems.nfscommon	nfscommon	sub
+nfsd	nfsd	filesystem	NFSv4 server	org.nextbsd.filesystems.nfsd	nfsd	sub; needs nfscommon
+nfslockd	nfslockd	filesystem	NFS Network Lock Manager (NLM)	org.nextbsd.filesystems.nfslockd	nfslockd	sub
+nfssvc	nfssvc	filesystem	NFS syscall dispatch/service KPI glue	org.nextbsd.filesystems.nfssvc	nfssvc	sub
+if_nge	nge	driver/network	National DP83820/83821 Gigabit	org.nextbsd.driver.Nge	Nge	
+nlsysevent	nlsysevent	net/infra	Netlink generic family for kernel sysevents	org.nextbsd.kpi.NlSysEvent	NlSysEvent	
+nmdm	nmdm	driver/misc	Null-modem virtual TTY pair	org.nextbsd.driver.Nmdm	Nmdm	
+ntb	ntb	driver/platform	PCIe Non-Transparent Bridge (NTB) abstraction	org.nextbsd.driver.Ntb	Ntb	subdir umbrella
+nullfs	nullfs	filesystem	Null/loopback overlay filesystem	org.nextbsd.filesystems.nullfs	nullfs	
+nvd	nvd	driver/storage	NVMe disk (nvd) GEOM driver over nvme	org.nextbsd.driver.Nvd	Nvd	
+nvdimm	nvdimm	driver/storage	ACPI NVDIMM (NFIT) persistent memory	org.nextbsd.driver.Nvdimm	Nvdimm	
+nvme	nvme	driver/storage	NVMe host controller (CAM/GEOM)	org.nextbsd.driver.Nvme	Nvme	KPI for nvd
+nvmf	nvmf	driver/storage	NVMe-oF host driver (tcp/transport/target)	org.nextbsd.driver.Nvmf	Nvmf	subdir umbrella
+nvram	nvram	driver/platform	/dev/nvram CMOS NVRAM access (x86)	org.nextbsd.driver.Nvram	Nvram	
+if_oce	oce	driver/network	Emulex OneConnect 10GbE	org.nextbsd.driver.Oce	Oce	
+ocs_fc	ocs_fc	driver/storage	Emulex LightPulse Fibre Channel/FCoE HBA	org.nextbsd.driver.OcsFc	OcsFc	
+opal_nvram	opal_nvram	driver/platform	IBM PowerNV OPAL NVRAM access (ppc)	org.nextbsd.driver.OpalNvram	OpalNvram	
+opensolaris	opensolaris	kpi/infra	OpenSolaris/ZFS SPL compatibility shim	org.nextbsd.kpi.OpenSolaris	OpenSolaris	ZFS dep
+ossl	ossl	crypto	OpenSSL-derived asm software crypto (AES/ChaCha/SHA)	org.nextbsd.crypto.Ossl	Ossl	
+if_otus	otus	driver/wireless	Atheros AR9001U USB 802.11a/b/g/n	org.nextbsd.driver.Otus	Otus	needs otusfw
+otusfw	otusfw	firmware	Atheros AR9001U USB firmware	org.nextbsd.firmware.Otus	OtusFirmware	fw; for otus
+ow	ow	driver/serial-bus	1-Wire bus + devices (owc, ow_temp)	org.nextbsd.driver.Ow	Ow	subdir umbrella
+p2sb	p2sb	driver/platform	Intel PCH P2SB bridge + Lewisburg GPIO	org.nextbsd.driver.P2sb	P2sb	
+p9fs	p9fs	filesystem	9P/VirtIO Plan 9 filesystem client	org.nextbsd.filesystems.p9fs	p9fs	
+padlock	padlock	driver/crypto-hw	VIA PadLock AES/SHA crypto engine	org.nextbsd.driver.Padlock	Padlock	
+padlock_rng	padlock_rng	driver/crypto-hw	VIA Nehemiah hardware RNG	org.nextbsd.driver.PadlockRng	PadlockRng	
+pcfclock	pcfclock	driver/serial-bus	PCF-1.0 radio clock via parallel port	org.nextbsd.driver.Pcfclock	Pcfclock	legacy
+pchtherm	pchtherm	driver/platform	Intel PCH (Skylake+) thermal subsystem	org.nextbsd.driver.PchTherm	PchTherm	
+pf	pf	net/protocol	OpenBSD-derived stateful packet filter (pf)	org.nextbsd.net.PF	PF	
+pflog	pflog	net/protocol	pf logging pseudo-interface	org.nextbsd.net.PfLog	PfLog	sub of pf
+pflow	pflow	net/protocol	pf NetFlow/IPFIX export	org.nextbsd.net.PfFlow	PfFlow	sub of pf
+pfsync	pfsync	net/protocol	pf state synchronisation interface	org.nextbsd.net.PfSync	PfSync	sub of pf
+plip	plip	driver/serial-bus	Parallel Line IP (PLIP) over ppbus	org.nextbsd.driver.Plip	Plip	legacy
+pmspcv	pms	driver/storage	PMC-Sierra SAS/SATA HBA	org.nextbsd.driver.Pmspcv	Pmspcv	ko=pmspcv
+powermac_nvram	powermac_nvram	driver/platform	Apple PowerMac OpenFirmware NVRAM	org.nextbsd.driver.PowermacNvram	PowermacNvram	ppc
+ppbus	ppbus	driver/serial-bus	Parallel Port Bus + IEEE 1284	org.nextbsd.driver.Ppbus	Ppbus	KPI for ppc/ppi/plip
+ppc	ppc	driver/serial-bus	PC parallel port hardware controller	org.nextbsd.driver.Ppc	Ppc	
+ppi	ppi	driver/serial-bus	Parallel port raw interface (/dev/ppi)	org.nextbsd.driver.Ppi	Ppi	
+pps	pps	driver/serial-bus	Pulse-per-second capture via parallel port	org.nextbsd.driver.Pps	Pps	
+procfs	procfs	filesystem	Process filesystem (/proc) via pseudofs	org.nextbsd.filesystems.procfs	procfs	needs pseudofs
+proto	proto	driver/misc	Generic raw PCI/ISA device for userland access	org.nextbsd.driver.Proto	Proto	diag
+pseudofs	pseudofs	filesystem	Pseudo-filesystem framework (KPI)	org.nextbsd.filesystems.pseudofs	pseudofs	KPI
+pst	pst	driver/storage	Promise SuperTrak I2O RAID	org.nextbsd.driver.Pst	Pst	legacy
+pt	pt	tracing/debug	Intel Processor Trace backend for hwt (amd64)	org.nextbsd.kext.Pt	Pt	
+pty	pty	driver/misc	BSD legacy /dev/pty* pseudo-terminal compat	org.nextbsd.driver.Pty	Pty	legacy
+puc	puc	driver/serial-bus	PCI/ISA multi-port serial/parallel	org.nextbsd.driver.Puc	Puc	
+pwmbus	pwm	driver/serial-bus	PWM bus infrastructure (pwmbus/pwmc)	org.nextbsd.driver.Pwmbus	Pwmbus	subdir umbrella
+qat	qat	driver/crypto-hw	Intel QuickAssist (QAT) crypto accel + OCF	org.nextbsd.driver.Qat	Qat	subdir umbrella
+qat_c2xxx	qat_c2xxx	driver/crypto-hw	Intel QAT C2xxx (DH89xxCC) crypto accel	org.nextbsd.driver.QatC2xxx	QatC2xxx	
+qat_c2xxxfw	qat_c2xxxfw	firmware	Intel QAT C2xxx firmware (MOF/MMP)	org.nextbsd.firmware.QatC2xxx	QatC2xxxFirmware	fw
+qatfw	qatfw	firmware	Intel QAT firmware (C62x/C3xxx/4xxx/...)	org.nextbsd.firmware.Qat	QatFirmware	fw; subdir
+qlnx	qlnx	driver/network	Cavium/QLogic FastLinQ 41000 25/40/100GbE	org.nextbsd.driver.Qlnx	Qlnx	subdir umbrella
+if_qlxgb	qlxgb	driver/network	QLogic ISP 8020/80xx CNA Ethernet	org.nextbsd.driver.Qlxgb	Qlxgb	
+if_qlxgbe	qlxgbe	driver/network	QLogic ISP 8300/83xx CNA 10GbE	org.nextbsd.driver.Qlxgbe	Qlxgbe	
+if_qlxge	qlxge	driver/network	QLogic ISP 8000 CNA 10GbE	org.nextbsd.driver.Qlxge	Qlxge	
+if_ral	ral	driver/wireless	Ralink RT2560/2661/2860/3090/5390 802.11n	org.nextbsd.driver.Ral	Ral	needs ralfw
+ralfw	ralfw	firmware	Ralink RT2561/2661/2860 firmware	org.nextbsd.firmware.Ral	RalFirmware	fw; subdir; for ral
+random_fortuna	random_fortuna	crypto	Fortuna CSPRNG for random(4)	org.nextbsd.crypto.RandomFortuna	RandomFortuna	
+random_other	random_other	crypto	Alternate/stub CSPRNG for random(4)	org.nextbsd.crypto.RandomOther	RandomOther	
+rc4	rc4	crypto	RC4 (ARC4) stream cipher library	org.nextbsd.crypto.RC4	RC4	
+rccgpio	rccgpio	driver/platform	ADI RCC-VE/RCC-DFF embedded GPIO	org.nextbsd.driver.RccGpio	RccGpio	
+krping	rdma	kpi/infra	RDMA kernel ping test utility	org.nextbsd.kext.KRping	KRping	test/debug; subdir
+rdrand_rng	rdrand_rng	crypto	Intel RDRAND hardware RNG entropy source	org.nextbsd.crypto.RdrandRng	RdrandRng	
+rdseed_rng	rdseed_rng	crypto	Intel RDSEED hardware RNG entropy source	org.nextbsd.crypto.RdseedRng	RdseedRng	
+if_re	re	driver/network	Realtek RTL816x/8169/8110 Gigabit	org.nextbsd.driver.RealtekRE	RealtekRE	
+if_rge	rge	driver/network	Realtek RTL8168G/8125 2.5GbE	org.nextbsd.driver.RealtekRGE	RealtekRGE	
+if_rl	rl	driver/network	Realtek RTL8129/8139 10/100	org.nextbsd.driver.RealtekRL	RealtekRL	
+rndtest	rndtest	crypto	FIPS 140-2 continuous RNG test for hw RNGs	org.nextbsd.crypto.Rndtest	Rndtest	
+(subdir)	rockchip	driver/platform	Rockchip SoC peripherals (I2C/PMIC/SPI/eMMC)			subdir-only
+rpi_ft5406	rpi_ft5406	driver/misc	Raspberry Pi FT5406 touchscreen	org.nextbsd.driver.RpiFt5406	RpiFt5406	
+rtsx	rtsx	driver/storage	Realtek RTSX PCI SD/MMC card reader	org.nextbsd.driver.Rtsx	Rtsx	
+if_rtw88	rtw88	driver/wireless	Realtek RTL88xx 802.11ac (LinuxKPI)	org.nextbsd.driver.Rtw88	Rtw88	
+if_rtw89	rtw89	driver/wireless	Realtek RTL885x/8922 802.11ax (LinuxKPI)	org.nextbsd.driver.Rtw89	Rtw89	
+rtwn	rtwn	driver/wireless	Realtek RTL8188E/8192C/8812A 802.11 core	org.nextbsd.driver.Rtwn	Rtwn	needs pci/usb attach
+if_rtwn_pci	rtwn_pci	driver/wireless	PCI bus attach for rtwn	org.nextbsd.driver.RtwnPci	RtwnPci	sub of rtwn
+if_rtwn_usb	rtwn_usb	driver/wireless	USB bus attach for rtwn	org.nextbsd.driver.RtwnUsb	RtwnUsb	sub of rtwn
+(subdir)	rtwnfw	firmware	Realtek rtwn firmware blobs	org.nextbsd.firmware.Rtwn	RtwnFirmware	fw; subdir (9 fw)
+s3	s3	driver/graphics	S3 PCI VGA/framebuffer	org.nextbsd.driver.S3	S3	
+safe	safe	driver/crypto-hw	SafeNet SafeXcel-1141 PCI crypto accel	org.nextbsd.driver.Safe	Safe	
+safexcel	safexcel	driver/crypto-hw	Inside Secure EIP-97 crypto accel (FDT)	org.nextbsd.driver.SafeXcel	SafeXcel	
+if_sbni	sbni	driver/network	Granch SBNI12 leased-line WAN adapter	org.nextbsd.driver.Sbni	Sbni	
+scc	scc	driver/serial-bus	Generic SCC serial controller (Z8530/QUICC)	org.nextbsd.driver.Scc	Scc	
+sctp	sctp	net/protocol	SCTP transport protocol stack	org.nextbsd.net.SCTP	SCTP	
+sdhci	sdhci	driver/storage	SD Host Controller Interface (SDHCI) core	org.nextbsd.driver.Sdhci	Sdhci	base for attach mods
+sdhci_acpi	sdhci_acpi	driver/storage	ACPI attach for SDHCI	org.nextbsd.driver.SdhciAcpi	SdhciAcpi	sub of sdhci
+sdhci_fdt	sdhci_fdt	driver/storage	FDT attach for SDHCI	org.nextbsd.driver.SdhciFdt	SdhciFdt	sub of sdhci
+sdhci_pci	sdhci_pci	driver/storage	PCI attach for SDHCI	org.nextbsd.driver.SdhciPci	SdhciPci	sub of sdhci
+sdio	sdio	driver/storage	SDIO bus bridge (CAM <-> SDIO peripherals)	org.nextbsd.driver.Sdio	Sdio	
+sem	sem	kpi/infra	POSIX named semaphore support (uipc_sem)	org.nextbsd.kpi.Sem	Sem	
+send	send	net/protocol	Secure Neighbor Discovery (SEND, RFC 3971)	org.nextbsd.net.Send	Send	
+sff	sff	driver/misc	SFF/SFP optical transceiver interface	org.nextbsd.driver.Sff	Sff	KPI for NICs
+sfxge	sfxge	driver/network	Solarflare SFC 10/40GbE	org.nextbsd.driver.Sfxge	Sfxge	
+if_sge	sge	driver/network	SiS 190/191 Gigabit Ethernet	org.nextbsd.driver.Sge	Sge	
+sgx	sgx	driver/platform	Intel SGX enclave memory management (amd64)	org.nextbsd.driver.Sgx	Sgx	
+sgx_linux	sgx_linux	compat	Linux ioctl shim for Intel SGX	org.nextbsd.compat.SgxLinux	SgxLinux	sub of sgx
+siftr	siftr	tracing/debug	Statistical Info For TCP Research (via alq)	org.nextbsd.kext.Siftr	Siftr	
+siis	siis	driver/storage	Silicon Image SiI3124/3132 SATA	org.nextbsd.driver.Siis	Siis	
+if_sis	sis	driver/network	SiS 900/7016 10/100 Ethernet	org.nextbsd.driver.Sis	Sis	
+if_sk	sk	driver/network	SysKonnect SK-984x/982x Gigabit	org.nextbsd.driver.Sk	Sk	
+smartpqi	smartpqi	driver/storage	HPE/Microsemi Smart Array (SmartPQI) RAID	org.nextbsd.driver.SmartPqi	SmartPqi	
+smbfs	smbfs	filesystem	SMB/CIFS client filesystem (SMBv1)	org.nextbsd.filesystems.smbfs	smbfs	
+snp	snp	driver/misc	TTY snooping device (/dev/snp)	org.nextbsd.driver.Snp	Snp	
+(subdir)	sound	driver/sound	Sound subsystem (newpcm) + audio hw drivers	org.nextbsd.driver.Sound	Sound	subdir umbrella
+spe	spe	tracing/debug	ARM Statistical Profiling Extension (arm64)	org.nextbsd.kext.Spe	Spe	
+speaker	speaker	driver/misc	PC speaker beep/tone device (/dev/speaker)	org.nextbsd.driver.Speaker	Speaker	
+(subdir)	spi	driver/serial-bus	SPI bus drivers (spibus/spigen/at45d/mx25l)	org.nextbsd.driver.Spi	Spi	subdir-only
+spigen	spigen	driver/serial-bus	Generic userspace SPI device (/dev/spigen)	org.nextbsd.driver.Spigen	Spigen	
+(subdir)	splash	driver/graphics	Boot splash renderers (bmp/pcx/txt)	org.nextbsd.driver.Splash	Splash	subdir
+if_ste	ste	driver/network	Sundance ST201 10/100 Ethernet	org.nextbsd.driver.Ste	Ste	
+if_stge	stge	driver/network	Sundance/Tamarack TC9021 Gigabit	org.nextbsd.driver.Stge	Stge	
+if_sume	sume	driver/network	NetFPGA-SUME 4-port 10GbE FPGA NIC	org.nextbsd.driver.Sume	Sume	
+superio	superio	driver/platform	Super I/O (LPC) bus controller (ITE/Nuvoton/Fintek)	org.nextbsd.driver.SuperIo	SuperIo	
+sym	sym	driver/storage	Symbios/LSI 53C8xx Ultra/Wide SCSI	org.nextbsd.driver.Sym	Sym	
+(subdir)	syscons	driver/misc	syscons console screen-savers (fire/rain/snake)	org.nextbsd.driver.Syscons	Syscons	subdir
+(subdir)	sysvipc	kpi/infra	SysV IPC (msg/sem/shm)	org.nextbsd.kpi.SysVIpc	SysVIpc	subdir (3 ko)
+tarfs	tarfs	filesystem	Read-only tar-archive filesystem (zstd)	org.nextbsd.filesystems.tarfs	tarfs	
+(subdir)	tcp	net/protocol	TCP algos (hpts/BBR/RACK/tcpmd5)	org.nextbsd.net.Tcp	Tcp	subdir
+kern_testfrwk	tests	test-internal	Kernel test framework infrastructure	org.nextbsd.kext.KernTestFramework	KernTestFramework	test; subdir
+tb	thunderbolt	driver/serial-bus	Thunderbolt NHI PCIe controller + topology	org.nextbsd.driver.Thunderbolt	Thunderbolt	
+if_ti	ti	driver/network	Alteon Tigon PCI Gigabit	org.nextbsd.driver.Ti	Ti	
+tmpfs	tmpfs	filesystem	In-memory temporary filesystem	org.nextbsd.filesystems.tmpfs	tmpfs	
+toecore	toecore	net/infra	TCP Offload Engine (TOE) core infrastructure	org.nextbsd.kpi.ToeCore	ToeCore	KPI
+tpm	tpm	driver/platform	TPM 1.2/2.0 Trusted Platform Module	org.nextbsd.driver.Tpm	Tpm	
+if_tsec	tsec	driver/network	Freescale eTSEC Ethernet (FDT)	org.nextbsd.driver.Tsec	Tsec	
+tws	tws	driver/storage	LSI 3ware 9750 SAS2/SATA-II RAID	org.nextbsd.driver.Tws	Tws	
+uart	uart	driver/serial-bus	Multi-bus UART serial driver (8250/Z8530/QUICC)	org.nextbsd.driver.Uart	Uart	
+ubser	ubser	driver/usb	USB serial for BWCT USB RS-232	org.nextbsd.driver.Ubser	Ubser	
+uchcom	uchcom	driver/usb	USB serial for WinChipHead CH341/CH340	org.nextbsd.driver.Uchcom	Uchcom	
+ucycom	ucycom	driver/usb	USB serial for Cypress HID USB-serial	org.nextbsd.driver.Ucycom	Ucycom	
+udf	udf	filesystem	UDF optical-media filesystem	org.nextbsd.filesystems.udf	udf	
+udf_iconv	udf_iconv	filesystem	iconv charset plugin for UDF	org.nextbsd.filesystems.udf-iconv	udf-iconv	sub of udf
+ufintek	ufintek	driver/usb	USB serial for Fintek F81232 USB-UART	org.nextbsd.driver.Ufintek	Ufintek	
+ufs	ufs	filesystem	UFS/FFS with soft-updates + dirhash	org.nextbsd.filesystems.ufs	ufs	
+ufshci	ufshci	driver/storage	UFS Host Controller Interface (embedded flash)	org.nextbsd.driver.Ufshci	Ufshci	
+uinput	uinput	driver/misc	evdev uinput virtual input device	org.nextbsd.driver.Uinput	Uinput	
+unionfs	unionfs	filesystem	Union/overlay filesystem	org.nextbsd.filesystems.unionfs	unionfs	
+usb	usb	driver/usb	USB stack + host/device controllers	org.nextbsd.driver.Usb	Usb	subdir umbrella
+veriexec	veriexec	security/mac	MAC Verified Exec file integrity framework	org.nextbsd.security.Veriexec	Veriexec	
+vesa	vesa	driver/graphics	VESA BIOS Extension video mode driver	org.nextbsd.driver.Vesa	Vesa	
+vf_i2c	vf_i2c	driver/serial-bus	Vybrid SoC I2C controller	org.nextbsd.driver.VfI2c	VfI2c	
+if_vge	vge	driver/network	VIA VT6122 Gigabit Ethernet	org.nextbsd.driver.Vge	Vge	
+viawd	viawd	driver/platform	VIA chipset watchdog	org.nextbsd.driver.Viawd	Viawd	
+videomode	videomode	driver/graphics	EDID parser + video mode database	org.nextbsd.driver.Videomode	Videomode	KPI for display
+virtio	virtio	virtualization	VirtIO para-virtual device framework + transports	org.nextbsd.kext.Virtio	Virtio	subdir umbrella
+vkbd	vkbd	driver/graphics	Virtual AT keyboard (software keystroke inject)	org.nextbsd.driver.Vkbd	Vkbd	
+vmd	vmd	driver/platform	Intel Volume Management Device (NVMe aggregator)	org.nextbsd.driver.Vmd	Vmd	
+vmm	vmm	virtualization	Kernel hypervisor (bhyve VMM)	org.nextbsd.kext.VMM	VMM	
+vmware	vmware	virtualization	VMware guest drivers (pvscsi/vmxnet3/vmci)	org.nextbsd.kext.Vmware	Vmware	subdir umbrella
+vnic	vnic	driver/network	Cavium ThunderX BGX/VNIC controllers	org.nextbsd.driver.Vnic	Vnic	subdir umbrella
+if_vr	vr	driver/network	VIA Rhine Fast Ethernet	org.nextbsd.driver.Vr	Vr	
+if_vte	vte	driver/network	DM&P Vortex86 RDC R6040 Fast Ethernet	org.nextbsd.driver.Vte	Vte	
+wbwd	wbwd	driver/platform	Winbond Super I/O watchdog	org.nextbsd.driver.Wbwd	Wbwd	
+wdatwd	wdatwd	driver/platform	ACPI WDAT watchdog	org.nextbsd.driver.Wdatwd	Wdatwd	
+wlan	wlan	net/infra	IEEE 802.11 wireless stack (net80211)	org.nextbsd.kpi.Wlan	Wlan	core net KPI
+wlan_acl	wlan_acl	net/infra	802.11 MAC-address ACL plugin (AP mode)	org.nextbsd.kpi.WlanAcl	WlanAcl	sub of wlan
+wlan_amrr	wlan_amrr	net/infra	802.11 AMRR TX rate control plugin	org.nextbsd.kpi.WlanAmrr	WlanAmrr	sub of wlan
+wlan_ccmp	wlan_ccmp	net/infra	802.11 CCMP (AES-CCM) WPA2 cipher	org.nextbsd.kpi.WlanCcmp	WlanCcmp	sub of wlan
+wlan_gcmp	wlan_gcmp	net/infra	802.11 GCMP (AES-GCM) WPA3 cipher	org.nextbsd.kpi.WlanGcmp	WlanGcmp	sub of wlan
+wlan_rssadapt	wlan_rssadapt	net/infra	802.11 RSS adaptive TX rate plugin	org.nextbsd.kpi.WlanRssadapt	WlanRssadapt	sub of wlan
+wlan_tkip	wlan_tkip	net/infra	802.11 TKIP WPA cipher	org.nextbsd.kpi.WlanTkip	WlanTkip	sub of wlan
+wlan_wep	wlan_wep	net/infra	802.11 WEP legacy cipher	org.nextbsd.kpi.WlanWep	WlanWep	sub of wlan
+wlan_xauth	wlan_xauth	net/infra	802.11 external (hostapd/RADIUS) auth	org.nextbsd.kpi.WlanXauth	WlanXauth	sub of wlan
+if_wpi	wpi	driver/wireless	Intel PRO/Wireless 3945ABG 802.11a/b/g	org.nextbsd.driver.IntelWPI	IntelWPI	needs wpifw
+wpifw	wpifw	firmware	Intel 3945ABG firmware	org.nextbsd.firmware.WPI	WPIFirmware	fw; for wpi
+wtap	wtap	driver/wireless	Software-simulated null-radio 802.11 (test)	org.nextbsd.driver.Wtap	Wtap	test/virtual
+x86bios	x86bios	compat	x86 real-mode BIOS call emulator (option ROMs)	org.nextbsd.compat.X86bios	X86bios	
+xdr	xdr	kpi/infra	XDR serialization library for RPC/NFS	org.nextbsd.kpi.Xdr	Xdr	
+if_xl	xl	driver/network	3Com 3c90x/3c100x EtherLink XL	org.nextbsd.driver.Xl	Xl	
+xz	xz	kpi/infra	XZ/LZMA2 decompression library	org.nextbsd.kpi.Xz	Xz	
+zfs	zfs	filesystem	OpenZFS copy-on-write filesystem + volume mgr	org.nextbsd.filesystems.zfs	zfs	monolithic
+zlib	zlib	kpi/infra	zlib (DEFLATE) compression library	org.nextbsd.kpi.Zlib	Zlib	

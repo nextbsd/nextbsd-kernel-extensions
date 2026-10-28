@@ -1,0 +1,509 @@
+ko	arches	reason
+acpi_asus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_asus_wmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_dock	amd64	drop: old vendor laptop extras or sensors
+acpi_fujitsu	amd64	drop: old vendor laptop extras or sensors
+acpi_ged	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_hp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_ibm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_panasonic	amd64	drop: old vendor laptop extras or sensors
+acpi_sbl_wmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+acpi_sony	amd64	drop: old vendor laptop extras or sensors
+acpi_toshiba	amd64	drop: old vendor laptop extras or sensors
+acpi_video	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ads111x	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ahc	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+ahc_isa	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+ahc_pci	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+ahd	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+aibs	amd64	drop: old vendor laptop extras or sensors
+alias_dummy	amd64 arm64	drop: old NAT protocol helper
+alias_irc	amd64 arm64	drop: old NAT protocol helper
+alias_nbt	amd64 arm64	drop: old NAT protocol helper
+alias_pptp	amd64 arm64	drop: old NAT protocol helper
+alias_skinny	amd64 arm64	drop: old NAT protocol helper
+alias_smedia	amd64 arm64	drop: old NAT protocol helper
+alpm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+amd_ecc_inject	amd64	drop: not reviewed
+amdgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+amdpm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+amdsbwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+amdsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+amdsmb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+aout	amd64	drop: not reviewed
+at45d	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+at45d	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ata	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataacard	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataacerlabs	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataamd	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataati	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atacenatek	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atacypress	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atacyrix	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atahighpoint	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataintel	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataisa	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+ataite	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atajmicron	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atamarvell	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atamicron	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atanational	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atanetcell	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atanvidia	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atapci	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+atapromise	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ataserverworks	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atasiliconimage	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atasis	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+atavia	amd64 arm64	drop: legacy PATA chipset driver (AHCI is compiled in)
+ath_dfs	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+ath_hal	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+ath_hal_ar5210	amd64 arm64	drop: legacy Wi-Fi
+ath_hal_ar5211	amd64 arm64	drop: legacy Wi-Fi
+ath_hal_ar5212	amd64 arm64	drop: legacy Wi-Fi
+ath_hal_ar5416	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+ath_hal_ar9300	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+ath_main	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+ath_rate	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+atopcase	amd64	held: no ID table the kernel matches on amd64 yet (spibus)
+atp	amd64 arm64	drop: old vendor laptop extras or sensors
+bcm283x_pwm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+bcm5974	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+bcm5974	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+bcma	amd64 arm64	drop: legacy Wi-Fi
+bcma_bhndb	amd64 arm64	drop: legacy Wi-Fi
+beastie_saver	amd64	drop: not reviewed
+bhnd	amd64 arm64	drop: legacy Wi-Fi
+bhnd_pci	amd64 arm64	drop: legacy Wi-Fi
+bhnd_pci_hostb	amd64 arm64	drop: legacy Wi-Fi
+bhnd_pcib	amd64 arm64	drop: legacy Wi-Fi
+bhndb	amd64 arm64	drop: legacy Wi-Fi
+bhndb_pci	amd64 arm64	drop: legacy Wi-Fi
+blank_saver	amd64	drop: not reviewed
+cc_cdg	amd64 arm64	drop: research congestion control
+cc_chd	amd64 arm64	drop: research congestion control
+cc_hd	amd64 arm64	drop: research congestion control
+cc_vegas	amd64 arm64	drop: research congestion control
+ccp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ccr	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ccr	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cfumass	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cfumass	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+chromebook_platform	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+chvgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+coretemp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cxgb_t3fw	amd64 arm64	drop: not reviewed
+cyapa	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+cyapa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+daemon_saver	amd64	drop: not reviewed
+dcons	amd64 arm64	drop: not reviewed
+dcons_crom	amd64 arm64	drop: not reviewed
+dpms	amd64	drop: VESA/syscons-era video helper
+dragon_saver	amd64	drop: not reviewed
+ds1307	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ds13rtc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ds1672	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ds1672	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ds3231	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ds3231	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+dtrace_test	amd64 arm64	drop: not reviewed
+dummymbuf	amd64 arm64	drop: not reviewed
+e6000sw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+e6000sw	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+fade_saver	amd64	drop: not reviewed
+fdc	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+felix	arm64	drop: not reviewed
+fire_saver	amd64	drop: not reviewed
+firewire	amd64 arm64	drop: not reviewed
+ftgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ftwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_audio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_audio	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_keyboard	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_keyboard	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_modem	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_modem	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_mouse	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+g_mouse	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+geom_cache	amd64 arm64	drop: obsolete GEOM class
+geom_ccd	amd64 arm64	drop: obsolete GEOM class
+geom_journal	amd64 arm64	drop: obsolete GEOM class
+geom_raid3	amd64 arm64	drop: obsolete GEOM class
+geom_shsec	amd64 arm64	drop: obsolete GEOM class
+geom_virstor	amd64 arm64	drop: obsolete GEOM class
+geom_zero	amd64 arm64	drop: obsolete GEOM class
+gpioaei	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpiobus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpioiic	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpiokeys	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpioled	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpiospi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpiospi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+gpioths	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+green_saver	amd64	drop: not reviewed
+hcons	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+hcons	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+hgame	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+hgame	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+hidraw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+hidraw	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+hifn	amd64 arm64	drop: legacy crypto card
+hpt27xx	amd64	drop: not reviewed
+hptmv	amd64	drop: not reviewed
+hptnr	amd64	drop: not reviewed
+hptrr	amd64	drop: not reviewed
+hsctrl	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+hsctrl	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+htu21	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+hv_hid	amd64	held: no ID table the kernel matches on amd64 yet (vmbus)
+hv_hid	arm64	held: no ID table the kernel matches on arm64 yet (vmbus)
+hv_sock	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+i2ctinyusb	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ice_ddp	amd64 arm64	drop: not reviewed
+icee	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ichwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_ae	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_age	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_ale	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_ath	amd64 arm64	borderline: Atheros AR9xxx Wi-Fi, older laptops (with its HAL kexts)
+if_aue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_axa	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_bce	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_bfe	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_bwi	amd64 arm64	drop: legacy Wi-Fi
+if_bwn	amd64 arm64	drop: legacy Wi-Fi
+if_cas	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_cue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_cxgb	amd64 arm64	drop: old or niche server NIC
+if_cxgbe	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_cxgbe	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_cxgbev	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_cxgbev	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_dc	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_disc	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
+if_edsc	amd64 arm64	drop: not reviewed
+if_fwe	amd64 arm64	drop: not reviewed
+if_fwip	amd64 arm64	drop: not reviewed
+if_fxp	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_gem	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_genet	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_ic	amd64 arm64	drop: not reviewed
+if_iwm	amd64	drop: IntelWiFi already matches these chips (two kexts would claim one device)
+if_iwn	amd64	borderline: Intel 6205/6300-era Wi-Fi, still in 2010-2013 ThinkPads
+if_iwx	amd64	drop: IntelWiFi already matches these chips (two kexts would claim one device)
+if_jme	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_kue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_le	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_lge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_lio	amd64	drop: old or niche server NIC
+if_malo	amd64 arm64	drop: legacy Wi-Fi
+if_mgb	amd64	drop: legacy PCI/PCIe Ethernet
+if_mos	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_msk	amd64 arm64	borderline: Marvell Yukon, still on some 2008-2012 boards
+if_mwl	amd64 arm64	drop: legacy Wi-Fi
+if_mxge	amd64 arm64	drop: old or niche server NIC
+if_my	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_nge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_ntb	amd64	drop: old or niche server NIC
+if_oce	amd64 arm64	drop: old or niche server NIC
+if_otus	amd64 arm64	drop: legacy Wi-Fi
+if_qlnxe	amd64	drop: old or niche server NIC
+if_qlnxev	amd64	drop: old or niche server NIC
+if_qlxgb	amd64	drop: old or niche server NIC
+if_qlxgbe	amd64	drop: old or niche server NIC
+if_qlxge	amd64	drop: old or niche server NIC
+if_ral	amd64 arm64	drop: legacy Wi-Fi
+if_rl	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_rsu	amd64 arm64	drop: legacy Wi-Fi
+if_rue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_rum	amd64 arm64	drop: legacy Wi-Fi
+if_sge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_sis	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_sk	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_ste	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_stf	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
+if_stge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_sume	amd64	drop: old or niche server NIC
+if_ti	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_uath	amd64 arm64	drop: legacy Wi-Fi
+if_udav	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
+if_upgt	amd64 arm64	drop: legacy Wi-Fi
+if_ural	amd64 arm64	drop: legacy Wi-Fi
+if_urtw	amd64	drop: legacy Wi-Fi
+if_vge	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_vr	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_vte	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_xl	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_zyd	amd64 arm64	drop: legacy Wi-Fi
+iicsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+iicsmb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+imcsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ipl	amd64 arm64	drop: not reviewed
+ipmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ipmi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ipw_bss	amd64	drop: not reviewed
+ipw_ibss	amd64	drop: not reviewed
+ipw_monitor	amd64	drop: not reviewed
+isl	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+isl	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+isl12xx	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ismt	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ismt	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+isp	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+isp_2400	amd64 arm64	drop: not reviewed
+isp_2500	amd64 arm64	drop: not reviewed
+isp_2600	amd64 arm64	drop: not reviewed
+isp_2700	amd64 arm64	drop: not reviewed
+isp_2800	amd64 arm64	drop: not reviewed
+ispfw	amd64 arm64	drop: not reviewed
+itwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+iw_cxgbe	amd64 arm64	drop: not reviewed
+iwi_bss	amd64	drop: not reviewed
+iwi_ibss	amd64	drop: not reviewed
+iwi_monitor	amd64	drop: not reviewed
+iwn1000fw	amd64	drop: not reviewed
+iwn100fw	amd64	drop: not reviewed
+iwn105fw	amd64	drop: not reviewed
+iwn135fw	amd64	drop: not reviewed
+iwn2000fw	amd64	drop: not reviewed
+iwn2030fw	amd64	drop: not reviewed
+iwn4965fw	amd64	drop: not reviewed
+iwn5000fw	amd64	drop: not reviewed
+iwn5150fw	amd64	drop: not reviewed
+iwn6000fw	amd64	drop: not reviewed
+iwn6000g2afw	amd64	drop: not reviewed
+iwn6000g2bfw	amd64	drop: not reviewed
+iwn6050fw	amd64	drop: not reviewed
+jedec_dimm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+jedec_dimm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+kern_testfrwk	amd64 arm64	drop: not reviewed
+krping	amd64 arm64	drop: not reviewed
+ktest	amd64 arm64	drop: not reviewed
+ktest_example	amd64 arm64	drop: not reviewed
+ktest_netlink_message_writer	amd64 arm64	drop: not reviewed
+linux	amd64	drop: not reviewed
+logo_saver	amd64	drop: not reviewed
+lpbb	amd64 arm64	drop: not reviewed
+lpt	amd64 arm64	drop: parallel port / ISA-era serial
+ltc430x	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mac_biba	amd64 arm64	drop: research MLS-style MAC policy
+mac_ifoff	amd64 arm64	drop: research MLS-style MAC policy
+mac_lomac	amd64 arm64	drop: research MLS-style MAC policy
+mac_mls	amd64 arm64	drop: research MLS-style MAC policy
+mac_none	amd64 arm64	drop: not reviewed
+mac_partition	amd64 arm64	drop: research MLS-style MAC policy
+mac_stub	amd64 arm64	drop: not reviewed
+mac_test	amd64 arm64	drop: not reviewed
+max44009	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mfi	amd64 arm64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
+mfi_linux	amd64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
+mfip	amd64 arm64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
+miiproxy	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mlx	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+mpt	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+mrsas	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mthca	amd64 arm64	drop: RDMA for dropped/legacy hardware
+mvs	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+mw88W8363fw	amd64 arm64	drop: not reviewed
+mx25l	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mxge_eth_z8e	amd64 arm64	drop: Myricom firmware images
+mxge_ethp_z8e	amd64 arm64	drop: Myricom firmware images
+mxge_rss_eth_z8e	amd64 arm64	drop: Myricom firmware images
+mxge_rss_ethp_z8e	amd64 arm64	drop: Myricom firmware images
+nctgpio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ncthwm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+nfsmb	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+ng_UI	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_async	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_cisco	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_deflate	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_echo	amd64 arm64	drop: netgraph test node
+ng_ether_echo	amd64 arm64	drop: netgraph test node
+ng_frame_relay	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_gif	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_gif_demux	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_hole	amd64 arm64	drop: netgraph test node
+ng_lmi	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_mppc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_pptpgre	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_pred1	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_rfc1490	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_source	amd64 arm64	drop: netgraph test node
+ng_tty	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ng_vjc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compression)
+ntb	amd64	drop: NTB (PCIe non-transparent bridge), niche
+ntb_hw_amd	amd64	drop: NTB (PCIe non-transparent bridge), niche
+ntb_hw_intel	amd64	drop: NTB (PCIe non-transparent bridge), niche
+ntb_hw_plx	amd64	drop: NTB (PCIe non-transparent bridge), niche
+ntb_tool	amd64	drop: NTB (PCIe non-transparent bridge), niche
+ntb_transport	amd64	drop: NTB (PCIe non-transparent bridge), niche
+nvmf	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+nvmf	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+nvram	amd64	drop: not reviewed
+nxprtc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+otusfw_init	amd64 arm64	drop: not reviewed
+otusfw_main	amd64 arm64	drop: not reviewed
+ow	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ow	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ow_temp	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ow_temp	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+owc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+p2sb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+padlock	amd64	drop: legacy crypto card
+pca954x	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+pcf	amd64 arm64	drop: not reviewed
+pcf8574	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+pcf8591	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+plasma_saver	amd64	drop: not reviewed
+plip	amd64 arm64	drop: not reviewed
+pmspcv	amd64	borderline: older MegaRAID (mfi) and PMC-Sierra SAS
+ppbus	amd64 arm64	drop: parallel port / ISA-era serial
+ppc	amd64 arm64	drop: parallel port / ISA-era serial
+ppi	amd64 arm64	drop: parallel port / ISA-era serial
+pps	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+pps	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+proto	amd64 arm64	borderline: PCI debug access (proto)
+prototype	amd64 arm64	drop: not reviewed
+ps4dshock	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+ps4dshock	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+pwmbus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+pwmc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+qat	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+qat_200xx_fw	amd64	drop: not reviewed
+qat_4xxx_fw	amd64	drop: not reviewed
+qat_c2xxx	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+qat_c2xxxfw	amd64	drop: not reviewed
+qat_c3xxx_fw	amd64	drop: not reviewed
+qat_c4xxx_fw	amd64	drop: not reviewed
+qat_c62x_fw	amd64	drop: not reviewed
+qat_dh895xcc_fw	amd64	drop: not reviewed
+qat_hw	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+qlnxr	amd64	drop: RDMA for dropped/legacy hardware
+rain_saver	amd64	drop: not reviewed
+random_OTHER	amd64 arm64	drop: not reviewed
+rc4	amd64 arm64	drop: insecure cipher
+rsu-rtl8712fw	amd64 arm64	drop: not reviewed
+rtc8583	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+rtwn-rtl8188eefw	amd64 arm64	drop: not reviewed
+rtwn-rtl8188eufw	amd64 arm64	drop: not reviewed
+rtwn-rtl8192cfwE	amd64 arm64	drop: not reviewed
+rtwn-rtl8192cfwE_B	amd64 arm64	drop: not reviewed
+rtwn-rtl8192cfwT	amd64 arm64	drop: not reviewed
+rtwn-rtl8192cfwU	amd64 arm64	drop: not reviewed
+rtwn-rtl8192eufw	amd64 arm64	drop: not reviewed
+rtwn-rtl8812aufw	amd64 arm64	drop: not reviewed
+rtwn-rtl8821aufw	amd64 arm64	drop: not reviewed
+runfw	amd64 arm64	drop: not reviewed
+s3	amd64	drop: VESA/syscons-era video helper
+s35390a	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+s35390a	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+safe	amd64	drop: legacy crypto card
+safexcel	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+sbp	amd64 arm64	drop: not reviewed
+sbp_targ	amd64 arm64	drop: not reviewed
+scc	amd64 arm64	drop: parallel port / ISA-era serial
+send	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
+sfxge	amd64	drop: old or niche server NIC
+sgx	amd64	drop: not reviewed
+sgx_linux	amd64	drop: not reviewed
+siba	amd64 arm64	drop: legacy Wi-Fi
+siba_bhndb	amd64 arm64	drop: legacy Wi-Fi
+siis	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+smb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+smb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+snake_saver	amd64	drop: not reviewed
+snd_als4000	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_atiixp	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_cs4281	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_csa	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_driver	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_dummy	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_emu10k1	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_emu10kx	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_envy24	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_envy24ht	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_es137x	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_fm801	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_hdsp	amd64 arm64	borderline: RME pro-audio PCIe interfaces
+snd_hdspe	amd64 arm64	borderline: RME pro-audio PCIe interfaces
+snd_ich	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_maestro3	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_neomagic	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_solo	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_spicds	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_t4dwave	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_via8233	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_via82c686	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snd_vibes	amd64 arm64	drop: legacy PCI sound card (HDA and USB audio are compiled in)
+snp	amd64 arm64	drop: not reviewed
+speaker	amd64	drop: not reviewed
+spibus	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+spigen	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+splash_bmp	amd64	drop: not reviewed
+splash_pcx	amd64	drop: not reviewed
+splash_txt	amd64	drop: not reviewed
+star_saver	amd64	drop: not reviewed
+superio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+sym	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+systrace_freebsd32	amd64 arm64	drop: 32-bit syscall tracing (no 32-bit userland)
+systrace_linux	amd64	borderline: Linux syscall tracing for the Linuxulator
+systrace_linux32	amd64	drop: 32-bit syscall tracing (no 32-bit userland)
+t4fw_cfg	amd64 arm64	drop: not reviewed
+t5fw_cfg	amd64 arm64	drop: not reviewed
+t6fw_cfg	amd64 arm64	drop: not reviewed
+t7fw_cfg	amd64 arm64	drop: not reviewed
+tcpmd5	amd64 arm64	drop: not reviewed
+tpm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+tpm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+tws	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
+u2f	amd64	held: no ID table the kernel matches on amd64 yet (hidbus)
+u2f	arm64	held: no ID table the kernel matches on arm64 yet (hidbus)
+uacpi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+uacpi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+uark	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uart	amd64 arm64	drop: not reviewed
+ubsa	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ubser	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ubtbcmfw	amd64 arm64	drop: legacy Wi-Fi
+ucycom	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+udbc	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+udbc	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+udbp	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+udl	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+udl	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+uep	amd64 arm64	drop: niche HID
+uether	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ufoma	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ufshci	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ugensa	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+ugold	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uhid_snes	amd64 arm64	drop: niche HID
+uhso	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uipaq	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uled	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+umb	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+umb	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+umcs	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+umct	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+umoscom	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+urio	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+usfs	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+usie	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uvisor	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+uvscom	amd64 arm64	drop: old USB serial/PDA/sensor gadget
+vesa	amd64	drop: not reviewed
+viapm	amd64 arm64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+viawd	amd64	drop: old chipset SMBus/watchdog (ALi, AMD-K7, VIA, nForce)
+videomode	amd64 arm64	drop: not reviewed
+virtio_balloon	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
+virtio_console	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
+virtio_random	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
+virtio_random	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
+vpd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+warp_saver	amd64	drop: not reviewed
+wbwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+wdatwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+wpifw	amd64	drop: not reviewed
+wtap	amd64	drop: not reviewed
+zfs	amd64 arm64	drop: not reviewed
