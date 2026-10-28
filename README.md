@@ -12,7 +12,7 @@ into the kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E2
 
 ## What is here
 
-115 kexts (82 on amd64, 92 on arm64), one directory each, named after the kext (`IntelEM/`,
+116 kexts (82 on amd64, 93 on arm64), one directory each, named after the kext (`IntelEM/`,
 `RealtekRE/`, `Wlan/`, `AutoFS/`, …). Which modules are converted, and what each kext is called, is
 decided by data, not by the workflow:
 

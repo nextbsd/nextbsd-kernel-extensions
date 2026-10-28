@@ -139,7 +139,7 @@ ext2fs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared folde
 fasttrap	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 fbt	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
 fdc	drop	legacy SCSI/IDE/SATA/RAID controller
-fdt_slicer	drop	nothing would ever load it
+fdt_slicer	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 fib_dxr	drop	server networking
 filemon	drop	developer tool; its loader loads by name, which NextBSD doesn't do
 flexspi	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses

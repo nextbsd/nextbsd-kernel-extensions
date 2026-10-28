@@ -145,7 +145,6 @@ fade_saver	amd64	drop: not reviewed
 fasttrap	amd64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 fbt	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
 fdc	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
-fdt_slicer	arm64	drop: nothing would ever load it
 felix	arm64	drop: not reviewed
 fib_dxr	amd64 arm64	drop: server networking
 filemon	amd64 arm64	drop: developer tool; its loader loads by name, which NextBSD doesn't do
