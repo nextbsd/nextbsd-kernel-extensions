@@ -1,0 +1,203 @@
+name: Build NextBSD Kernel Extensions
+on:
+  # A chain run: nextbsd-kernel published a new kernel (freebsd-src's daily sync
+  # when releng/15.1 moves, or its Sync Fork with `force`). A kernel merge alone
+  # does not dispatch (nextbsd-kernel#324); rebuild by hand then.
+  repository_dispatch:
+    types: [kernel-updated]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'tools/**'
+      - '*/kext.env'
+  pull_request:
+    paths:
+      - '.github/workflows/build.yml'
+      - 'tools/**'
+      - '*/kext.env'
+  workflow_dispatch:
+    inputs:
+      fbsd_sha:
+        description: 'Pinned FreeBSD SHA for the toolchain image tag (blank = latest)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # linux-firmware release the bundled firmware comes from (KEXT_FIRMWARE).
+  LINUX_FIRMWARE_TAG: "20260519"
+
+jobs:
+  # The FreeBSD-derived kexts (E21, nextbsd/nextbsd#554). Each top-level
+  # directory with a kext.env is one kext; tools/kexts.sh reads them, so this
+  # workflow names no kext, module or source path. Moved from
+  # nextbsd-kernel-extensions-graphics' `modules` job and its IntelWiFi and
+  # IntelEthernet publish steps, which built the whole module tree and shipped
+  # it as nextbsd-modules-<arch>.tar.gz. This builds only the modules a kext
+  # ships (MODULES_OVERRIDE) and publishes only kexts.
+  #
+  # amd64 only for now: no kext lists arm64 yet. Add an arm64 matrix entry
+  # (target_arch aarch64) with the first one that does.
+  modules:
+    name: modules (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: amd64
+            target_arch: amd64
+    container:
+      # Same per-arch toolchain image the kernel was built in, by tag only.
+      # Cross-builds on the x86_64 runner (no emulation).
+      image: ghcr.io/nextbsd/nextbsd-toolchain:${{ matrix.target }}-${{ (github.event.client_payload.fbsd_sha || inputs.fbsd_sha) && format('fbsd-{0}', github.event.client_payload.fbsd_sha || inputs.fbsd_sha) || 'latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: nbkx
+
+      # The kernel obj tree from nextbsd-kernel's `continuous` release, and
+      # /usr/src prepared by that same commit's ci/prepare-src.sh, so these
+      # modules build from exactly the kernel's tree (nextbsd-kernel#325). Also
+      # leaves the kernel's KERNEL-BUILD-ID in /tmp/kernel-build-id
+      # (nextbsd-kernel#326).
+      - name: Kernel obj tree + prepared source (same nextbsd-kernel commit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCHED_SHA: ${{ github.event.client_payload.sha }}
+        run: nbkx/tools/prepare-kernel-src.sh ${{ matrix.target }} ${{ matrix.target_arch }}
+
+      - name: Build the kexts' modules
+        run: |
+          MODS=$(nbkx/tools/kexts.sh modules ${{ matrix.target }})
+          echo "MODULES_OVERRIDE: $MODS"
+          cd /usr/src
+          # --cross-bindir points at the external Clang 19 cross toolchain
+          # (CROSS_BINDIR), inherited from the toolchain image ENV.
+          # NO_KERNEL=yes is not a knob buildkernel honours: this re-runs
+          # config(8) and relinks the kernel in the downloaded obj tree before
+          # building modules. That is why the source must be the kernel's own
+          # prepared tree (previous step). Building against a kernel SDK
+          # instead, without relinking, is nextbsd-kernel#327 / nextbsd#555.
+          ./tools/build/make.py \
+            --cross-bindir="${CROSS_BINDIR}" \
+            TARGET="${{ matrix.target }}" \
+            TARGET_ARCH="${{ matrix.target_arch }}" \
+            KERNCONF=NEXTBSD \
+            NO_KERNEL=yes \
+            MODULES_OVERRIDE="$MODS" \
+            buildkernel -j"$(nproc)"
+
+      # Each kext's .ko, and its personalities generated from the same source
+      # tree the module was compiled from.
+      - name: Collect each kext's module and personalities
+        run: |
+          nbkx/tools/kexts.sh inputs ${{ matrix.target }} /usr/src /usr/obj kext-inputs
+          cp /tmp/kernel-build-id/KERNEL-BUILD-ID kext-inputs/
+
+      - name: Upload kext inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kext-inputs-${{ matrix.target }}
+          path: kext-inputs
+          if-no-files-found: error
+
+  kexts:
+    name: kexts (${{ matrix.target }})
+    needs: modules
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [amd64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download kext inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: kext-inputs-${{ matrix.target }}
+          path: kext-inputs
+
+      # Bundle firmware, inject personalities, stamp NBSDKernelBuildID.
+      - name: Wrap the kexts
+        run: tools/kexts.sh wrap ${{ matrix.target }} kext-inputs kexts
+
+      - name: Validate the kext bundles
+        run: |
+          python3 - kexts "$(cat kext-inputs/KERNEL-BUILD-ID)" <<'PY'
+          import os, plistlib, sys
+          root, kbid = sys.argv[1], sys.argv[2]
+          names = sorted(n for n in os.listdir(root) if n.endswith('.kext'))
+          assert names, "no kexts"
+          for n in names:
+              d = plistlib.load(open(f"{root}/{n}/Contents/Info.plist", 'rb'))
+              cls = n[:-5]
+              exe = f"{root}/{n}/Contents/MacOS/{d['CFBundleExecutable']}"
+              assert os.path.isfile(exe), f"{n}: no executable {exe}"
+              assert d['CFBundleIdentifier'].startswith('org.nextbsd.'), d['CFBundleIdentifier']
+              assert d.get('NBSDKernelBuildID') == kbid, f"{n}: NBSDKernelBuildID {d.get('NBSDKernelBuildID')} != {kbid}"
+              p = d.get('IOKitPersonalities', {}).get(cls)
+              ids = p['IOPCIPrimaryMatch'].split() if p else []
+              print(f"{n}: {d['CFBundleIdentifier']}, {len(ids)} device ids, built for {kbid}")
+          PY
+
+      # Only kexts go in the asset: it is unpacked straight into
+      # /System/Library/Extensions.
+      - name: Package
+        run: |
+          tar -C kexts -czf freebsd-kexts-${{ matrix.target }}.tar.gz .
+          tar tzf freebsd-kexts-${{ matrix.target }}.tar.gz | awk -F/ 'NF > 1 && $2 != "" {print $2}' | sort -u
+          ls -lh freebsd-kexts-${{ matrix.target }}.tar.gz
+
+      - name: Upload kexts artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-kexts-${{ matrix.target }}
+          path: freebsd-kexts-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  # Refresh the rolling `continuous` release from main. PRs build but never
+  # publish.
+  publish:
+    name: publish continuous
+    needs: kexts
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download kexts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: freebsd-kexts-*
+          merge-multiple: true
+          path: out
+
+      - name: Publish to continuous release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous
+          name: Continuous kernel extensions build
+          body: |
+            Rolling build of the FreeBSD-derived kexts, refreshed on every successful `main` build.
+            `freebsd-kexts-<arch>.tar.gz` holds the kext bundles (today amd64: IntelWiFi with
+            its iwlwifi firmware, IntelEthernet), unpacked into /System/Library/Extensions and
+            packaged by nextbsd-pkg as `NextBSD-kernel-extensions`.
+
+            Every kext carries `NBSDKernelBuildID` in its Info.plist: the nextbsd-kernel
+            KERNEL-BUILD-ID it was built for.
+
+            Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Commit: ${{ github.sha }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          files: |
+            out/*.tar.gz
