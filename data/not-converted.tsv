@@ -286,7 +286,7 @@ iwn6050fw	amd64	drop: not reviewed
 jedec_dimm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 jedec_dimm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 kern_testfrwk	amd64 arm64	drop: not reviewed
-kgssapi_krb5	amd64 arm64	borderline: needs rc4, dropped as an insecure cipher: keep rc4 for NFS Kerberos, or drop this
+kgssapi_krb5	amd64 arm64	drop: NFS Kerberos not supported; its stale MODULE_DEPEND on rc4 (dropped) makes kldload refuse it
 krping	amd64 arm64	drop: not reviewed
 ktest	amd64 arm64	drop: not reviewed
 ktest_example	amd64 arm64	drop: not reviewed
