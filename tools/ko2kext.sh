@@ -23,7 +23,7 @@ set -eu
 
 usage() {
 	cat >&2 <<'U'
-usage: ko2kext.sh [-o outdir] [-v version] [-l dep-bundle-id]... [-m module]... [-f firmware]... [-p personalities] <input.ko> <Name> <bundle-id>
+usage: ko2kext.sh [-o outdir] [-v version] [-l dep-bundle-id]... [-m module]... [-f firmware]... [-p personalities] [-r required] <input.ko> <Name> <bundle-id>
 
   -o outdir        where to write <Name>.kext       (default: .)
   -v version       CFBundleVersion                   (default: 1.0)
@@ -40,6 +40,11 @@ usage: ko2kext.sh [-o outdir] [-v version] [-l dep-bundle-id]... [-m module]... 
                      to inject into Info.plist. This is the device-id match table
                      the in-kernel IOService matcher reads to bind the driver.
 
+  -r required      OSBundleRequired (Root, Local-Root, Network-Root, Console,
+                     Safe Boot): the kext must be loaded before root is
+                     mounted. Written only when given; most kexts are not
+                     boot-critical (nextbsd-kernel-extensions#4).
+
   e.g. ko2kext.sh -l org.nextbsd.kpi.LinuxKPIWlan \
                   if_iwlwifi.ko IntelWiFi org.nextbsd.driver.IntelWiFi
 U
@@ -52,7 +57,8 @@ DEPS=""        # newline-separated bundle ids
 FWS=""         # newline-separated firmware paths
 PERS=""        # path to an IOKitPersonalities plist fragment
 MODS=""        # newline-separated module names
-while getopts "o:v:l:m:f:p:h" opt; do
+REQUIRED=""    # OSBundleRequired, empty for none
+while getopts "o:v:l:m:f:p:r:h" opt; do
 	case "$opt" in
 	o) OUTDIR="$OPTARG" ;;
 	v) VERSION="$OPTARG" ;;
@@ -63,6 +69,7 @@ while getopts "o:v:l:m:f:p:h" opt; do
 	f) FWS="${FWS}${OPTARG}
 " ;;
 	p) PERS="$OPTARG" ;;
+	r) REQUIRED="$OPTARG" ;;
 	*) usage ;;
 	esac
 done
@@ -145,6 +152,17 @@ if [ -n "$PERS" ]; then
 "
 fi
 
+# OSBundleRequired (-r): only for a kext that must load before root is
+# mounted. On Darwin the booter preloads those (the prelinked kernel); NextBSD
+# would have its loader preload them (nextbsd-kernel-extensions#4). None needs
+# it today, so the key is normally absent.
+REQ=""
+if [ -n "$REQUIRED" ]; then
+	REQ="	<key>OSBundleRequired</key>
+	<string>${REQUIRED}</string>
+"
+fi
+
 cat > "${KEXT}/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -168,9 +186,7 @@ cat > "${KEXT}/Contents/Info.plist" <<EOF
 	<string>${VERSION}</string>
 	<key>OSBundleCompatibleVersion</key>
 	<string>${VERSION}</string>
-${NBSM}${OSBL}${IOKP}	<key>OSBundleRequired</key>
-	<string>Root</string>
-</dict>
+${NBSM}${OSBL}${IOKP}${REQ}</dict>
 </plist>
 EOF
 

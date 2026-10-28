@@ -1,0 +1,84 @@
+# OSBundleRequired per kext (nextbsd-kernel-extensions#4), by role, as Mac OS X 10.9.5 (13F34) tags its kexts.
+# Taken from /System/Library/Extensions on a 10.9.5 Mac, including the plugins inside the families:
+#   Local-Root    storage controllers, card readers and the layers under a local root
+#                 (10.9: AppleAHCIPort, AppleLSIFusionMPT, ATTO SAS/FC, AppleSDXC, AppleRAID, CoreStorage)
+#   Network-Root  wired NICs, USB Ethernet chips and Wi-Fi (10.9: IONetworkingFamily's AppleIntel8254XEthernet,
+#                 AppleBCM5701Ethernet, AppleYukon2, AppleUSBEthernet, AppleUSBGigEthernet; IO80211Family's AirPort*)
+#   Console       keyboards, mice and trackpads (10.9: AppleHIDKeyboard, AppleHIDMouse, IOUSBHIDDriver,
+#                 IOHIDEventDriver, AppleMultitouchDriver)
+#   Root          the SMBus family (10.9: IOSMBusFamily)
+#   Safe Boot     SMBus controllers, SMC and sensors, backlight, Bluetooth, autofs (10.9: AppleSMBusController,
+#                 AppleSMBusPCI, AppleSMC, AppleHWSensor, AppleBacklight, IOBluetoothFamily, autofs)
+# Kexts not listed carry no key, as 10.9 leaves USB CDC Ethernet and tethering (AppleUSBCDCECM, AppleUSBEthernetHost),
+# USB serial (AppleUSBFTDI, AppleUSBCDCACM), raw HID, audio and the non-root filesystems without one.
+# The value matters only to a pre-root load path (the boot loader preloading kexts, e.g. for a ZFS root);
+# after root, kextd loads everything on demand regardless. A ZFS-root kext would add Root.
+kext	required
+Mpi3mr	Local-Root
+Mpr	Local-Root
+Mps	Local-Root
+Rtsx	Local-Root
+GeomConcat	Local-Root
+GeomEli	Local-Root
+GeomMirror	Local-Root
+GeomMultipath	Local-Root
+GeomStripe	Local-Root
+AtherosALC	Network-Root
+BroadcomBGE	Network-Root
+Igc	Network-Root
+IntelEM	Network-Root
+RealtekRE	Network-Root
+Bnxt	Network-Root
+Iavf	Network-Root
+Ice	Network-Root
+IntelIX	Network-Root
+IntelIXL	Network-Root
+IntelIXV	Network-Root
+ENA	Network-Root
+ENIC	Network-Root
+Gve	Network-Root
+IfVmx	Network-Root
+Mana	Network-Root
+ENETC	Network-Root
+IfMuge	Network-Root
+IfSmsc	Network-Root
+IfAxe	Network-Root
+IfAxge	Network-Root
+IfUre	Network-Root
+USBEthernet	Network-Root
+IntelIwlwifi	Network-Root
+Rtw88	Network-Root
+Rtw89	Network-Root
+Ath10k	Network-Root
+AthkCommon	Network-Root
+IfMtw	Network-Root
+IfRun	Network-Root
+Rtwn	Network-Root
+RtwnPci	Network-Root
+RtwnUsb	Network-Root
+Wlan	Network-Root
+LinuxKpiWlan	Network-Root
+Ums	Console
+Wmt	Console
+Wsp	Console
+Bcm5974	Console
+Hcons	Console
+Hsctrl	Console
+HvHID	Console
+Smbus	Root
+Ichsmb	Safe Boot
+Intpm	Safe Boot
+AppleSMC	Safe Boot
+AmdSMN	Safe Boot
+AmdSMU	Safe Boot
+AmdTemp	Safe Boot
+PchTherm	Safe Boot
+PWMBacklight	Safe Boot
+NgUbt	Safe Boot
+NgHCI	Safe Boot
+NgL2cap	Safe Boot
+NgBtsocket	Safe Boot
+NgBluetooth	Safe Boot
+Netgraph	Safe Boot
+NgSocket	Safe Boot
+AutoFS	Safe Boot
