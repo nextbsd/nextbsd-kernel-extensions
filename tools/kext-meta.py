@@ -59,15 +59,30 @@ def parse(path):
                 fields = descriptor(m.group(2))
                 pnp.append((m.group(1), m.group(2), []))
                 continue
-            if line.startswith("Found type "):
+            if line.startswith(("Found type ", "Converting ")):
                 continue  # kldxref -v -v tracing its parse of the format
             if fields is not None and line and not line.startswith(" "):
                 entry = entry_values(line, fields)
                 if entry is not None:
-                    pnp[-1][2].append(entry)
+                    # T:key=value fields hold for every entry of the table
+                    # (e.g. rtsx's "T:vendor=0x10ec").
+                    pnp[-1][2].append({**constants(pnp[-1][1]), **entry})
                 else:
                     fields = None
     return modules, depends, [t for t in pnp if t[2]]
+
+
+def constants(fmt):
+    """The T:key=value fields of a PNP format: values every entry shares."""
+    out = {}
+    for tok in fmt.split(";"):
+        if tok.startswith("T:") and "=" in tok:
+            key, _, val = tok[2:].partition("=")
+            try:
+                out[key] = int(val, 0)
+            except ValueError:
+                out[key] = val
+    return out
 
 
 def descriptor(fmt):
