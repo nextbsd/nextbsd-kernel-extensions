@@ -15,7 +15,6 @@ kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E21-FreeBSD
 | Kext | Arches | From | Notes |
 |---|---|---|---|
 | `IntelWiFi.kext` | amd64 | `if_iwlwifi.ko` | every iwlwifi model (7260 to BE200), with linux-firmware's iwlwifi set |
-| `IntelEthernet.kext` | amd64 | `if_em.ko` | Intel em and igb; retired when em is compiled back in (nextbsd-kernel#328) |
 
 ## Layout
 
