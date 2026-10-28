@@ -69,7 +69,11 @@ EXTRA = {
 # Network drivers compiled into GENERIC that move out of the kernel (D11).
 # Others compiled in stay (vtnet, and anything not kept).
 NET_PREFIXES = ("if_",)
-NET_STAYS = {"if_vtnet"}
+NET_STAYS = {"if_vtnet",
+             # arm64 board NICs on USB or device tree, compiled in until that
+             # autoload is proven on hardware (nextbsd-kernel#361)
+             "if_genet", "if_cgem", "if_awg", "if_mvneta", "if_muge", "if_smsc",
+             "if_ure", "if_axe"}
 
 # Built from this repo instead of sys/modules (their directories are curated
 # by hand, not generated): the net80211 family (wlan + every plug-in, D11) and

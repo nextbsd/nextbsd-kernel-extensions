@@ -13,6 +13,12 @@ this kext's module that another kext in the set provides (by MODULE_VERSION
 name, as the kernel linker resolves it, or module name). A
 dependency no kext provides is the kernel's own and needs no entry.
 
+With KERNEL_MODULES set to the kernel SDK's kernel.modules (the module versions
+compiled into the kernel), every MODULE_DEPEND must also be satisfied by a kext
+in the set or by the kernel: an unsatisfied one is printed on stderr and the
+exit status is 3, since kldload would refuse the module ("depends on X - not
+available").
+
 Writes IOKitPersonalities to <personalities-out> (nothing when the module has
 no table the kernel matches), in Darwin's own keys, one personality per kind
 of table (nextbsd-kernel#329):
@@ -252,10 +258,21 @@ def main():
     for kid in libs:
         print(kid)
 
+    status = 0
+    kmods = os.environ.get("KERNEL_MODULES")
+    if kmods:
+        with open(kmods) as f:
+            kernel = {line.strip() for line in f if line.strip()}
+        for dep in depends:
+            if dep not in modules and dep not in provider and dep not in kernel:
+                print(f"{name}: MODULE_DEPEND {dep} is in no kext and not in the kernel",
+                      file=sys.stderr)
+                status = 3
+
     pers = personalities(name, self_id, pnp)
     if pers:
         write_personalities(pers_out, name, self_id, pers)
-    return 0
+    return status
 
 
 if __name__ == "__main__":

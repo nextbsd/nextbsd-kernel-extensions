@@ -43,7 +43,9 @@
 #   kexts.sh wrap <arch> <inputs> <out>
 #       wrap each into <out>/<KEXT_NAME>.kext with its personalities,
 #       dependencies and firmware, and stamp every kext with
-#       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326)
+#       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326). With
+#       <inputs>/kernel.modules (from the kernel SDK), every MODULE_DEPEND
+#       must be met by a kext in the set or by the kernel
 set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -149,7 +151,8 @@ wrap)
 			https://gitlab.com/kernel-firmware/linux-firmware.git "$lf/lf"
 		( cd "$lf/lf" && git sparse-checkout set --no-cone $fw_paths )
 	fi
-	nomatch=$(mktemp)
+	nomatch=$(mktemp); nodep=$(mktemp)
+	[ ! -f "$in/kernel.modules" ] || export KERNEL_MODULES="$in/kernel.modules"
 	for d in $dirs; do
 		(
 		load "$d"
@@ -160,7 +163,8 @@ wrap)
 			# Generated: dependencies always, personalities unless a
 			# hand-written generator already produced them.
 			gen="$in/$KEXT_NAME/$KEXT_NAME.generated"
-			libs=$(python3 "$HERE/kext-meta.py" "$in" "$KEXT_NAME" "$gen")
+			libs=$(python3 "$HERE/kext-meta.py" "$in" "$KEXT_NAME" "$gen" 2>> "$nodep") || [ $? -eq 3 ] ||
+			    die "$KEXT_NAME: kext-meta.py failed"
 			[ -s "$pers" ] || { [ ! -s "$gen" ] || cp "$gen" "$pers"; }
 		fi
 		for l in $libs; do set -- "$@" -l "$l"; done
@@ -182,6 +186,12 @@ wrap)
 		sh "$HERE/ko2kext.sh" -o "$out" "$@" "$in/$KEXT_NAME/$KEXT_KO" "$KEXT_NAME" "$KEXT_ID" > /dev/null
 		)
 	done
+	if [ -s "$nodep" ]; then
+		echo "ERROR: kext(s) on $arch need a module nothing provides; kldload would refuse them:" >&2
+		sed 's/^/  /' "$nodep" >&2
+		echo "  Convert the provider too, or hold the kext back in data/decisions.tsv." >&2
+		exit 1
+	fi
 	# E21 D12: a hardware driver ships as a kext only if it autoloads.
 	if [ -s "$nomatch" ]; then
 		echo "ERROR: $(wc -l < "$nomatch" | tr -d ' ') hardware kext(s) on $arch carry no personality the kernel can match (E21 D12):" >&2

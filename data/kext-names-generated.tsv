@@ -43,15 +43,10 @@ hgame	HIDGame	org.nextbsd.driver.HIDGame
 htu21	Htu21	org.nextbsd.driver.Htu21
 hym8563	Hym8563	org.nextbsd.driver.Hym8563
 ichsmb	Ichsmb	org.nextbsd.driver.Ichsmb
-if_awg	IfAwg	org.nextbsd.driver.IfAwg
 if_axe	IfAxe	org.nextbsd.driver.IfAxe
 if_axge	IfAxge	org.nextbsd.driver.IfAxge
-if_cc	IfCC	org.nextbsd.net.IfCC
-if_ccv	IfCcv	org.nextbsd.net.IfCcv
 if_cdce	IfCdce	org.nextbsd.driver.IfCdce
 if_cdceem	IfCdceem	org.nextbsd.driver.IfCdceem
-if_cxl	IfCxl	org.nextbsd.net.IfCxl
-if_cxlv	IfCxlv	org.nextbsd.net.IfCxlv
 if_ipheth	IfIpheth	org.nextbsd.driver.IfIpheth
 if_mtw	IfMtw	org.nextbsd.driver.IfMtw
 if_muge	IfMuge	org.nextbsd.driver.IfMuge
@@ -63,12 +58,10 @@ if_vmx	IfVmx	org.nextbsd.driver.IfVmx
 iic_gpiomux	IICGpiomux	org.nextbsd.driver.IICGpiomux
 iicmux	Iicmux	org.nextbsd.kext.Iicmux
 intpm	Intpm	org.nextbsd.driver.Intpm
-ipmi_linux	IpmiLinux	org.nextbsd.compat.IpmiLinux
 isl12xx	Isl12xx	org.nextbsd.driver.Isl12xx
 kinst	Kinst	org.nextbsd.kext.Kinst
 ltc430x	Ltc430x	org.nextbsd.driver.Ltc430x
 max44009	Max44009	org.nextbsd.driver.Max44009
-mrsas_linux	MrsasLinux	org.nextbsd.compat.MrsasLinux
 mx25l	Mx25l	org.nextbsd.driver.Mx25l
 ng_bluetooth	NgBluetooth	org.nextbsd.net.NgBluetooth
 ng_bpf	NgBPF	org.nextbsd.net.NgBPF
@@ -119,6 +112,7 @@ sdt	SDT	org.nextbsd.kext.SDT
 smbus	Smbus	org.nextbsd.kpi.Smbus
 spibus	SPIBus	org.nextbsd.driver.SPIBus
 systrace	Systrace	org.nextbsd.kext.Systrace
+systrace_freebsd32	SystraceFreebsd32	org.nextbsd.kext.SystraceFreebsd32
 tcphpts	Tcphpts	org.nextbsd.net.Tcphpts
 tmp461	Tmp461	org.nextbsd.driver.Tmp461
 u3g	U3g	org.nextbsd.driver.U3g
