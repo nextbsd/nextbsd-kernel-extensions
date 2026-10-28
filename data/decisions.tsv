@@ -216,8 +216,8 @@ if_bwi	drop	legacy Wi-Fi
 if_bwn	drop	legacy Wi-Fi
 if_bxe	drop	legacy PCI/PCIe Ethernet
 if_cas	drop	legacy PCI/PCIe Ethernet
-if_cc	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
-if_ccv	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
+if_cc	held	needs if_cxgbe (module cc), which has no PNP table and is held
+if_ccv	held	needs if_cxgbe (module ccv), which has no PNP table and is held
 if_cdce	keep	USB-C/USB Ethernet or tethering
 if_cdceem	keep	USB-C/USB Ethernet or tethering
 if_cgem	keep	arm64 board Ethernet (Pi 3/4/5, Allwinner, Marvell, NXP)
@@ -225,8 +225,8 @@ if_cue	drop	old USB 1.1/2.0 Ethernet
 if_cxgb	drop	old or niche server NIC
 if_cxgbe	keep	server 10G+ NIC
 if_cxgbev	keep	server 10G+ NIC
-if_cxl	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
-if_cxlv	keep	Chelsio / InfiniBand interfaces and TOE (with cxgbe/RDMA)
+if_cxl	held	needs if_cxgbe (module cxl), which has no PNP table and is held
+if_cxlv	held	needs if_cxgbe (module cxlv), which has no PNP table and is held
 if_dc	drop	legacy PCI/PCIe Ethernet
 if_disc	drop	deprecated or test pseudo-interface (6to4, SEND, discard)
 if_em	keep	common desktop/laptop/server NIC
@@ -334,7 +334,7 @@ ipfw_nat64	keep	packet filter / shaping (pf, dummynet, ipfw)
 ipfw_nptv6	keep	packet filter / shaping (pf, dummynet, ipfw)
 ipfw_pmod	keep	packet filter / shaping (pf, dummynet, ipfw)
 ipmi	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
-ipmi_linux	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
+ipmi_linux	held	needs linux (the 32-bit Linux ABI), which is not converted
 ipoib	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
 ipsec	keep	virtual interfaces and tunnels (bridge, lagg, VXLAN, WireGuard, OpenVPN, GRE, epair, IPsec)
 irdma	keep	RDMA for current NICs (Mellanox, Intel E810, Broadcom, Chelsio iSCSI)
@@ -347,7 +347,7 @@ isp	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 itwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 jedec_dimm	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 kgssapi	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-kgssapi_krb5	keep	DTrace / profiling / tracing
+kgssapi_krb5	borderline	needs rc4, dropped as an insecure cipher: keep rc4 for NFS Kerberos, or drop this
 kinst	keep	DTrace / profiling / tracing
 ksyms	keep	DTrace / profiling / tracing
 libalias	keep	packet filter / shaping (pf, dummynet, ipfw)
@@ -384,7 +384,7 @@ mpr	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mps	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 mpt	drop	legacy SCSI/IDE/SATA/RAID controller
 mrsas	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
-mrsas_linux	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
+mrsas_linux	held	needs linux (the 32-bit Linux ABI), which is not converted
 msdosfs_iconv	keep	filesystem (loaded on mount through #436)
 mthca	drop	RDMA for dropped/legacy hardware
 mvs	drop	legacy SCSI/IDE/SATA/RAID controller
@@ -550,7 +550,7 @@ spigen	keep	board peripherals: GPIO/I2C/SPI/PWM/1-wire buses
 superio	keep	CPU/chipset temperature, power, GPIO, SMBus
 sym	drop	legacy SCSI/IDE/SATA/RAID controller
 systrace	keep	DTrace / profiling / tracing
-systrace_freebsd32	drop	32-bit syscall tracing (no 32-bit userland)
+systrace_freebsd32	keep	dtraceall depends on it, and dtrace(1) loads dtraceall
 systrace_linux	borderline	Linux syscall tracing for the Linuxulator
 systrace_linux32	drop	32-bit syscall tracing (no 32-bit userland)
 t4_tom	held	needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)

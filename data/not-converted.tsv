@@ -175,12 +175,16 @@ if_bfe	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_bwi	amd64 arm64	drop: legacy Wi-Fi
 if_bwn	amd64 arm64	drop: legacy Wi-Fi
 if_cas	amd64 arm64	drop: legacy PCI/PCIe Ethernet
+if_cc	amd64 arm64	held: needs if_cxgbe (module cc), which has no PNP table and is held
+if_ccv	amd64 arm64	held: needs if_cxgbe (module ccv), which has no PNP table and is held
 if_cue	amd64 arm64	drop: old USB 1.1/2.0 Ethernet
 if_cxgb	amd64 arm64	drop: old or niche server NIC
 if_cxgbe	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_cxgbe	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_cxgbev	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_cxgbev	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+if_cxl	amd64 arm64	held: needs if_cxgbe (module cxl), which has no PNP table and is held
+if_cxlv	amd64 arm64	held: needs if_cxgbe (module cxlv), which has no PNP table and is held
 if_dc	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_disc	amd64 arm64	drop: deprecated or test pseudo-interface (6to4, SEND, discard)
 if_edsc	amd64 arm64	drop: not reviewed
@@ -188,7 +192,6 @@ if_fwe	amd64 arm64	drop: not reviewed
 if_fwip	amd64 arm64	drop: not reviewed
 if_fxp	amd64 arm64	drop: legacy PCI/PCIe Ethernet
 if_gem	amd64 arm64	drop: legacy PCI/PCIe Ethernet
-if_genet	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 if_ic	amd64 arm64	drop: not reviewed
 if_iwm	amd64	drop: IntelWiFi already matches these chips (two kexts would claim one device)
 if_iwn	amd64	borderline: Intel 6205/6300-era Wi-Fi, still in 2010-2013 ThinkPads
@@ -246,6 +249,7 @@ imcsmb	amd64	held: no PNP table, so it cannot autoload (identify- or class-match
 ipl	amd64 arm64	drop: not reviewed
 ipmi	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 ipmi	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+ipmi_linux	amd64	held: needs linux (the 32-bit Linux ABI), which is not converted
 ipw_bss	amd64	drop: not reviewed
 ipw_ibss	amd64	drop: not reviewed
 ipw_monitor	amd64	drop: not reviewed
@@ -282,6 +286,7 @@ iwn6050fw	amd64	drop: not reviewed
 jedec_dimm	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 jedec_dimm	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 kern_testfrwk	amd64 arm64	drop: not reviewed
+kgssapi_krb5	amd64 arm64	borderline: needs rc4, dropped as an insecure cipher: keep rc4 for NFS Kerberos, or drop this
 krping	amd64 arm64	drop: not reviewed
 ktest	amd64 arm64	drop: not reviewed
 ktest_example	amd64 arm64	drop: not reviewed
@@ -307,6 +312,7 @@ miiproxy	amd64	held: no PNP table, so it cannot autoload (identify- or class-mat
 mlx	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 mpt	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 mrsas	arm64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
+mrsas_linux	amd64	held: needs linux (the 32-bit Linux ABI), which is not converted
 mthca	amd64 arm64	drop: RDMA for dropped/legacy hardware
 mvs	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
 mw88W8363fw	amd64 arm64	drop: not reviewed
@@ -449,7 +455,6 @@ splash_txt	amd64	drop: not reviewed
 star_saver	amd64	drop: not reviewed
 superio	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 sym	amd64 arm64	drop: legacy SCSI/IDE/SATA/RAID controller
-systrace_freebsd32	amd64 arm64	drop: 32-bit syscall tracing (no 32-bit userland)
 systrace_linux	amd64	borderline: Linux syscall tracing for the Linuxulator
 systrace_linux32	amd64	drop: 32-bit syscall tracing (no 32-bit userland)
 t4_tom	amd64 arm64	held: needs if_cxgbe, which has no PNP table and is held (Chelsio TOE)

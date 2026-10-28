@@ -139,6 +139,9 @@ jobs:
           nbkx/tools/kexts.sh inputs ${{ matrix.target }} /usr/src /usr/obj kext-inputs
           cp /tmp/kernel-build-id/KERNEL-BUILD-ID kext-inputs/
           cp "$KERNEL_SDK/kernel.symbols" kext-inputs/
+          # Module versions compiled into the kernel, for wrap's MODULE_DEPEND
+          # check (SDKs from before nextbsd-kernel#362 have none).
+          [ ! -f "$KERNEL_SDK/kernel.modules" ] || cp "$KERNEL_SDK/kernel.modules" kext-inputs/
 
       - name: Upload kext inputs
         uses: actions/upload-artifact@v4
