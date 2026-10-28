@@ -347,7 +347,7 @@ isp	keep	current SAS/RAID/FC/NVMe-oF/UFS storage
 itwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 jedec_dimm	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 kgssapi	keep	storage/network target (iSCSI, CTL, NVMe-oF)
-kgssapi_krb5	borderline	needs rc4, dropped as an insecure cipher: keep rc4 for NFS Kerberos, or drop this
+kgssapi_krb5	drop	NFS Kerberos not supported; its stale MODULE_DEPEND on rc4 (dropped) makes kldload refuse it
 kinst	keep	DTrace / profiling / tracing
 ksyms	keep	DTrace / profiling / tracing
 libalias	keep	packet filter / shaping (pf, dummynet, ipfw)
