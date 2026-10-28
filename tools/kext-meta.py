@@ -3,7 +3,7 @@
 (E21 #4): the dependencies and device-id tables the .ko itself declares, as
 FreeBSD's kldxref reads them, instead of a script per driver.
 
-    usage: kext-meta.py <inputs-dir> <kext-name> <personalities-out>
+    usage: kext-meta.py <inputs-dir> <kext-name> <personalities-out> [<modules-out>]
 
 <inputs-dir>/<Name>/ holds each kext's module, `kldxref -d -v -v` output for it
 (<Name>.kldxref) and its bundle ID (kext.id), as `kexts.sh inputs` leaves them.
@@ -18,6 +18,10 @@ compiled into the kernel), every MODULE_DEPEND must also be satisfied by a kext
 in the set or by the kernel: an unsatisfied one is printed on stderr and the
 exit status is 3, since kldload would refuse the module ("depends on X - not
 available").
+
+With <modules-out>, writes there the names the module provides, one per line:
+its modules and its MODULE_VERSION interfaces, the names kldload and
+MODULE_DEPEND look a module up by. kextd indexes them (nextbsd-userland#439).
 
 Writes IOKitPersonalities to <personalities-out> (nothing when the module has
 no table the kernel matches), in Darwin's own keys, one personality per kind
@@ -231,10 +235,10 @@ def write_personalities(path, name, bundle_id, pers):
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         print(__doc__.splitlines()[4].strip(), file=sys.stderr)
         return 2
-    inputs, name, pers_out = sys.argv[1:]
+    inputs, name, pers_out = sys.argv[1:4]
     provider = {}  # module name -> bundle ID, across the whole set
     for k in sorted(os.listdir(inputs)):
         dump = os.path.join(inputs, k, f"{k}.kldxref")
@@ -268,6 +272,10 @@ def main():
                 print(f"{name}: MODULE_DEPEND {dep} is in no kext and not in the kernel",
                       file=sys.stderr)
                 status = 3
+
+    if len(sys.argv) == 5:
+        with open(sys.argv[4], "w") as out:
+            out.writelines(f"{m}\n" for m in sorted(set(modules)))
 
     pers = personalities(name, self_id, pnp)
     if pers:

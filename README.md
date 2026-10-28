@@ -53,6 +53,11 @@ them into Darwin's keys (`IOPCIPrimaryMatch`, `IOPCIClassMatch`, `IOUSBHostDevic
 `IOUSBHostInterface`, `IOACPIPlatformDevice`, `IOPlatformDevice` + `IONameMatch`). A hand-written
 generator can still be named in `kext.env` (IntelIwlwifi keeps its own).
 
+Each Info.plist also says what the kext provides by name, for kextd's module-name index (NextBSD's
+`linker.hints`): `NBSDModuleFile` is the `.ko` it wraps (`if_em.ko`), and `NBSDModules` lists the
+module and `MODULE_VERSION` interface names in it (`wlan`, `wlan_ccmp`, …), the names `kldload`
+and `MODULE_DEPEND` look modules up by.
+
 Tools:
 
 - `tools/gen-kext-dirs.py`: seeds the directories from `data/`.
