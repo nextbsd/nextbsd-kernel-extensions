@@ -12,7 +12,7 @@ into the kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E2
 
 ## What is here
 
-About 280 kexts across amd64 and arm64, one directory each, named after the kext (`IntelEM/`,
+116 kexts (82 on amd64, 93 on arm64), one directory each, named after the kext (`IntelEM/`,
 `RealtekRE/`, `Wlan/`, `AutoFS/`, …). Which modules are converted, and what each kext is called, is
 decided by data, not by the workflow:
 
@@ -37,8 +37,13 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
 - **Network drivers are kexts** (E21 D11): the modern PCI NICs moved out of the kernel, the
   net80211 stack is the `Wlan` family kext, and `RealtekRE` is Realtek's own driver, vendored
   (E21 D14, see `RealtekRE/VENDOR.md`). `if_vtnet` and the arm64 board NICs stay in the kernel.
-- **Libraries and request-loaded kexts** (netgraph, GEOM, filesystems, packet filters, TCP stacks,
-  MAC policies) carry no personalities; they load as dependencies or on request.
+- **Every kext has something that loads it** (E21 kext loaders review, 2026-10-28). The kernel
+  doesn't load modules by name, so a kext ships only if IOKit matching, another kext's
+  `OSBundleLibraries`, or a planned userland loader brings it in: AutoFS through automount, the
+  GEOM layers through partition matching (nextbsd-kernel#364), the Bluetooth stack's upper layers
+  through the future `bluetoothd`. What xnu compiles in (bridge, lagg, IPsec, pf, DTrace, vmm, UDF,
+  iconv) is compiled into NextBSD's kernel instead, and the rest was dropped; `data/decisions.tsv`
+  gives each reason.
 
 ## Layout of a kext directory
 
