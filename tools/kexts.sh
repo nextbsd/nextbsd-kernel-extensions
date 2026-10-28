@@ -108,7 +108,16 @@ inputs)
 		cp "$ko" "$out/$KEXT_NAME/"
 		echo "$KEXT_ID" > "$out/$KEXT_NAME/kext.id"
 		if [ -n "${KLDXREF:-}" ]; then
-			"$KLDXREF" -d -v -v "$out/$KEXT_NAME/$KEXT_KO" > "$out/$KEXT_NAME/$KEXT_NAME.kldxref" 2>&1 ||
+			# -d prints the module and dependency records but only the
+			# header of each PNP table; the entries are printed (at -v -v)
+			# only while kldxref writes a hints file, so it does both,
+			# the second on a scratch directory holding just this module.
+			x=$(mktemp -d)
+			cp "$ko" "$x/"
+			{
+				"$KLDXREF" -d "$out/$KEXT_NAME/$KEXT_KO"
+				"$KLDXREF" -v -v "$x"
+			} > "$out/$KEXT_NAME/$KEXT_NAME.kldxref" 2>&1 ||
 			    die "$KEXT_NAME: kldxref failed"
 		fi
 		if [ -n "$KEXT_PERSONALITIES" ]; then

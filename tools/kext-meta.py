@@ -59,13 +59,15 @@ def parse(path):
                 fields = descriptor(m.group(2))
                 pnp.append((m.group(1), m.group(2), []))
                 continue
+            if line.startswith("Found type "):
+                continue  # kldxref -v -v tracing its parse of the format
             if fields is not None and line and not line.startswith(" "):
                 entry = entry_values(line, fields)
                 if entry is not None:
                     pnp[-1][2].append(entry)
                 else:
                     fields = None
-    return modules, depends, pnp
+    return modules, depends, [t for t in pnp if t[2]]
 
 
 def descriptor(fmt):
