@@ -450,7 +450,7 @@ ng_vjc	drop	legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, old compressio
 ng_vlan	drop	netgraph plumbing for mpd-style tools; none in base
 ng_vlan_rotate	drop	netgraph plumbing for mpd-style tools; none in base
 nlsysevent	drop	server networking
-nmdm	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+nmdm	drop	bhyve; left for a separate, optional bhyve repo later
 ntb	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	drop	NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	drop	NTB (PCIe non-transparent bridge), niche
@@ -609,7 +609,7 @@ virtio_p9fs	drop	filesystem not wanted (SMBv1-only client, Linux ext, VM shared 
 virtio_random	keep	VM guest support (Hyper-V, VMware, virtio extras)
 vkbd	drop	only bthidd used it; E16 Bluetooth is being re-planned without it
 vmci	keep	VM guest support (Hyper-V, VMware, virtio extras)
-vmm	drop	compiled into the kernel (nextbsd-kernel#365), as xnu does
+vmm	drop	bhyve; left for a separate, optional bhyve repo later
 vpd	keep	server management (BMC, DIMM SPD, TPM, VPD, I/OAT)
 wbwd	keep	CPU/chipset temperature, power, GPIO, SMBus
 wdatwd	keep	CPU/chipset temperature, power, GPIO, SMBus

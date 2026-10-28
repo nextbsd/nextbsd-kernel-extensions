@@ -463,7 +463,7 @@ ng_vjc	amd64 arm64	drop: legacy WAN/PPP protocol (frame relay, HDLC, PPTP, VJ, o
 ng_vlan	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 ng_vlan_rotate	amd64 arm64	drop: netgraph plumbing for mpd-style tools; none in base
 nlsysevent	amd64 arm64	drop: server networking
-nmdm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+nmdm	amd64 arm64	drop: bhyve; left for a separate, optional bhyve repo later
 ntb	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_amd	amd64	drop: NTB (PCIe non-transparent bridge), niche
 ntb_hw_intel	amd64	drop: NTB (PCIe non-transparent bridge), niche
@@ -658,7 +658,7 @@ virtio_p9fs	amd64 arm64	drop: filesystem not wanted (SMBv1-only client, Linux ex
 virtio_random	amd64	held: no ID table the kernel matches on amd64 yet (virtio_mmio/virtio_pci)
 virtio_random	arm64	held: no ID table the kernel matches on arm64 yet (virtio_mmio/virtio_pci)
 vkbd	amd64 arm64	drop: only bthidd used it; E16 Bluetooth is being re-planned without it
-vmm	amd64 arm64	drop: compiled into the kernel (nextbsd-kernel#365), as xnu does
+vmm	amd64 arm64	drop: bhyve; left for a separate, optional bhyve repo later
 vpd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
 warp_saver	amd64	drop: not reviewed
 wbwd	amd64	held: no PNP table, so it cannot autoload (identify- or class-matched; needs a personality)
