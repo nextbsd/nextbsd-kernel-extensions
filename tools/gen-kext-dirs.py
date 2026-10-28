@@ -166,6 +166,8 @@ def main():
 
     inv = tsv("module-inventory.tsv")[1:]
     dec = {r[0]: (r[1], r[2]) for r in tsv("decisions.tsv")[1:]}
+    # OSBundleRequired by role, as 10.9 tags its kexts (#4); most kexts have none.
+    required = {r[0]: r[1] for r in tsv("osbundlerequired.tsv")[1:]}
     cat = {r[0]: r for r in tsv("kext-catalog.tsv")[1:]}
 
     rows = {}  # ko -> (moddir, {arch: status}, category, driver_module)
@@ -232,6 +234,8 @@ def main():
             out.write(f"KEXT_MODULE={moddir}\nKEXT_KO={ko}.ko\n")
             out.write(f"KEXT_CATEGORY={category}\nKEXT_MATCH={match}\n")
             out.write('KEXT_PERSONALITIES=""\nKEXT_FIRMWARE=""\n')
+            if name in required:
+                out.write(f'KEXT_REQUIRED="{required[name]}"\n')
         made += 1
 
     with open(os.path.join(data, "not-converted.tsv"), "w") as out:

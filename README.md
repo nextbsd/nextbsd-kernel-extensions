@@ -46,6 +46,12 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
   iconv) is compiled into NextBSD's kernel instead, and the rest was dropped; `data/decisions.tsv`
   gives each reason.
 
+- **`OSBundleRequired` by role, as Mac OS X 10.9 tags its kexts** (`data/osbundlerequired.tsv`): storage
+  controllers and GEOM layers are `Local-Root`, NICs and Wi-Fi `Network-Root`, keyboards, mice and
+  trackpads `Console`, the SMBus family `Root`; SMBus controllers, SMC and sensors, backlight,
+  Bluetooth and AutoFS `Safe Boot`. The rest carry no key. Nothing reads it yet: it is for a pre-root
+  load path, such as the boot loader preloading a ZFS-root kext (which would add `Root`).
+
 ## Layout of a kext directory
 
 Each directory holds a `kext.env`, which `tools/kexts.sh` reads (its header documents every field):

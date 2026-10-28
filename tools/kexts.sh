@@ -23,6 +23,10 @@
 #   KEXT_PERSONALITIES  optional: "<generator in tools/> <path in the source
 #                       tree>", a hand-written generator used instead of the
 #                       module's own PNP metadata
+#   KEXT_REQUIRED       optional: OSBundleRequired, for a kext that must be
+#                       loaded before root is mounted (Root, Local-Root, ...).
+#                       Empty for every kext today; a ZFS-root kext would set
+#                       Root, for the loader to preload it (#4)
 #   KEXT_FIRMWARE       optional: "<linux-firmware directory> [<licence file>]",
 #                       bundled flat into Contents/Resources/firmware, from
 #                       linux-firmware at $LINUX_FIRMWARE_TAG
@@ -56,7 +60,7 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 # load <dir>: read <dir>/kext.env into KEXT_* and check it.
 load() {
 	KEXT_NAME= KEXT_ID= KEXT_ARCHES= KEXT_MODULE= KEXT_KO= KEXT_CATEGORY=
-	KEXT_MATCH=none KEXT_PERSONALITIES= KEXT_FIRMWARE=
+	KEXT_MATCH=none KEXT_PERSONALITIES= KEXT_FIRMWARE= KEXT_REQUIRED=
 	. "$1/kext.env"
 	for _v in KEXT_NAME KEXT_ID KEXT_ARCHES KEXT_MODULE KEXT_KO; do
 		eval "_x=\${$_v}"
@@ -185,6 +189,7 @@ wrap)
 			[ -z "$lic" ] || cp -L "$lf/lf/$lic" "$fw/"
 			set -- "$@" -f "$fw"
 		fi
+		[ -z "$KEXT_REQUIRED" ] || set -- "$@" -r "$KEXT_REQUIRED"
 		sh "$HERE/ko2kext.sh" -o "$out" "$@" "$in/$KEXT_NAME/$KEXT_KO" "$KEXT_NAME" "$KEXT_ID" > /dev/null
 		)
 	done
