@@ -188,7 +188,7 @@ jobs:
           body: |
             Rolling build of the FreeBSD-derived kexts, refreshed on every successful `main` build.
             `freebsd-kexts-<arch>.tar.gz` holds the kext bundles (today amd64: IntelWiFi with
-            its iwlwifi firmware, IntelEthernet), unpacked into /System/Library/Extensions and
+            its iwlwifi firmware), unpacked into /System/Library/Extensions and
             packaged by nextbsd-pkg as `NextBSD-kernel-extensions`.
 
             Every kext carries `NBSDKernelBuildID` in its Info.plist: the nextbsd-kernel
