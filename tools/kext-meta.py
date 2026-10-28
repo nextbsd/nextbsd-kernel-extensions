@@ -9,7 +9,8 @@ FreeBSD's kldxref reads them, instead of a script per driver.
 (<Name>.kldxref) and its bundle ID (kext.id), as `kexts.sh inputs` leaves them.
 
 Prints one OSBundleLibraries bundle ID per line: for every MODULE_DEPEND of
-this kext's module that another kext in the set provides (by MODULE name). A
+this kext's module that another kext in the set provides (by MODULE_VERSION
+name, as the kernel linker resolves it, or module name). A
 dependency no kext provides is the kernel's own and needs no entry.
 
 Writes IOKitPersonalities to <personalities-out> (nothing when the module has
@@ -33,6 +34,7 @@ from xml.sax.saxutils import escape
 HDR = re.compile(r"^  pnp info for bus (\S+) format (.*) (\d+) entries of (\d+) bytes$")
 DEP = re.compile(r"^  depends on (\S+)\.\d+ \(")
 MOD = re.compile(r"^  module (\S+)$")
+VER = re.compile(r"^  interface (\S+)\.\d+$")
 WILD = 0xFFFFFFFF
 FDT_BUSES = {"simplebus", "ofwbus", "iicbus", "spibus", "gpiobus"}
 # usb_device_id's match flags (sys/dev/usb/usbdi.h), the M16 "mask" field.
@@ -42,13 +44,16 @@ USB_INT_CLASS, USB_INT_SUBCLASS, USB_INT_PROTOCOL = 0x080, 0x100, 0x200
 
 def parse(path):
     """Return (modules, depends, pnp) from one kldxref -d -v -v dump.
+    modules holds both module and interface (MODULE_VERSION) names.
     pnp is a list of (bus, format, [dict(key -> value), ...])."""
     modules, depends, pnp = [], [], []
     fields = None
     with open(path, errors="replace") as f:
         for line in f:
             line = line.rstrip("\n")
-            m = MOD.match(line)
+            # MODULE_DEPEND names a module version (MODULE_VERSION, kldxref's
+            # "interface"), which is often the only record a library has.
+            m = MOD.match(line) or VER.match(line)
             if m:
                 modules.append(m.group(1)); fields = None; continue
             m = DEP.match(line)
