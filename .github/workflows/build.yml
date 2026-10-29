@@ -139,9 +139,12 @@ jobs:
           nbkx/tools/kexts.sh inputs ${{ matrix.target }} /usr/src /usr/obj kext-inputs
           cp /tmp/kernel-build-id/KERNEL-BUILD-ID kext-inputs/
           cp "$KERNEL_SDK/kernel.symbols" kext-inputs/
-          # Module versions compiled into the kernel, for wrap's MODULE_DEPEND
-          # check (SDKs from before nextbsd-kernel#362 have none).
-          [ ! -f "$KERNEL_SDK/kernel.modules" ] || cp "$KERNEL_SDK/kernel.modules" kext-inputs/
+          # Module versions compiled into the kernel (nextbsd-kernel#362), for
+          # wrap's MODULE_DEPEND check and System.kext (#5), and the kernel's
+          # release, System.kext's CFBundleVersion.
+          cp "$KERNEL_SDK/kernel.modules" kext-inputs/
+          sed -n 's/^REVISION="\([0-9.]*\)"$/\1/p' "$KERNEL_SDK/sys/conf/newvers.sh" > kext-inputs/kernel.version
+          [ -s kext-inputs/kernel.version ] || { echo "no REVISION in the SDK's newvers.sh" >&2; exit 1; }
 
       - name: Upload kext inputs
         uses: actions/upload-artifact@v4
@@ -168,7 +171,8 @@ jobs:
           name: kext-inputs-${{ matrix.target }}
           path: kext-inputs
 
-      # Bundle firmware, inject personalities, stamp NBSDKernelBuildID.
+      # Bundle firmware, inject personalities, stamp NBSDKernelBuildID, and
+      # write System.kext.
       - name: Wrap the kexts
         run: tools/kexts.sh wrap ${{ matrix.target }} kext-inputs kexts
 
@@ -182,6 +186,15 @@ jobs:
           kinds = {}
           for n in names:
               d = plistlib.load(open(f"{root}/{n}/Contents/Info.plist", 'rb'))
+              if d.get('OSKernelResource'):
+                  # System.kext (#5): codeless, the kernel's own description.
+                  assert n == 'System.kext' and d['CFBundleIdentifier'] == 'org.nextbsd.kernel', n
+                  assert 'CFBundleExecutable' not in d and not os.path.exists(f"{root}/{n}/Contents/MacOS"), f"{n}: has code"
+                  assert d.get('NBSDKernelBuildID') == kbid, f"{n}: NBSDKernelBuildID {d.get('NBSDKernelBuildID')} != {kbid}"
+                  assert 'kernel' in d['NBSDModules'], f"{n}: no built-in modules"
+                  print(f"{n}: {d['CFBundleIdentifier']} {d['CFBundleVersion']}; kernel resource, "
+                        f"{len(d['NBSDModules'])} built-in modules")
+                  continue
               exe = f"{root}/{n}/Contents/MacOS/{d['CFBundleExecutable']}"
               assert os.path.isfile(exe), f"{n}: no executable {exe}"
               assert d['CFBundleIdentifier'].startswith('org.nextbsd.'), d['CFBundleIdentifier']
@@ -194,6 +207,7 @@ jobs:
               libs = sorted(d.get('OSBundleLibraries', {}))
               print(f"{n}: {d['CFBundleIdentifier']}; matches {', '.join(provs) or 'nothing (library or loaded on request)'}"
                     + (f"; needs {', '.join(libs)}" if libs else ""))
+          assert 'System.kext' in names, "no System.kext"
           print(f"{len(names)} kexts; personalities by provider: {kinds}")
           PY
 
@@ -247,7 +261,8 @@ jobs:
             packaged by nextbsd-pkg as `NextBSD-kernel-extensions`.
 
             Every kext carries `NBSDKernelBuildID` in its Info.plist: the nextbsd-kernel
-            KERNEL-BUILD-ID it was built for.
+            KERNEL-BUILD-ID it was built for. `System.kext` (`org.nextbsd.kernel`, codeless)
+            describes that kernel: its build ID and the modules compiled into it.
 
             Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             Commit: ${{ github.sha }}

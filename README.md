@@ -80,6 +80,21 @@ Tools:
 - `tools/gen-iwlwifi-personalities.sh`: IntelIwlwifi's own personalities.
 - `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-build-id.py`: build against the published kernel
   SDK and record its `KERNEL-BUILD-ID` in each kext.
+- `tools/gen-system-kext.py`: writes `System.kext`.
+
+## System.kext
+
+The set also ships a codeless **`System.kext`** (`org.nextbsd.kernel`), generated per kernel build
+from the kernel SDK, as Darwin describes its kernel with System.kext (`com.apple.kernel`). It has an
+Info.plist and no code: `OSKernelResource` marks it as part of the kernel, so OSKext never loads it
+and a kext can name it in `OSBundleLibraries` for code compiled into the kernel. It carries:
+
+- `CFBundleVersion` and `OSBundleCompatibleVersion`: the kernel's release (`15.1`);
+- `NBSDKernelBuildID`: the exact kernel build. A kext version can't hold
+  `<commit>.<run_id>.<attempt>`, so OSKext compares this key instead and refuses a kext whose
+  `NBSDKernelBuildID` differs, naming both builds, before it kldloads anything;
+- `NBSDModules`: every module version compiled into the kernel (the SDK's `kernel.modules`), so
+  kextd's module-name index resolves a built-in module to `org.nextbsd.kernel`.
 
 ## Build and release
 

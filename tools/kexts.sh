@@ -47,9 +47,11 @@
 #   kexts.sh wrap <arch> <inputs> <out>
 #       wrap each into <out>/<KEXT_NAME>.kext with its personalities,
 #       dependencies, provided module names and firmware, and stamp every kext with
-#       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326). With
-#       <inputs>/kernel.modules (from the kernel SDK), every MODULE_DEPEND
+#       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326). Every MODULE_DEPEND
 #       must be met by a kext in the set or by the kernel
+#       (<inputs>/kernel.modules, from the kernel SDK). Also writes the
+#       codeless System.kext (org.nextbsd.kernel) describing that kernel,
+#       from <inputs>/kernel.modules and kernel.version (#5)
 set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -156,7 +158,8 @@ wrap)
 		( cd "$lf/lf" && git sparse-checkout set --no-cone $fw_paths )
 	fi
 	nomatch=$(mktemp); nodep=$(mktemp)
-	[ ! -f "$in/kernel.modules" ] || export KERNEL_MODULES="$in/kernel.modules"
+	[ -s "$in/kernel.modules" ] || die "no $in/kernel.modules (the kernel SDK's, nextbsd-kernel#362)"
+	export KERNEL_MODULES="$in/kernel.modules"
 	for d in $dirs; do
 		(
 		load "$d"
@@ -206,6 +209,9 @@ wrap)
 		echo "  Add a personality, or hold the driver back in data/decisions.tsv." >&2
 		exit 1
 	fi
+	# The kernel itself, as Darwin's System.kext describes it: codeless,
+	# OSKernelResource, the built-in modules and the exact kernel build.
+	python3 "$HERE/gen-system-kext.py" "$in" "$out" || die "gen-system-kext.py failed"
 	echo "wrap: $(ls -d "$out"/*.kext | wc -l | tr -d ' ') kexts for $arch"
 	python3 "$HERE/stamp-kernel-build-id.py" "$kbid" "$out"
 	;;
