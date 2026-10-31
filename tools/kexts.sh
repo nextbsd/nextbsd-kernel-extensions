@@ -47,7 +47,9 @@
 #   kexts.sh wrap <arch> <inputs> <out>
 #       wrap each into <out>/<KEXT_NAME>.kext with its personalities,
 #       dependencies, provided module names and firmware, and stamp every kext with
-#       <inputs>/KERNEL-BUILD-ID (nextbsd-kernel#326). Every MODULE_DEPEND
+#       <inputs>/KERNEL-ABI-VERSION as NBSDKernelABIVersion (nextbsd-kernel#376)
+#       and <inputs>/KERNEL-BUILD-ID as the legacy NBSDKernelBuildID
+#       (nextbsd-kernel#326). Every MODULE_DEPEND
 #       must be met by a kext in the set or by the kernel
 #       (<inputs>/kernel.modules, from the kernel SDK). Also writes the
 #       codeless System.kext (org.nextbsd.kernel) describing that kernel,
@@ -147,6 +149,8 @@ wrap)
 	in=$3; out=$4
 	kbid=$(cat "$in/KERNEL-BUILD-ID") || die "no $in/KERNEL-BUILD-ID"
 	[ -n "$kbid" ] || die "$in/KERNEL-BUILD-ID is empty"
+	kabi=$(cat "$in/KERNEL-ABI-VERSION") || die "no $in/KERNEL-ABI-VERSION"
+	[ -n "$kabi" ] || die "$in/KERNEL-ABI-VERSION is empty"
 	mkdir -p "$out"
 	# One sparse linux-firmware checkout for every kext that bundles firmware.
 	fw_paths=$(for d in $dirs; do ( load "$d"; [ -z "$KEXT_FIRMWARE" ] || echo "$KEXT_FIRMWARE" ); done | tr '\n' ' ')
@@ -210,10 +214,10 @@ wrap)
 		exit 1
 	fi
 	# The kernel itself, as Darwin's System.kext describes it: codeless,
-	# OSKernelResource, the built-in modules and the exact kernel build.
+	# OSKernelResource, the built-in modules, the kernel version and its ABI.
 	python3 "$HERE/gen-system-kext.py" "$in" "$out" || die "gen-system-kext.py failed"
 	echo "wrap: $(ls -d "$out"/*.kext | wc -l | tr -d ' ') kexts for $arch"
-	python3 "$HERE/stamp-kernel-build-id.py" "$kbid" "$out"
+	python3 "$HERE/stamp-kernel-abi.py" "$kabi" "$kbid" "$out"
 	;;
 *)
 	die "unknown command $cmd"

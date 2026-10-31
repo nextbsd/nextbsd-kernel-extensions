@@ -70,9 +70,11 @@ jobs:
           path: nbkx
 
       # The kernel SDK from nextbsd-kernel's `continuous` release
-      # (nextbsd-kernel#327): the kernel's headers, generated options and
-      # KERNEL-BUILD-ID. No kernel source or obj tree, no relink (#2). Leaves
-      # the ID in /tmp/kernel-build-id and KERNEL_SDK in the environment.
+      # (nextbsd-kernel#327): the kernel's headers, generated options,
+      # KERNEL-BUILD-ID and its version and kext ABI version (nextbsd-kernel#376;
+      # the build ID stands in for both on an older SDK). No kernel source or
+      # obj tree, no relink (#2). Leaves the ID and versions in
+      # /tmp/kernel-build-id and KERNEL_SDK in the environment.
       - name: Kernel SDK
         env:
           GH_TOKEN: ${{ github.token }}
@@ -137,14 +139,22 @@ jobs:
           echo "kldxref: $KLDXREF"
           export KLDXREF
           nbkx/tools/kexts.sh inputs ${{ matrix.target }} /usr/src /usr/obj kext-inputs
-          cp /tmp/kernel-build-id/KERNEL-BUILD-ID kext-inputs/
+          cp /tmp/kernel-build-id/KERNEL-BUILD-ID /tmp/kernel-build-id/KERNEL-ABI-VERSION kext-inputs/
           cp "$KERNEL_SDK/kernel.symbols" kext-inputs/
           # Module versions compiled into the kernel (nextbsd-kernel#362), for
-          # wrap's MODULE_DEPEND check and System.kext (#5), and the kernel's
-          # release, System.kext's CFBundleVersion.
+          # wrap's MODULE_DEPEND check and System.kext (#5), and the kernel
+          # version, System.kext's CFBundleVersion: the SDK's KERNEL-VERSION
+          # (27.0.0, nextbsd-kernel#376), or newvers.sh's REVISION (15.1) from
+          # an SDK that predates it.
           cp "$KERNEL_SDK/kernel.modules" kext-inputs/
-          sed -n 's/^REVISION="\([0-9.]*\)"$/\1/p' "$KERNEL_SDK/sys/conf/newvers.sh" > kext-inputs/kernel.version
-          [ -s kext-inputs/kernel.version ] || { echo "no REVISION in the SDK's newvers.sh" >&2; exit 1; }
+          if [ -s "$KERNEL_SDK/KERNEL-VERSION" ]; then
+            tr -d ' \t\r\n' < "$KERNEL_SDK/KERNEL-VERSION" > kext-inputs/kernel.version
+            [ -s kext-inputs/kernel.version ] || { echo "the SDK's KERNEL-VERSION is empty" >&2; exit 1; }
+          else
+            sed -n 's/^REVISION="\([0-9.]*\)"$/\1/p' "$KERNEL_SDK/sys/conf/newvers.sh" > kext-inputs/kernel.version
+            [ -s kext-inputs/kernel.version ] || { echo "no KERNEL-VERSION in the SDK and no REVISION in its newvers.sh" >&2; exit 1; }
+          fi
+          echo "System.kext version: $(cat kext-inputs/kernel.version)"
 
       - name: Upload kext inputs
         uses: actions/upload-artifact@v4
@@ -171,16 +181,16 @@ jobs:
           name: kext-inputs-${{ matrix.target }}
           path: kext-inputs
 
-      # Bundle firmware, inject personalities, stamp NBSDKernelBuildID, and
-      # write System.kext.
+      # Bundle firmware, inject personalities, stamp NBSDKernelABIVersion and
+      # NBSDKernelBuildID, and write System.kext.
       - name: Wrap the kexts
         run: tools/kexts.sh wrap ${{ matrix.target }} kext-inputs kexts
 
       - name: Validate the kext bundles
         run: |
-          python3 - kexts "$(cat kext-inputs/KERNEL-BUILD-ID)" <<'PY'
+          python3 - kexts "$(cat kext-inputs/KERNEL-ABI-VERSION)" "$(cat kext-inputs/KERNEL-BUILD-ID)" "$(cat kext-inputs/kernel.version)" <<'PY'
           import os, plistlib, sys
-          root, kbid = sys.argv[1], sys.argv[2]
+          root, kabi, kbid, kver = sys.argv[1:5]
           names = sorted(n for n in os.listdir(root) if n.endswith('.kext'))
           assert names, "no kexts"
           kinds = {}
@@ -190,7 +200,10 @@ jobs:
                   # System.kext (#5): codeless, the kernel's own description.
                   assert n == 'System.kext' and d['CFBundleIdentifier'] == 'org.nextbsd.kernel', n
                   assert 'CFBundleExecutable' not in d and not os.path.exists(f"{root}/{n}/Contents/MacOS"), f"{n}: has code"
+                  assert d.get('NBSDKernelABIVersion') == kabi, f"{n}: NBSDKernelABIVersion {d.get('NBSDKernelABIVersion')} != {kabi}"
                   assert d.get('NBSDKernelBuildID') == kbid, f"{n}: NBSDKernelBuildID {d.get('NBSDKernelBuildID')} != {kbid}"
+                  for k in ('CFBundleVersion', 'CFBundleShortVersionString', 'OSBundleCompatibleVersion'):
+                      assert d.get(k) == kver, f"{n}: {k} {d.get(k)} != {kver}"
                   assert 'kernel' in d['NBSDModules'], f"{n}: no built-in modules"
                   print(f"{n}: {d['CFBundleIdentifier']} {d['CFBundleVersion']}; kernel resource, "
                         f"{len(d['NBSDModules'])} built-in modules")
@@ -198,6 +211,7 @@ jobs:
               exe = f"{root}/{n}/Contents/MacOS/{d['CFBundleExecutable']}"
               assert os.path.isfile(exe), f"{n}: no executable {exe}"
               assert d['CFBundleIdentifier'].startswith('org.nextbsd.'), d['CFBundleIdentifier']
+              assert d.get('NBSDKernelABIVersion') == kabi, f"{n}: NBSDKernelABIVersion {d.get('NBSDKernelABIVersion')} != {kabi}"
               assert d.get('NBSDKernelBuildID') == kbid, f"{n}: NBSDKernelBuildID {d.get('NBSDKernelBuildID')} != {kbid}"
               pers = d.get('IOKitPersonalities', {})
               for p in pers.values():
@@ -260,9 +274,11 @@ jobs:
             iwlwifi firmware, autofs; arm64: autofs), unpacked into /System/Library/Extensions and
             packaged by nextbsd-pkg as `NextBSD-kernel-extensions`.
 
-            Every kext carries `NBSDKernelBuildID` in its Info.plist: the nextbsd-kernel
-            KERNEL-BUILD-ID it was built for. `System.kext` (`org.nextbsd.kernel`, codeless)
-            describes that kernel: its build ID and the modules compiled into it.
+            Every kext carries `NBSDKernelABIVersion` in its Info.plist: the nextbsd-kernel
+            KERNEL-ABI-VERSION it was built for (e.g. `27.0`), and the legacy `NBSDKernelBuildID`,
+            that kernel's KERNEL-BUILD-ID. `System.kext` (`org.nextbsd.kernel`, codeless)
+            describes that kernel: its version (CFBundleVersion, e.g. `27.0.0`), ABI version,
+            build ID and the modules compiled into it.
 
             Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             Commit: ${{ github.sha }}

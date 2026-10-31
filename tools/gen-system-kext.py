@@ -12,19 +12,28 @@ the kexts in this set were built against:
 
   CFBundleIdentifier  org.nextbsd.kernel
   OSKernelResource    true; no CFBundleExecutable
-  CFBundleVersion     the kernel's release (newvers.sh REVISION, "15.1"), also
-                      its OSBundleCompatibleVersion, as com.apple.kernel's is
-  NBSDKernelBuildID   the exact kernel build (nextbsd-kernel#326). An OSKext
-                      version can't hold <commit>.<run_id>.<attempt>, so the
-                      build is matched by this key: OSKext refuses a kext whose
-                      NBSDKernelBuildID differs from System.kext's
+  CFBundleVersion     the kernel version (the SDK's KERNEL-VERSION, "27.0.0",
+                      nextbsd-kernel#376; newvers.sh REVISION, "15.1", from an
+                      SDK that predates it), also its CFBundleShortVersionString
+                      and OSBundleCompatibleVersion, as com.apple.kernel's are
+  NBSDKernelABIVersion  the kext ABI version (the SDK's KERNEL-ABI-VERSION,
+                      "27.0"), the key every kext in the set carries too.
+                      OSKext refuses a kext whose NBSDKernelABIVersion differs
+                      from the running kernel's (kern.osrelease major.minor,
+                      or System.kext's on a kernel that predates #376)
+  NBSDKernelBuildID   the legacy key: the SDK's KERNEL-BUILD-ID
+                      (nextbsd-kernel#326), whatever it holds. OSKext falls
+                      back to it for a kext without NBSDKernelABIVersion, and
+                      packaging compares it with the kernel's
   NBSDModules         every module version compiled into the kernel (the
                       SDK's kernel.modules), the key the kexts use for the
                       names they provide, so kextd's module-name index
                       resolves a built-in module to org.nextbsd.kernel
 
-From <inputs-dir>: KERNEL-BUILD-ID, kernel.modules and kernel.version, which
-the modules job copies from the kernel SDK. Writes <out-dir>/System.kext.
+From <inputs-dir>: KERNEL-BUILD-ID, KERNEL-ABI-VERSION, kernel.modules and
+kernel.version, which the modules job takes from the kernel SDK (an SDK from
+before nextbsd-kernel#376 has no KERNEL-ABI-VERSION; fetch-kernel-sdk.sh then
+writes its KERNEL-BUILD-ID there). Writes <out-dir>/System.kext.
 """
 import os
 import plistlib
@@ -47,10 +56,13 @@ def main(argv):
         sys.exit(__doc__.strip().splitlines()[3].strip())
     inputs, out = argv[1], argv[2]
     build_id = read(inputs, "KERNEL-BUILD-ID").strip()
+    abi = read(inputs, "KERNEL-ABI-VERSION").strip()
     version = read(inputs, "kernel.version").strip()
     modules = sorted({m.strip() for m in read(inputs, "kernel.modules").splitlines() if m.strip()})
     if not build_id:
         sys.exit("gen-system-kext: KERNEL-BUILD-ID is empty")
+    if not abi:
+        sys.exit("gen-system-kext: KERNEL-ABI-VERSION is empty")
     if not version.replace(".", "").isdigit():
         sys.exit(f"gen-system-kext: kernel.version {version!r} is not a kext version")
     if "kernel" not in modules or len(modules) < 2:
@@ -66,6 +78,7 @@ def main(argv):
         "CFBundleVersion": version,
         "OSBundleCompatibleVersion": version,
         "OSKernelResource": True,
+        "NBSDKernelABIVersion": abi,
         "NBSDKernelBuildID": build_id,
         "NBSDModules": modules,
     }
@@ -73,7 +86,7 @@ def main(argv):
     os.makedirs(contents, exist_ok=True)
     with open(os.path.join(contents, "Info.plist"), "wb") as f:
         plistlib.dump(info, f, sort_keys=False)
-    print(f"System.kext: {BUNDLE_ID} {version}, kernel {build_id}, {len(modules)} built-in modules")
+    print(f"System.kext: {BUNDLE_ID} {version}, kernel ABI {abi}, kernel build {build_id}, {len(modules)} built-in modules")
 
 
 if __name__ == "__main__":
