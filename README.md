@@ -78,8 +78,8 @@ Tools:
 - `tools/ko2kext.sh`: wraps a `.ko` in a kext bundle.
 - `tools/check-kext-symbols.py`: fails the build if a kext would not resolve at kldload.
 - `tools/gen-iwlwifi-personalities.sh`: IntelIwlwifi's own personalities.
-- `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-build-id.py`: build against the published kernel
-  SDK and record its `KERNEL-BUILD-ID` in each kext.
+- `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-abi.py`: build against the published kernel
+  SDK and record its kext ABI version (`NBSDKernelABIVersion`) and `KERNEL-BUILD-ID` in each kext.
 - `tools/gen-system-kext.py`: writes `System.kext`.
 
 ## System.kext
@@ -89,10 +89,17 @@ from the kernel SDK, as Darwin describes its kernel with System.kext (`com.apple
 Info.plist and no code: `OSKernelResource` marks it as part of the kernel, so OSKext never loads it
 and a kext can name it in `OSBundleLibraries` for code compiled into the kernel. It carries:
 
-- `CFBundleVersion` and `OSBundleCompatibleVersion`: the kernel's release (`15.1`);
-- `NBSDKernelBuildID`: the exact kernel build. A kext version can't hold
-  `<commit>.<run_id>.<attempt>`, so OSKext compares this key instead and refuses a kext whose
-  `NBSDKernelBuildID` differs, naming both builds, before it kldloads anything;
+- `CFBundleVersion`, `CFBundleShortVersionString` and `OSBundleCompatibleVersion`: the kernel
+  version, the SDK's `KERNEL-VERSION` (`27.0.0`, nextbsd-kernel#376). An SDK published before
+  that has none, and the kernel's release (`REVISION`, `15.1`) is used;
+- `NBSDKernelABIVersion`: the kext ABI version, the SDK's `KERNEL-ABI-VERSION` (`27.0`, the
+  kernel version's major.minor), which every kext in the set carries too. OSKext compares a
+  kext's with the running kernel's (`kern.osrelease` major.minor, or System.kext's on an older
+  kernel) and refuses a mismatch before it kldloads anything. A kernel release that keeps the ABI
+  (27.0.x) needs no kext rebuild;
+- `NBSDKernelBuildID`: the legacy key, the SDK's `KERNEL-BUILD-ID` whatever it holds. OSKext
+  falls back to it for a kext without `NBSDKernelABIVersion`, and the pinned nextbsd-ci and
+  nextbsd-pkg compare it with the kernel's `KERNEL-BUILD-ID`;
 - `NBSDModules`: every module version compiled into the kernel (the SDK's `kernel.modules`), so
   kextd's module-name index resolves a built-in module to `org.nextbsd.kernel`.
 
@@ -109,6 +116,8 @@ The modules are built from freebsd-src's `sys/modules` (one `make -k` pass with 
 set to just the kexts' modules) against the **kernel SDK** from nextbsd-kernel's `continuous`
 release (`kernel-sdk-<arch>.tar.gz`, nextbsd-kernel#327): its headers as `SYSDIR`, its generated
 options as `KERNBUILDDIR`. Nothing needs the kernel's source or obj tree or relinks the kernel.
-Every kext carries `NBSDKernelBuildID` in its Info.plist, and packaging and the image lanes refuse
-kexts built for another kernel. After a kernel merge, rebuild with a merge here or a manual run of
+Every kext carries `NBSDKernelABIVersion` and `NBSDKernelBuildID` in its Info.plist, and packaging
+and the image lanes refuse kexts built for another kernel. Until the SDK publishes
+`KERNEL-ABI-VERSION` (nextbsd-kernel#376), `fetch-kernel-sdk.sh` uses its `KERNEL-BUILD-ID` for
+`NBSDKernelABIVersion` too. After a kernel merge, rebuild with a merge here or a manual run of
 the workflow.
