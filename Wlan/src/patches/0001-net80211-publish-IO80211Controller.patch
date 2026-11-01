@@ -1,0 +1,60 @@
+net80211: publish each radio as an IO80211Controller registry entry
+
+A net80211 radio (struct ieee80211com, "iwlwifi0") is neither a newbus
+device of its own nor an ifnet, so nothing in NextBSD's IORegistry marks
+the moment it becomes usable. iwlwifi, for one, loads its firmware
+asynchronously and calls ieee80211_ifattach() seconds after its newbus
+node attached. wland, which clones the VAP and runs wpa_supplicant,
+could only poll net.wlan.devices for it, and never noticed a radio go.
+
+Publish a virtual IORegistry entry of class IO80211Controller, named
+after the radio, at the end of ieee80211_ifattach(), once the radio is
+on the list net.wlan.devices reads, and retire it at the end of
+ieee80211_ifdetach(), once its VAPs are destroyed and it is off that
+list. wland matches it with IOServiceAddMatchingNotification
+(first-match and terminated), as Darwin's wifid follows
+IO80211Controller. The entry itself is built in ieee80211_ioreg.c (this
+directory's src/), with the kernel's ioreg_publish_virtual() and
+ioreg_retire_virtual(), as iokit_hid.c does for IOHIDDevice.
+
+Origin: NextBSD (nextbsd/nextbsd-userland#502). Not upstream.
+Applies to: releng/15.1 sys/net80211/ieee80211.c
+
+--- a/sys/net80211/ieee80211.c
++++ b/sys/net80211/ieee80211.c
+@@ -58,6 +58,9 @@
+ 
+ #include <net/bpf.h>
+ 
++/* NextBSD: IO80211Controller registry entries (nextbsd-userland#502). */
++#include "ieee80211_ioreg.h"
++
+ const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
+ 	[IEEE80211_MODE_AUTO]	  = "auto",
+ 	[IEEE80211_MODE_11A]	  = "11a",
+@@ -359,6 +362,12 @@
+ 	mtx_lock(&ic_list_mtx);
+ 	LIST_INSERT_HEAD(&ic_head, ic, ic_next);
+ 	mtx_unlock(&ic_list_mtx);
++
++	/*
++	 * NextBSD: publish the radio as an IO80211Controller registry entry,
++	 * now that net.wlan.devices lists it (nextbsd-userland#502).
++	 */
++	ieee80211_ioreg_publish(ic);
+ }
+ 
+ /*
+@@ -418,6 +427,12 @@
+ 	taskqueue_free(ic->ic_tq);
+ 	IEEE80211_TX_LOCK_DESTROY(ic);
+ 	IEEE80211_LOCK_DESTROY(ic);
++
++	/*
++	 * NextBSD: retire the radio's IO80211Controller entry, now that its
++	 * VAPs are gone and net.wlan.devices no longer lists it.
++	 */
++	ieee80211_ioreg_retire(ic);
+ }
+ 
+ /*
