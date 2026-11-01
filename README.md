@@ -81,6 +81,11 @@ Tools:
 - `tools/ko2kext.sh`: wraps a `.ko` in a kext bundle.
 - `tools/check-kext-symbols.py`: fails the build if a kext would not resolve at kldload.
 - `tools/gen-iwlwifi-personalities.sh`: IntelIwlwifi's own personalities.
+- `tools/gen-geom-personalities.sh`: the GEOM layers' personalities (GeomEli, GeomMirror,
+  GeomStripe, GeomConcat, GeomMultipath): `IOProviderClass` `IOMedia` with the class's metadata
+  magic (`GEOM::ELI`, read from its `G_*_MAGIC` define) as `Content Mask`, the keys CoreStorage
+  and AppleRAID match on Darwin. The kernel offers each disk's GEOM metadata and GPT type to the
+  matcher, so the layer loads when a disk carrying it appears (nextbsd-kernel#364).
 - `tools/fetch-kernel-sdk.sh`, `tools/stamp-kernel-abi.py`: build against the published kernel
   SDK and record its kext ABI version (`NBSDKernelABIVersion`) and `KERNEL-BUILD-ID` in each kext.
 - `tools/gen-system-kext.py`: writes `System.kext`.
