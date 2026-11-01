@@ -38,6 +38,9 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
 - **Network drivers are kexts** (E21 D11): the modern PCI NICs moved out of the kernel, the
   net80211 stack is the `Wlan` family kext, and `RealtekRE` is Realtek's own driver, vendored
   (E21 D14, see `RealtekRE/VENDOR.md`). `if_vtnet` and the arm64 board NICs stay in the kernel.
+  `Wlan` carries NextBSD's net80211 changes in `Wlan/src/` (patches applied to a copy at build
+  time): each radio is published in the IORegistry as an `IO80211Controller` entry, which
+  wland matches (nextbsd-userland#502).
 - **Every kext has something that loads it** (E21 kext loaders review, 2026-10-28). The kernel
   doesn't load modules by name, so a kext ships only if IOKit matching, another kext's
   `OSBundleLibraries`, or a planned userland loader brings it in: AutoFS through automount, the
