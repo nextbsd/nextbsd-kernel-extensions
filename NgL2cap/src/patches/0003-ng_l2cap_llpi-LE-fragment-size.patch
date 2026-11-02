@@ -1,0 +1,73 @@
+ng_l2cap: split LE frames to fit the LE buffer pool
+
+ng_l2cap_lp_send() splits every L2CAP frame at l2cap->pkt_size, the
+BR/EDR ACL packet size from Read_Buffer_Size. A controller with its own
+LE pool (LE_Read_Buffer_Size) may take shorter LE packets than that, so
+a long ATT write could be sent in fragments the LE pool cannot hold.
+
+Split LE frames at 27 bytes, the smallest LE ACL packet a controller
+may report, which fits any controller with or without a separate LE
+pool. BR/EDR frames are split as before. HID traffic is far below this
+size; the cost is more fragments for long LE writes only.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c
+
+--- a/sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c
++++ b/sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c
+@@ -51,6 +51,9 @@
+ #include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
+ #include <netgraph/bluetooth/l2cap/ng_l2cap_misc.h>
+ 
++/* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
++#include "ng_l2cap_le.h"
++
+ /******************************************************************************
+  ******************************************************************************
+  **                 Lower Layer Protocol (HCI) Interface module
+@@ -547,6 +550,7 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
+         ng_hci_acldata_pkt_t	*acl_hdr = NULL;
+         struct mbuf		*m_last = NULL, *m = NULL;
+         int			 len, flag = (con->linktype == NG_HCI_LINK_ACL) ? NG_HCI_PACKET_START : NG_HCI_LE_PACKET_START;
++	int			 mtu;
+ 
+ 	KASSERT((con->tx_pkt == NULL),
+ ("%s: %s - another packet pending?!\n", __func__, NG_NODE_NAME(l2cap->node)));
+@@ -568,6 +572,16 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
+ 	l2cap_hdr->length = htole16(m0->m_pkthdr.len - sizeof(*l2cap_hdr));
+ 	l2cap_hdr->dcid = htole16(dcid);
+ 
++	/*
++	 * NextBSD: l2cap->pkt_size is the BR/EDR ACL size from
++	 * Read_Buffer_Size. A controller's LE pool may take shorter packets,
++	 * so split LE frames at the smallest LE size the spec allows
++	 * (nextbsd/nextbsd-kernel#234).
++	 */
++	mtu = l2cap->pkt_size;
++	if (con->linktype != NG_HCI_LINK_ACL && mtu > NG_L2CAP_LE_ACL_MIN_SIZE)
++		mtu = NG_L2CAP_LE_ACL_MIN_SIZE;
++
+ 	/*
+ 	 * Segment single L2CAP packet according to the HCI layer MTU. Convert 
+ 	 * each segment into ACL data packet and prepend it with ACL data packet
+@@ -579,16 +593,16 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
+ 	while (m0 != NULL) {
+ 		/* Check length of the packet against HCI MTU */
+ 		len = m0->m_pkthdr.len;
+-		if (len > l2cap->pkt_size) {
+-			m = m_split(m0, l2cap->pkt_size, M_NOWAIT);
++		if (len > mtu) {
++			m = m_split(m0, mtu, M_NOWAIT);
+ 			if (m == NULL) {
+ 				NG_L2CAP_ALERT(
+ "%s: %s - m_split(%d) failed\n",	__func__, NG_NODE_NAME(l2cap->node),
+-					l2cap->pkt_size);
++					mtu);
+ 				goto fail;
+ 			}
+ 
+-			len = l2cap->pkt_size;
++			len = mtu;
+ 		}
+ 
+ 		/* Convert packet fragment into ACL data packet */

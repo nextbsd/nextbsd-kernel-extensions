@@ -1,0 +1,79 @@
+ng_hci: charge LE links to the controller's LE buffer pool
+
+A controller with a separate LE data pool reports it in
+LE_Read_Buffer_Size. releng/15.1 ignored that, charged LE links to the
+BR/EDR pool from Read_Buffer_Size, and so could send more LE packets
+than a smaller LE pool holds, after which Number_Of_Completed_Packets
+accounting drifted.
+
+When the controller reported an LE pool (ng_hci_le.c, fed by
+0004-ng_hci_cmds-LE-Read-Buffer-Size.patch), send_data_packets() sorts
+connections into SCO, ACL or LE with ng_hci_le_buffer_class(),
+ng_hci_send_data() sends LE links from the LE pool's free count, and
+Number_Of_Completed_Packets credits LE handles back to it. Without an LE
+pool every LE link stays in the ACL class, as before and as the spec
+says for a controller that reports zero LE buffers.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_evnt.c, after
+0002-ng_hci_evnt-LE-meta-event-handlers.patch
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+@@ -235,6 +235,23 @@ ng_hci_send_data(ng_hci_unit_p unit)
+ 		NG_HCI_BUFF_ACL_USE(unit->buffer, count);
+ 	}
+ 
++	/*
++	 * NextBSD: send LE data from the controller's own LE pool, if it
++	 * reported one (nextbsd/nextbsd-kernel#234). Without one, LE links
++	 * were sent with the ACL data above.
++	 */
++	count = ng_hci_le_buffer_avail(unit);
++
++	NG_HCI_INFO(
++"%s: %s - sending LE data packets, count=%d\n",
++		__func__, NG_NODE_NAME(unit->node), count);
++
++	if (count > 0) {
++		count = send_data_packets(unit, NG_HCI_BUFF_CLASS_LE, count);
++		NG_HCI_STAT_ACL_SENT(unit->stat, count);
++		ng_hci_le_buffer_use(unit, count);
++	}
++
+ 	/* Send SCO data */
+ 	NG_HCI_BUFF_SCO_AVAIL(unit->buffer, count);
+ 
+@@ -271,8 +288,9 @@ send_data_packets(ng_hci_unit_p unit, int link_type, int limit)
+ 		 */
+ 
+ 		LIST_FOREACH(con, &unit->con_list, next) {
+-			reallink_type = (con->link_type == NG_HCI_LINK_SCO)?
+-				NG_HCI_LINK_SCO: NG_HCI_LINK_ACL;
++			/* NextBSD: SCO, ACL or the LE pool (#234) */
++			reallink_type = ng_hci_le_buffer_class(unit,
++				con->link_type);
+ 			if (reallink_type != link_type){
+ 				continue;
+ 			}
+@@ -1218,10 +1236,17 @@ num_compl_pkts(ng_hci_unit_p unit, struct mbuf *event)
+ 			}
+ 
+ 			/* Update buffer descriptor */
+-			if (con->link_type != NG_HCI_LINK_SCO)
+-				NG_HCI_BUFF_ACL_FREE(unit->buffer, p);
+-			else 
++			switch (ng_hci_le_buffer_class(unit, con->link_type)) {
++			case NG_HCI_LINK_SCO:
+ 				NG_HCI_BUFF_SCO_FREE(unit->buffer, p);
++				break;
++			case NG_HCI_BUFF_CLASS_LE:	/* NextBSD (#234) */
++				ng_hci_le_buffer_free(unit, p);
++				break;
++			default:
++				NG_HCI_BUFF_ACL_FREE(unit->buffer, p);
++				break;
++			}
+ 		} else
+ 			NG_HCI_ALERT(
+ "%s: %s - invalid connection handle=%d\n",

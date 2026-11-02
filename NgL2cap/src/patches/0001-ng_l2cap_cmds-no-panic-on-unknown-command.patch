@@ -1,0 +1,67 @@
+ng_l2cap: drop an unknown command instead of panicking
+
+ng_l2cap_con_wakeup() panicked on a queued command it has no case for,
+including NG_L2CAP_CMD_PARAM_UPDATE_REQUEST, whose case was /*TBD.*/;
+ng_l2cap_con_fail() and ng_l2cap_process_command_timeout() panicked the
+same way. A malformed or unexpected LE signalling exchange should cost
+a command, not the machine.
+
+Log the command code at the error level, free the command (and its
+packet, in con_wakeup) and carry on; con_wakeup goes on to the next
+command in the queue. Nothing queues PARAM_UPDATE_REQUEST: the host is
+the LE central, which answers that request but never sends it.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/l2cap/ng_l2cap_cmds.c
+
+--- a/sys/netgraph/bluetooth/l2cap/ng_l2cap_cmds.c
++++ b/sys/netgraph/bluetooth/l2cap/ng_l2cap_cmds.c
+@@ -224,11 +224,23 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
+ 	case NG_L2CAP_CMD_PARAM_UPDATE_REQUEST:
+ 		  /*TBD.*/
+ 	/* XXX FIXME add other commands */
+-	default:
+-		panic(
+-"%s: %s - unknown command code=%d\n",
+-			__func__, NG_NODE_NAME(con->l2cap->node), cmd->code);
+-		break;
++	default: {
++		/*
++		 * NextBSD: drop the command instead of panicking, and go on
++		 * with the rest of the queue (nextbsd/nextbsd-kernel#234).
++		 * Nothing queues PARAM_UPDATE_REQUEST: the host is the LE
++		 * central, which answers it but never sends it.
++		 */
++		ng_l2cap_p	l2cap = con->l2cap;
++
++		NG_L2CAP_ERR(
++"%s: %s - unknown command code=%d, dropped\n",
++			__func__, NG_NODE_NAME(l2cap->node), cmd->code);
++		NG_FREE_M(m);
++		ng_l2cap_unlink_cmd(cmd);
++		ng_l2cap_free_cmd(cmd);
++		ng_l2cap_con_wakeup(con);
++		} break;
+ 	}
+ } /* ng_l2cap_con_wakeup */
+ 
+@@ -306,7 +318,8 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
+ 		/* XXX FIXME add other commands */
+ 
+ 		default:
+-			panic(
++			/* NextBSD: no panic, the command is freed below (#234) */
++			NG_L2CAP_ERR(
+ "%s: %s - unexpected command code=%d\n",
+ 				__func__, NG_NODE_NAME(l2cap->node), cmd->code);
+ 			break;
+@@ -401,7 +414,8 @@ ng_l2cap_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ 	/* XXX FIXME add other commands */
+ 
+ 	default:
+-		panic(
++		/* NextBSD: no panic, the command is freed below (#234) */
++		NG_L2CAP_ERR(
+ "%s: %s - unexpected command code=%d\n",
+ 			__func__, NG_NODE_NAME(l2cap->node), cmd->code);
+ 		break;

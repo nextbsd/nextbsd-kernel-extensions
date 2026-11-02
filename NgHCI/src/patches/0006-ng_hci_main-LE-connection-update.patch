@@ -1,0 +1,49 @@
+ng_hci: LE connection-parameter requests from ng_l2cap; free the LE pool
+
+ng_l2cap accepts an L2CAP Connection Parameter Update Request but had
+no way to make the controller apply it: there is no LP message for it
+and the LE_Connection_Update case in ng_l2cap was /*TBD.*/. Take
+NGM_HCI_LP_LE_CON_UPDATE_REQ (ng_hci_le_lp.h, this directory's src/,
+shared with NgL2cap) on the upstream hooks and send LE_Connection_Update
+from ng_hci_le.c.
+
+ng_hci_shutdown() also drops the unit's LE pool descriptor
+(0003-ng_hci_evnt-LE-buffer-pool.patch), after ng_hci_unit_clean().
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_main.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_main.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_main.c
+@@ -51,6 +51,10 @@
+ #include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
+ #include <netgraph/bluetooth/hci/ng_hci_misc.h>
+ 
++/* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
++#include "ng_hci_le_lp.h"
++#include "ng_hci_le.h"
++
+ /******************************************************************************
+  ******************************************************************************
+  **     This node implements Bluetooth Host Controller Interface (HCI)
+@@ -179,6 +183,7 @@ ng_hci_shutdown(node_p node)
+ 
+ 	unit->node = NULL;
+ 	ng_hci_unit_clean(unit, 0x16 /* Connection terminated by local host */);
++	ng_hci_le_buffer_destroy(unit);	/* NextBSD (#234) */
+ 
+ 	NG_BT_MBUFQ_DESTROY(&unit->cmdq);
+ 
+@@ -683,6 +688,12 @@ ng_hci_upper_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ 			error = ng_hci_lp_qos_req(unit, item, lasthook);
+ 			break;
+ 
++		/* NextBSD: from ng_l2cap, LE connection parameters (#234) */
++		case NGM_HCI_LP_LE_CON_UPDATE_REQ:
++			error = ng_hci_le_lp_con_update_req(unit, item,
++					lasthook);
++			break;
++
+ 		default:
+ 			error = ng_hci_default_rcvmsg(node, item, lasthook);
+ 			break;

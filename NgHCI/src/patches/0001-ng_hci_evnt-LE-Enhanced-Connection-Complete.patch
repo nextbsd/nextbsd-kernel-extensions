@@ -1,0 +1,173 @@
+ng_hci: register LE connections from LE Enhanced Connection Complete
+
+A controller that supports LL privacy reports an LE connection with the
+LE Enhanced Connection Complete event (subevent 0x0a) instead of LE
+Connection Complete (0x01) once 0x0a is unmasked. releng/15.1 defines
+the event but drops it in le_event(), so the connection never reached
+the connection list and ng_l2cap never heard of it.
+
+Split le_connection_complete() into a common le_con_compl() and handle
+both subevents with it. For 0x0a the peer address type's bit 0 picks
+NG_HCI_LINK_LE_PUBLIC or NG_HCI_LINK_LE_RANDOM: types 0x02 and 0x03 are
+the public and static random identity addresses the controller resolved
+from an RPA, and peer_addr is then that identity address. The local and
+peer RPAs are logged at the info level only; the raw hook sees the whole
+event.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+@@ -468,22 +468,21 @@ le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
+ 	return (error);
+ } /* inquiry_result */
+ 
+-static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
++/*
++ * NextBSD: LE Connection Complete (0x01) and LE Enhanced Connection Complete
++ * (0x0a) register a connection the same way (nextbsd/nextbsd-kernel#234).
++ * A controller with LL privacy reports LE connections with 0x0a once it is
++ * unmasked, and that event used to be dropped, so the connection never
++ * registered.
++ */
++static int le_con_compl(ng_hci_unit_p unit, u_int8_t status,
++    u_int16_t handle, int link_type, bdaddr_p address)
+ {
+ 	int			 error = 0;
+ 
+-	ng_hci_le_connection_complete_ep	*ep = NULL;
+ 	ng_hci_unit_con_p	 con = NULL;
+-	int link_type;
+ 	uint8_t uclass[3] = {0,0,0};//dummy uclass
+ 
+-	NG_HCI_M_PULLUP(event, sizeof(*ep));
+-	if (event == NULL)
+-		return (ENOBUFS);
+-
+-	ep = mtod(event, ng_hci_le_connection_complete_ep *);
+-	link_type = (ep->address_type)? NG_HCI_LINK_LE_RANDOM :
+-	  NG_HCI_LINK_LE_PUBLIC;
+ 	/*
+ 	 * Find the first connection descriptor that matches the following:
+ 	 *
+@@ -494,7 +493,7 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 	LIST_FOREACH(con, &unit->con_list, next)
+ 		if (con->link_type == link_type &&
+ 		    con->state == NG_HCI_CON_W4_CONN_COMPLETE &&
+-		    bcmp(&con->bdaddr, &ep->address, sizeof(bdaddr_t)) == 0)
++		    bcmp(&con->bdaddr, address, sizeof(bdaddr_t)) == 0)
+ 			break;
+ 
+ 	/*
+@@ -515,7 +514,7 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 	 */
+ 
+ 	if (con == NULL) {
+-		if (ep->status != 0)
++		if (status != 0)
+ 			goto out;
+ 
+ 		con = ng_hci_new_con(unit, link_type);
+@@ -527,7 +526,7 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 		con->state = NG_HCI_CON_W4_LP_CON_RSP;
+ 		ng_hci_con_timeout(con);
+ 
+-		bcopy(&ep->address, &con->bdaddr, sizeof(con->bdaddr));
++		bcopy(address, &con->bdaddr, sizeof(con->bdaddr));
+ 		error = ng_hci_lp_con_ind(con, uclass);
+ 		if (error != 0) {
+ 			ng_hci_con_untimeout(con);
+@@ -543,13 +542,13 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 	 * to the upper layers.
+ 	 */
+ 
+-	con->con_handle = NG_HCI_CON_HANDLE(le16toh(ep->handle));
++	con->con_handle = NG_HCI_CON_HANDLE(handle);
+ 	con->encryption_mode = NG_HCI_ENCRYPTION_MODE_NONE;
+ 
+-	ng_hci_lp_con_cfm(con, ep->status);
++	ng_hci_lp_con_cfm(con, status);
+ 
+ 	/* Adjust connection state */
+-	if (ep->status != 0)
++	if (status != 0)
+ 		ng_hci_free_con(con);
+ 	else {
+ 		con->state = NG_HCI_CON_OPEN;
+@@ -562,10 +561,65 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 	}
+ 
+ out:
++	return (error);
++
++}
++
++/* LE Connection Complete event */
++static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
++{
++	ng_hci_le_connection_complete_ep	*ep = NULL;
++	int					 error;
++
++	NG_HCI_M_PULLUP(event, sizeof(*ep));
++	if (event == NULL)
++		return (ENOBUFS);
++
++	ep = mtod(event, ng_hci_le_connection_complete_ep *);
++	error = le_con_compl(unit, ep->status, le16toh(ep->handle),
++	    (ep->address_type)? NG_HCI_LINK_LE_RANDOM : NG_HCI_LINK_LE_PUBLIC,
++	    &ep->address);
++
+ 	NG_FREE_M(event);
+ 
+ 	return (error);
++}
+ 
++/*
++ * LE Enhanced Connection Complete event. Peer address types 0x02 and 0x03
++ * are a public and a static random identity address the controller resolved
++ * from the peer's RPA; peer_addr is then that identity address, the one an
++ * LP_ConnectReq names, so only bit 0 picks the link type. The local and peer
++ * RPAs are only logged: the raw hook sees the whole event.
++ */
++static int le_enh_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
++{
++	ng_hci_le_enh_conn_compl_ep	*ep = NULL;
++	int				 error;
++
++	NG_HCI_M_PULLUP(event, sizeof(*ep));
++	if (event == NULL)
++		return (ENOBUFS);
++
++	ep = mtod(event, ng_hci_le_enh_conn_compl_ep *);
++
++	NG_HCI_INFO(
++"%s: %s - LE enhanced connection complete, status=%#x, handle=%d, " \
++"peer_addr_type=%d, peer_addr=%6D, local_rpa=%6D, peer_rpa=%6D\n",
++		__func__, NG_NODE_NAME(unit->node), ep->status,
++		NG_HCI_CON_HANDLE(le16toh(ep->connection_handle)),
++		ep->peer_addr_type, ep->peer_addr.b, ":",
++		ep->local_res_private_addr.b, ":",
++		ep->peer_res_private_addr.b, ":");
++
++	error = le_con_compl(unit, ep->status,
++	    le16toh(ep->connection_handle),
++	    (ep->peer_addr_type & 0x01)? NG_HCI_LINK_LE_RANDOM :
++	    NG_HCI_LINK_LE_PUBLIC, &ep->peer_addr);
++
++	NG_FREE_M(event);
++
++	return (error);
+ }
+ 
+ static int le_connection_update(ng_hci_unit_p unit, struct mbuf *event)
+@@ -593,6 +647,9 @@ le_event(ng_hci_unit_p unit, struct mbuf *event)
+ 	case NG_HCI_LEEV_CON_COMPL:
+ 		le_connection_complete(unit, event);
+ 		break;
++	case NG_HCI_LEEV_ENH_CONN_COMPL:
++		le_enh_connection_complete(unit, event);
++		break;
+ 	case NG_HCI_LEEV_ADVREP:
+ 		le_advertizing_report(unit, event);
+ 		break;

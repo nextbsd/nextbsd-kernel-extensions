@@ -1,0 +1,75 @@
+ng_hci: handle the LE meta events releng/15.1 leaves as stubs
+
+LE Connection Update Complete (0x03) was a /*TBD*/ stub and LE Read
+Remote Features Complete (0x04) fell through to the default. LE Remote
+Connection Parameter Request (0x06) was not handled at all, and a
+request nobody answers ends in a link-layer response timeout that drops
+the connection.
+
+Hand all three to NextBSD's ng_hci_le.c (this directory's src/):
+0x03 logs the new parameters or the failure; 0x04 records the peer's LE
+features in the neighbor cache under its LE address type, as
+Read_Remote_Supported_Features does for BR/EDR; 0x06 replies with
+LE_Remote_Connection_Parameter_Request_Reply carrying the peripheral's
+own values when they are within the Core spec's limits, or with the
+negative reply and Unacceptable Connection Parameters (0x3b) when not.
+
+LE Long Term Key Request (0x05) stays with bluetoothd, which holds the
+keys and answers on the raw hook (nextbsd/nextbsd-userland#205).
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_evnt.c, after
+0001-ng_hci_evnt-LE-Enhanced-Connection-Complete.patch
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+@@ -49,6 +49,9 @@
+ #include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
+ #include <netgraph/bluetooth/hci/ng_hci_misc.h>
+ 
++/* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
++#include "ng_hci_le.h"
++
+ /******************************************************************************
+  ******************************************************************************
+  **                     HCI event processing module
+@@ -622,15 +625,6 @@ static int le_enh_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+ 	return (error);
+ }
+ 
+-static int le_connection_update(ng_hci_unit_p unit, struct mbuf *event)
+-{
+-	int error = 0;
+-	/*TBD*/
+-
+-	NG_FREE_M(event);
+-	return error;
+-
+-}
+ static int
+ le_event(ng_hci_unit_p unit, struct mbuf *event)
+ {
+@@ -654,13 +648,19 @@ le_event(ng_hci_unit_p unit, struct mbuf *event)
+ 		le_advertizing_report(unit, event);
+ 		break;
+ 	case NG_HCI_LEEV_CON_UPDATE_COMPL:
+-		le_connection_update(unit, event);
++		ng_hci_le_con_update_compl(unit, event);
+ 		break;
+ 	case NG_HCI_LEEV_READ_REMOTE_FEATURES_COMPL:
+-		//TBD
+-	  /*FALLTHROUGH*/
++		ng_hci_le_read_remote_features_compl(unit, event);
++		break;
++	case NG_HCI_LEEV_REMOTE_CONN_PARAM_REQUEST:
++		ng_hci_le_remote_conn_param_req(unit, event);
++		break;
+ 	case NG_HCI_LEEV_LONG_TERM_KEY_REQUEST:
+-		//TBD
++		/*
++		 * NextBSD: left to bluetoothd, which holds the LE keys and
++		 * answers on the raw hook (nextbsd/nextbsd-userland#205).
++		 */
+ 	  /*FALLTHROUGH*/
+ 	default:
+ 	  	NG_FREE_M(event);
