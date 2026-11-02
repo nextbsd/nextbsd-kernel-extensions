@@ -27,9 +27,17 @@
 #                       loaded before root is mounted (Root, Local-Root, ...).
 #                       Empty for every kext today; a ZFS-root kext would set
 #                       Root, for the loader to preload it (#4)
-#   KEXT_FIRMWARE       optional: "<linux-firmware directory> [<licence file>]",
-#                       bundled flat into Contents/Resources/firmware, from
-#                       linux-firmware at $LINUX_FIRMWARE_TAG
+#   KEXT_FIRMWARE       optional: firmware bundled into Contents/Resources/
+#                       firmware, from linux-firmware at $LINUX_FIRMWARE_TAG.
+#                       A list of "[<subdir>=]<path>" entries: <path> is a
+#                       directory, whose contents are copied in flat, or a
+#                       file or a file glob (intel/ibt-*), whose matches are
+#                       copied in; <subdir>, when given, puts them in
+#                       firmware/<subdir>/. linux-firmware's WHENCE Link:
+#                       names that fall under <path> are copied in too, as
+#                       files, since its copy-firmware.sh creates them only at
+#                       install. E.g. "intel/iwlwifi LICENCE.iwlwifi_firmware",
+#                       or "intel=intel/ibt-* intel=LICENCE.ibt_firmware"
 #
 # Personalities and OSBundleLibraries otherwise come from the module itself:
 # `inputs` records each .ko's metadata with kldxref, and `wrap` turns it into
@@ -152,14 +160,16 @@ wrap)
 	kabi=$(cat "$in/KERNEL-ABI-VERSION") || die "no $in/KERNEL-ABI-VERSION"
 	[ -n "$kabi" ] || die "$in/KERNEL-ABI-VERSION is empty"
 	mkdir -p "$out"
-	# One sparse linux-firmware checkout for every kext that bundles firmware.
-	fw_paths=$(for d in $dirs; do ( load "$d"; [ -z "$KEXT_FIRMWARE" ] || echo "$KEXT_FIRMWARE" ); done | tr '\n' ' ')
+	# One sparse linux-firmware checkout for every kext that bundles firmware:
+	# each entry's path, anchored at the top (a glob stays a glob), and WHENCE.
+	fw_paths=$(for d in $dirs; do ( load "$d"; set -f
+		for e in $KEXT_FIRMWARE; do echo "/${e#*=}"; done ); done | sort -u | tr '\n' ' ')
 	lf=$(mktemp -d)
 	if [ -n "$(echo $fw_paths)" ]; then
 		: "${LINUX_FIRMWARE_TAG:?LINUX_FIRMWARE_TAG is not set}"
 		git clone -q --depth 1 --branch "$LINUX_FIRMWARE_TAG" --filter=blob:none --sparse \
 			https://gitlab.com/kernel-firmware/linux-firmware.git "$lf/lf"
-		( cd "$lf/lf" && git sparse-checkout set --no-cone $fw_paths )
+		( cd "$lf/lf" && set -f && git sparse-checkout set --no-cone $fw_paths /WHENCE )
 	fi
 	nomatch=$(mktemp); nodep=$(mktemp)
 	[ -s "$in/kernel.modules" ] || die "no $in/kernel.modules (the kernel SDK's, nextbsd-kernel#362)"
@@ -187,13 +197,40 @@ wrap)
 			echo "$KEXT_NAME ($KEXT_KO)" >> "$nomatch"
 		fi
 		if [ -n "$KEXT_FIRMWARE" ]; then
-			fwdir=${KEXT_FIRMWARE%% *}
-			lic=; [ "$fwdir" = "$KEXT_FIRMWARE" ] || lic=${KEXT_FIRMWARE#* }
-			[ -d "$lf/lf/$fwdir" ] || die "$KEXT_NAME: linux-firmware $LINUX_FIRMWARE_TAG has no $fwdir"
-			# A private copy, so the licence can go in beside the blobs.
+			# A private tree, laid out as Resources/firmware will be.
 			fw="$lf/fw-$KEXT_NAME"
-			cp -RL "$lf/lf/$fwdir" "$fw"
-			[ -z "$lic" ] || cp -L "$lf/lf/$lic" "$fw/"
+			mkdir -p "$fw"
+			set -f
+			for e in $KEXT_FIRMWARE; do
+				sub=; path=$e
+				case "$e" in *=*) sub=${e%%=*}; path=${e#*=} ;; esac
+				dst="$fw${sub:+/$sub}"
+				mkdir -p "$dst"
+				set +f
+				n=0
+				for m in "$lf/lf/"$path; do
+					[ -e "$m" ] || continue
+					if [ -d "$m" ]; then
+						cp -RL "$m"/. "$dst/"
+					else
+						cp -L "$m" "$dst/"
+					fi
+					n=$((n + 1))
+				done
+				set -f
+				[ "$n" -gt 0 ] || die "$KEXT_NAME: linux-firmware $LINUX_FIRMWARE_TAG has no $path"
+				# WHENCE's Link: names under <path>, each a copy of its target.
+				[ -d "$lf/lf/$path" ] && pat="$path/*" || pat=$path
+				sed -n 's/^Link: \([^ ]*\) -> \([^ ]*\)$/\1 \2/p' "$lf/lf/WHENCE" |
+				while read -r link target; do
+					case "$link" in $pat) ;; *) continue ;; esac
+					t="$lf/lf/$(dirname "$link")/$target"
+					[ -f "$t" ] || die "$KEXT_NAME: WHENCE links $link to $target, which is not in $path"
+					cp -L "$t" "$dst/$(basename "$link")"
+				done
+			done
+			set +f
+			echo "$KEXT_NAME: firmware $(du -sk "$fw" | cut -f1) KB" >&2
 			set -- "$@" -f "$fw"
 		fi
 		[ -z "$KEXT_REQUIRED" ] || set -- "$@" -r "$KEXT_REQUIRED"
