@@ -1,0 +1,42 @@
+ng_hci: answer SCO and eSCO requests with the synchronous commands
+
+Accept_Connection_Request must not answer an eSCO request, and gives a
+SCO request only the controller's voice setting. Answer every
+synchronous Connection_Request with Accept_Synchronous_Connection_Request
+(CVSD from 16-bit linear PCM, 64 kbit/s, any latency, every packet
+type) or Reject_Synchronous_Connection_Request, from ng_hci_sync.c (this
+directory's src/). Every controller since Bluetooth 1.2 takes these.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
+@@ -49,6 +49,10 @@
+ #include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
+ #include <netgraph/bluetooth/hci/ng_hci_misc.h>
+ 
++/* NextBSD: synchronous connections (nextbsd/nextbsd-kernel#237) */
++#include "ng_hci_sync_lp.h"
++#include "ng_hci_sync.h"
++
+ /******************************************************************************
+  ******************************************************************************
+  **                 Upper Layer Protocol Interface module
+@@ -995,6 +999,16 @@ ng_hci_lp_con_rsp(ng_hci_unit_p unit, item_p item, hoo
+ 
+ 	switch (con->state) {
+ 	case NG_HCI_CON_W4_LP_CON_RSP:
++		/*
++		 * NextBSD: a SCO or eSCO request is answered with
++		 * Accept_ or Reject_Synchronous_Connection_Request, and the
++		 * CVSD defaults (nextbsd/nextbsd-kernel#237).
++		 */
++		if (con->link_type == NG_HCI_LINK_SCO) {
++			error = ng_hci_sync_con_answer(unit, con, ep->status,
++					NULL, hook);
++			break;
++		}
+ 
+ 		/* 
+ 		 * Create HCI command 

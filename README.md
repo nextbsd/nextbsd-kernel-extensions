@@ -51,6 +51,13 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
   (nextbsd/nextbsd-kernel#234): LE Enhanced Connection Complete, a separate LE buffer pool,
   connection-parameter updates applied through `LE_Connection_Update`, and errors in place of
   panics on the LE path.
+  For headset audio (HFP, nextbsd/nextbsd-kernel#237), `NgHCI` sets up SCO and eSCO links with
+  `Setup_Synchronous_Connection` and `Accept_Synchronous_Connection_Request` (CVSD or the
+  transparent air mode mSBC needs) and sends SCO data without SCO flow control; `NgBtsocket`
+  (now built from its own Makefile) carries the parameters on SCO sockets as
+  `SO_SCO_SYNC_PARAMS` and `SO_SCO_SYNC_INFO` (`NgBtsocket/src/ng_btsocket_sco_sync.h`, the
+  header `bluetoothd` includes); and `NgUbt` moves the controller's isochronous interface to the
+  alternate setting its voice links need (`NgUbt/src/ng_ubt_sco.h`).
 - **`IOHIDUserDevice` is NextBSD's own code** (`IOHIDUserDevice/src/`, #25): `vhid`, a hidbus
   transport whose devices a root daemon creates through `/dev/hidresource`, modelled on Darwin's
   `IOHIDUserDevice`. `bluetoothd` makes each Bluetooth keyboard, mouse and trackpad one, and

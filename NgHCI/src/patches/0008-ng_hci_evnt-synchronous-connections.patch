@@ -1,0 +1,94 @@
+ng_hci: synchronous connection events; eSCO requests; SCO data without flow control
+
+HFP needs eSCO links, and its wide-band speech needs the transparent air
+mode, but ng_hci dropped Synchronous_Connection_Complete (0x2c) and
+Synchronous_Connection_Changed (0x2d) as unknown events, read an eSCO
+Connection_Request (link type 2) as LE Public, and charged every SCO
+packet to the controller's SCO pool, which nothing ever returned:
+controllers report Number_Of_Completed_Packets for SCO only when the host
+enables SCO flow control. SCO transmission stopped after sco_pkts packets.
+
+- Hand events 0x2c and 0x2d to ng_hci_sync.c (this directory's src/).
+- Treat an eSCO Connection_Request as a SCO-class link, so it reaches the
+  sco hook as an LP_ConnectInd and is answered with the synchronous
+  commands.
+- Send queued SCO packets without charging the SCO pool; the transport
+  paces them, as on other stacks.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+@@ -52,6 +52,10 @@
+ /* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
+ #include "ng_hci_le.h"
+ 
++/* NextBSD: synchronous connections (nextbsd/nextbsd-kernel#237) */
++#include "ng_hci_sync_lp.h"
++#include "ng_hci_sync.h"
++
+ /******************************************************************************
+  ******************************************************************************
+  **                     HCI event processing module
+@@ -130,6 +134,15 @@ ng_hci_process_event(ng_hci_unit_p unit, struct mbuf *
+ 		break;
+ 	case NG_HCI_EVENT_LE:
+ 		error = le_event(unit, event);
++		break;
++
++	/* NextBSD: SCO and eSCO links (#237) */
++	case NG_HCI_EVENT_SYNC_CON_COMPL:
++		error = ng_hci_sync_con_compl(unit, event);
++		break;
++
++	case NG_HCI_EVENT_SYNC_CON_CHANGED:
++		error = ng_hci_sync_con_changed(unit, event);
+ 		break;
+ 
+ 	case NG_HCI_EVENT_INQUIRY_RESULT:
+@@ -252,17 +265,23 @@ ng_hci_send_data(ng_hci_unit_p unit)
+ 		ng_hci_le_buffer_use(unit, count);
+ 	}
+ 
+-	/* Send SCO data */
+-	NG_HCI_BUFF_SCO_AVAIL(unit->buffer, count);
++	/*
++	 * Send SCO data. NextBSD: without SCO flow control, which nothing
++	 * enables, the controller never reports SCO packets completed, so
++	 * charging them to the SCO pool stopped SCO after sco_pkts packets.
++	 * Hand them to the driver as they come; the transport paces them
++	 * (nextbsd/nextbsd-kernel#237).
++	 */
++	count = send_data_packets(unit, NG_HCI_LINK_SCO,
++			NG_HCI_SYNC_SEND_LIMIT);
+ 
+ 	NG_HCI_INFO(
+-"%s: %s - sending SCO data packets, count=%d\n",
++"%s: %s - sent SCO data packets, count=%d\n",
+ 		__func__, NG_NODE_NAME(unit->node), count);
+ 
+ 	if (count > 0) {
+-		count = send_data_packets(unit, NG_HCI_LINK_SCO, count);
+ 		NG_HCI_STAT_SCO_SENT(unit->stat, count);
+-		NG_HCI_BUFF_SCO_USE(unit->buffer, count);
++		ng_hci_sync_sco_sent(unit);
+ 	}
+ } /* ng_hci_send_data */
+ 
+@@ -888,6 +907,15 @@ con_req(ng_hci_unit_p unit, struct mbuf *event)
+ 	ep = mtod(event, ng_hci_con_req_ep *);
+ 
+ 	/*
++	 * NextBSD: an eSCO request (link type 2, which ng_hci would read as
++	 * NG_HCI_LINK_LE_PUBLIC) is a synchronous link like SCO; it goes to the
++	 * sco hook and is answered with the synchronous commands
++	 * (nextbsd/nextbsd-kernel#237).
++	 */
++	if (ep->link_type == NG_HCI_SYNC_LINK_ESCO)
++		ep->link_type = NG_HCI_LINK_SCO;
++
++	/*
+ 	 * Find the first connection descriptor that matches the following:
+ 	 *
+ 	 * 1) con->link_type == ep->link_type

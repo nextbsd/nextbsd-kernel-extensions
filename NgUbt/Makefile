@@ -7,7 +7,9 @@
 # src/patches/*.patch in order; the source tree is not touched. The patches
 # call into NextBSD's own files in src/ (nextbsd-kernel-extensions#27: each
 # controller is published in the IORegistry as an IOBluetoothHostController
-# entry).
+# entry; nextbsd/nextbsd-kernel#237: the isochronous alternate setting
+# follows the controller's voice links, and each SCO packet starts its own
+# isochronous frame).
 SRCTOP?=	/usr/src
 .PATH: ${SRCTOP}/sys/netgraph/bluetooth/drivers/ubt ${.CURDIR}/src
 
@@ -21,6 +23,8 @@ SRCS=		ng_ubt_nextbsd.c ng_ubt_intel.c ng_ubt_rtl.c opt_bus.h opt_usb.h \
 		device_if.h bus_if.h usb_if.h usbdevs.h
 # NextBSD: the IOBluetoothHostController registry entries
 SRCS+=		ng_ubt_ioreg.c
+# NextBSD: the isochronous (SCO) alternate setting by voice link
+SRCS+=		ng_ubt_sco.c
 
 # ng_ubt.c with src/patches applied. patch(1) is given the file to patch,
 # so the paths in the patches are only documentation; a patch that no longer

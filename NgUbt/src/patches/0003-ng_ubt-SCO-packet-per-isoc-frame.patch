@@ -1,0 +1,126 @@
+ng_ubt: start each outgoing SCO packet in a fresh isochronous frame
+
+The isochronous write callback packed SCO packets back to back across
+frames and split the last one over two transfers, so a packet whose
+length did not fill its last frame left the next one starting
+mid-frame. Controllers expect each SCO packet to start a frame, as the
+Bluetooth USB transport lays them out and other stacks send them. Give
+every packet its own run of frames, and carry a packet that does not
+fit into the next transfer whole.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
+
+--- a/sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
++++ b/sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
+@@ -1520,6 +1520,7 @@ ubt_isoc_write_callback(struct usb_xfer *xfer, usb_err
+ 	struct mbuf		*m;
+ 	int			n, space, offset;
+ 	int			actlen, nframes;
++	int			framelen, len;	/* NextBSD (#237) */
+ 
+ 	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
+ 	pc = usbd_xfer_get_frame(xfer, 0);
+@@ -1533,53 +1534,67 @@ send_next:
+ 
+ 	case USB_ST_SETUP:
+ send_next:
++		/*
++		 * NextBSD: start every SCO packet in a fresh isochronous
++		 * frame, and never split one across two transfers, as the
++		 * Bluetooth USB transport expects and other stacks do; the
++		 * packets were packed back to back, so a packet whose size
++		 * did not fill its last frame left the next one starting
++		 * mid-frame (nextbsd/nextbsd-kernel#237).
++		 */
+ 		offset = 0;
+-		space = usbd_xfer_max_framelen(xfer) * nframes;
+-		m = NULL;
++		framelen = usbd_xfer_max_framelen(xfer);
++		n = 0;
+ 
+-		while (space > 0) {
+-			if (m == NULL) {
+-				UBT_NG_LOCK(sc);
+-				NG_BT_MBUFQ_DEQUEUE(&sc->sc_scoq, m);
+-				UBT_NG_UNLOCK(sc);
+-
+-				if (m == NULL)
+-					break;
+-			}
++		while (n < nframes) {
++			UBT_NG_LOCK(sc);
++			NG_BT_MBUFQ_DEQUEUE(&sc->sc_scoq, m);
++			UBT_NG_UNLOCK(sc);
+ 
+-			n = min(space, m->m_pkthdr.len);
+-			if (n > 0) {
+-				usbd_m_copy_in(pc, offset, m,0, n);
+-				m_adj(m, n);
++			if (m == NULL)
++				break;
+ 
+-				offset += n;
+-				space -= n;
++			len = m->m_pkthdr.len;
++			if (len == 0 || framelen == 0) {
++				NG_FREE_M(m);
++				continue;
+ 			}
+ 
+-			if (m->m_pkthdr.len == 0)
+-				NG_FREE_M(m); /* sets m = NULL */
+-		}
++			/* Not enough frames left: it goes in the next one */
++			if (n + howmany(len, framelen) > nframes) {
++				if (n == 0) {
++					/* Larger than a whole transfer */
++					UBT_STAT_OERROR(sc);
++					NG_FREE_M(m);
++					continue;
++				}
+ 
+-		/* Put whatever is left from mbuf back on queue */
+-		if (m != NULL) {
+-			UBT_NG_LOCK(sc);
+-			NG_BT_MBUFQ_PREPEND(&sc->sc_scoq, m);
+-			UBT_NG_UNLOCK(sc);
++				UBT_NG_LOCK(sc);
++				NG_BT_MBUFQ_PREPEND(&sc->sc_scoq, m);
++				UBT_NG_UNLOCK(sc);
++				break;
++			}
++
++			usbd_m_copy_in(pc, offset, m, 0, len);
++			offset += len;
++			NG_FREE_M(m);
++
++			for (; len > 0; n ++) {
++				space = min(len, framelen);
++				usbd_xfer_set_frame_len(xfer, n, space);
++				len -= space;
++			}
+ 		}
+ 
+ 		/*
+-		 * Calculate sizes for isoc frames.
+-		 * Note that offset could be 0 at this point (i.e. we have
+-		 * nothing to send). That is fine, as we have isoc. transfers
+-		 * going in both directions all the time. In this case it
+-		 * would be just empty isoc. transfer.
++		 * The frames left are empty. offset could be 0 at this
++		 * point (i.e. we have nothing to send). That is fine, as we
++		 * have isoc. transfers going in both directions all the
++		 * time. In this case it would be just empty isoc. transfer.
+ 		 */
+ 
+-		for (n = 0; n < nframes; n ++) {
+-			usbd_xfer_set_frame_len(xfer, n,
+-			    min(offset, usbd_xfer_max_framelen(xfer)));
+-			offset -= usbd_xfer_frame_len(xfer, n);
+-		}
++		for (; n < nframes; n ++)
++			usbd_xfer_set_frame_len(xfer, n, 0);
+ 
+ 		usbd_transfer_submit(xfer);
+ 		break;
