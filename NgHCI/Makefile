@@ -6,7 +6,8 @@
 # applying src/patches/NNNN-<name>-*.patch in order; the source tree is not
 # touched. The patches call into NextBSD's own files in src/
 # (nextbsd/nextbsd-kernel#234: LE hardening, with ng_hci_le_lp.h shared with
-# NgL2cap).
+# NgL2cap; nextbsd/nextbsd-kernel#237: SCO and eSCO connections, with
+# ng_hci_sync_lp.h shared with NgBtsocket).
 SRCTOP?=	/usr/src
 .PATH: ${SRCTOP}/sys/netgraph/bluetooth/hci ${.CURDIR}/src
 
@@ -21,6 +22,8 @@ NEXTBSD_PATCHED=	ng_hci_main ng_hci_cmds ng_hci_evnt ng_hci_ulpi \
 SRCS=		${NEXTBSD_PATCHED:S/$/_nextbsd.c/}
 # NextBSD: the LE buffer pool, LE_Connection_Update and the LE meta events
 SRCS+=		ng_hci_le.c
+# NextBSD: SCO and eSCO connections, Synchronous_Connection_Complete/_Changed
+SRCS+=		ng_hci_sync.c
 
 # Each <name>.c with its src/patches applied. patch(1) is given the file to
 # patch, so the paths in the patches are only documentation; a patch that no

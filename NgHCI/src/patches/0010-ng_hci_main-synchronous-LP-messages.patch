@@ -1,0 +1,42 @@
+ng_hci: SCO and eSCO connection requests with parameters from the sco hook
+
+Take NGM_HCI_LP_SYNC_CON_REQ and NGM_HCI_LP_SYNC_CON_RSP
+(ng_hci_sync_lp.h, this directory's src/, shared with NgBtsocket) on the
+upstream hooks: ng_btsocket_sco sends them for a socket with
+SO_SCO_SYNC_PARAMS set, and ng_hci_sync.c turns them into
+Setup_Synchronous_Connection and Accept_Synchronous_Connection_Request
+with the socket's air coding, packet types, latency and retransmission
+effort.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_main.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_main.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_main.c
+@@ -54,6 +54,10 @@
+ /* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
+ #include "ng_hci_le_lp.h"
+ #include "ng_hci_le.h"
++
++/* NextBSD: synchronous connections (nextbsd/nextbsd-kernel#237) */
++#include "ng_hci_sync_lp.h"
++#include "ng_hci_sync.h"
+ 
+ /******************************************************************************
+  ******************************************************************************
+@@ -694,6 +698,15 @@ ng_hci_upper_rcvmsg(node_p node, item_p item, hook_p l
+ 					lasthook);
+ 			break;
+ 
++		/* NextBSD: from ng_btsocket_sco, SCO and eSCO links (#237) */
++		case NGM_HCI_LP_SYNC_CON_REQ:
++			error = ng_hci_sync_lp_con_req(unit, item, lasthook);
++			break;
++
++		case NGM_HCI_LP_SYNC_CON_RSP:
++			error = ng_hci_sync_lp_con_rsp(unit, item, lasthook);
++			break;
++
+ 		default:
+ 			error = ng_hci_default_rcvmsg(node, item, lasthook);
+ 			break;

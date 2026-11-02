@@ -1,0 +1,238 @@
+ng_btsocket_sco: SCO and eSCO parameters; send one packet at a time
+
+HFP's Audio Gateway (bluetoothd) has to choose the air coding (CVSD, or
+transparent for mSBC wide-band speech), packet types, latency and
+retransmission effort of each synchronous link, and SCO sockets could
+only ask for a legacy SCO link.
+
+- SO_SCO_SYNC_PARAMS (set before connect() or listen()) makes connect()
+  send NGM_HCI_LP_SYNC_CON_REQ, and the answer to an incoming request
+  NGM_HCI_LP_SYNC_CON_RSP, with the socket's parameters; an accepted
+  socket inherits the listener's. Without it nothing changes.
+- SO_SCO_SYNC_INFO returns what the controller negotiated, from
+  NGM_HCI_LP_SYNC_CON_INFO.
+- The state rides behind each PCB (struct ng_btsocket_sco_pcb_ext), so
+  struct ng_btsocket_sco_pcb keeps its layout. The options, messages and
+  state are in ng_btsocket_sco_sync.[ch] (this directory's src/), the
+  messages in NgHCI's ng_hci_sync_lp.h.
+- ng_btsocket_sco_send2() sent the first queued record over and over
+  until the route's SCO buffers were full, while its callers keep one
+  packet in flight and drop one record per completed packet; it never
+  sent at all on a controller that reports no SCO buffers. Send one.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/socket/ng_btsocket_sco.c
+
+--- a/sys/netgraph/bluetooth/socket/ng_btsocket_sco.c
++++ b/sys/netgraph/bluetooth/socket/ng_btsocket_sco.c
+@@ -62,6 +62,13 @@
+ #include <netgraph/bluetooth/include/ng_btsocket.h>
+ #include <netgraph/bluetooth/include/ng_btsocket_sco.h>
+ 
++/*
++ * NextBSD: SCO and eSCO parameters on SCO sockets
++ * (nextbsd/nextbsd-kernel#237)
++ */
++#include "ng_hci_sync_lp.h"
++#include "ng_btsocket_sco_sync.h"
++
+ /* MALLOC define */
+ #ifdef NG_SEPARATE_MALLOC
+ static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
+@@ -162,6 +169,8 @@ static int ng_btsocket_sco_process_lp_discon_ind
+ 	(struct ng_mesg *, ng_btsocket_sco_rtentry_p);
+ static int ng_btsocket_sco_process_lp_discon_ind
+ 	(struct ng_mesg *, ng_btsocket_sco_rtentry_p);
++static int ng_btsocket_sco_process_lp_sync_con_info	/* NextBSD (#237) */
++	(struct ng_mesg *, ng_btsocket_sco_rtentry_p);
+ 
+ /*
+  * Send LP messages to the lower layer
+@@ -170,7 +179,7 @@ static int  ng_btsocket_sco_send_lp_con_rsp
+ static int  ng_btsocket_sco_send_lp_con_req
+ 	(ng_btsocket_sco_pcb_p);
+ static int  ng_btsocket_sco_send_lp_con_rsp
+-	(ng_btsocket_sco_rtentry_p, bdaddr_p, int);
++	(ng_btsocket_sco_rtentry_p, ng_btsocket_sco_pcb_p, bdaddr_p, int);
+ static int  ng_btsocket_sco_send_lp_discon_req
+ 	(ng_btsocket_sco_pcb_p);
+ 
+@@ -508,12 +517,15 @@ ng_btsocket_sco_process_lp_con_ind(struct ng_mesg *msg
+ 
+ 		bcopy(&ep->bdaddr, &pcb1->dst, sizeof(pcb1->dst));
+ 		pcb1->rt = rt;
++
++		/* NextBSD: the listening socket's SCO/eSCO parameters (#237) */
++		ng_btsocket_sco_sync_accepted(pcb1, pcb);
+ 	} else
+ 		/* Nobody listens on requested BDADDR */
+ 		status = 0x1f; /* Unspecified Error */
+ 
+ respond:
+-	error = ng_btsocket_sco_send_lp_con_rsp(rt, &ep->bdaddr, status);
++	error = ng_btsocket_sco_send_lp_con_rsp(rt, pcb, &ep->bdaddr, status);
+ 	if (pcb1 != NULL) {
+ 		if (error != 0) {
+ 			pcb1->so->so_error = error;
+@@ -593,6 +605,43 @@ ng_btsocket_sco_process_lp_discon_ind(struct ng_mesg *
+ } /* ng_btsocket_sco_process_lp_discon_ind */
+ 
+ /*
++ * NextBSD: process LP_SyncConnectInfo, what the controller negotiated for a
++ * SCO or eSCO link (nextbsd/nextbsd-kernel#237). It comes just before
++ * LP_ConnectCfm, while the socket is still connecting, and again when the
++ * link's parameters change.
++ */
++
++static int
++ng_btsocket_sco_process_lp_sync_con_info(struct ng_mesg *msg,
++		ng_btsocket_sco_rtentry_p rt)
++{
++	ng_hci_lp_sync_con_info_ep	*ep = NULL;
++	ng_btsocket_sco_pcb_t		*pcb = NULL;
++
++	if (msg->header.arglen != sizeof(*ep))
++		return (EMSGSIZE);
++
++	ep = (ng_hci_lp_sync_con_info_ep *)(msg->data);
++
++	mtx_lock(&ng_btsocket_sco_sockets_mtx);
++
++	if (ep->changed)
++		pcb = ng_btsocket_sco_pcb_by_handle(&rt->src, ep->con_handle);
++	else
++		pcb = ng_btsocket_sco_pcb_by_addrs(&rt->src, &ep->bdaddr);
++
++	if (pcb != NULL) {
++		/* pcb is locked */
++		ng_btsocket_sco_sync_set_info(pcb, ep);
++		mtx_unlock(&pcb->pcb_mtx);
++	}
++
++	mtx_unlock(&ng_btsocket_sco_sockets_mtx);
++
++	return (0);
++} /* ng_btsocket_sco_process_lp_sync_con_info */
++
++/*
+  * Send LP_ConnectReq request
+  */
+ 
+@@ -609,6 +658,18 @@ ng_btsocket_sco_send_lp_con_req(ng_btsocket_sco_pcb_p 
+ 	    pcb->rt->hook == NULL || NG_HOOK_NOT_VALID(pcb->rt->hook))
+ 		return (ENETDOWN); 
+ 
++	/*
++	 * NextBSD: a socket with SO_SCO_SYNC_PARAMS asks for a SCO or eSCO
++	 * link with its parameters (nextbsd/nextbsd-kernel#237).
++	 */
++	msg = ng_btsocket_sco_sync_con_req(pcb);
++	if (msg != NULL) {
++		NG_SEND_MSG_HOOK(error, ng_btsocket_sco_node, msg,
++			pcb->rt->hook, 0);
++
++		return (error);
++	}
++
+ 	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_CON_REQ,
+ 		sizeof(*ep), M_NOWAIT);
+ 	if (msg == NULL)
+@@ -628,7 +689,8 @@ static int
+  */
+ 
+ static int
+-ng_btsocket_sco_send_lp_con_rsp(ng_btsocket_sco_rtentry_p rt, bdaddr_p dst, int status)
++ng_btsocket_sco_send_lp_con_rsp(ng_btsocket_sco_rtentry_p rt,
++		ng_btsocket_sco_pcb_p lpcb, bdaddr_p dst, int status)
+ {
+ 	struct ng_mesg		*msg = NULL;
+ 	ng_hci_lp_con_rsp_ep	*ep = NULL;
+@@ -636,7 +698,19 @@ ng_btsocket_sco_send_lp_con_rsp(ng_btsocket_sco_rtentr
+ 
+ 	if (rt == NULL || rt->hook == NULL || NG_HOOK_NOT_VALID(rt->hook))
+ 		return (ENETDOWN); 
++
++	/*
++	 * NextBSD: answer with the listening socket's SO_SCO_SYNC_PARAMS,
++	 * if it set them (nextbsd/nextbsd-kernel#237).
++	 */
++	msg = ng_btsocket_sco_sync_con_rsp(lpcb, dst, status);
++	if (msg != NULL) {
++		NG_SEND_MSG_HOOK(error, ng_btsocket_sco_node, msg, rt->hook,
++			0);
+ 
++		return (error);
++	}
++
+ 	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_CON_RSP,
+ 		sizeof(*ep), M_NOWAIT);
+ 	if (msg == NULL)
+@@ -957,6 +1031,10 @@ ng_btsocket_sco_lp_msg_input(struct ng_mesg *msg, hook
+ 		ng_btsocket_sco_process_lp_discon_ind(msg, rt);
+ 		break;
+ 
++	case NGM_HCI_LP_SYNC_CON_INFO: /* NextBSD: SCO/eSCO link info (#237) */
++		ng_btsocket_sco_process_lp_sync_con_info(msg, rt);
++		break;
++
+ 	/* XXX FIXME add other LP messages */
+ 
+ 	default:
+@@ -1007,6 +1085,7 @@ ng_btsocket_sco_input(void *context, int pending)
+ 			case NGM_HCI_LP_CON_CFM:
+ 			case NGM_HCI_LP_CON_IND:
+ 			case NGM_HCI_LP_DISCON_IND:
++			case NGM_HCI_LP_SYNC_CON_INFO:	/* NextBSD (#237) */
+ 			/* XXX FIXME add other LP messages */
+ 				ng_btsocket_sco_lp_msg_input(msg, hook);
+ 				break;
+@@ -1210,7 +1289,11 @@ ng_btsocket_sco_attach(struct socket *so, int proto, s
+ 	}
+ 
+ 	/* Allocate the PCB */
+-        pcb = malloc(sizeof(*pcb),
++	/*
++	 * NextBSD: with the SCO/eSCO state behind it, so struct
++	 * ng_btsocket_sco_pcb keeps its layout (nextbsd/nextbsd-kernel#237)
++	 */
++        pcb = malloc(sizeof(struct ng_btsocket_sco_pcb_ext),
+ 		M_NETGRAPH_BTSOCKET_SCO, M_NOWAIT | M_ZERO);
+         if (pcb == NULL)
+                 return (ENOMEM);
+@@ -1453,6 +1536,11 @@ ng_btsocket_sco_ctloutput(struct socket *so, struct so
+ 
+ 	if (sopt->sopt_level != SOL_SCO)
+ 		return (0);
++
++	/* NextBSD: SO_SCO_SYNC_PARAMS, SO_SCO_SYNC_INFO (#237) */
++	error = ng_btsocket_sco_sync_ctloutput(pcb, sopt);
++	if (error != ENOPROTOOPT)
++		return (error);
+ 
+ 	mtx_lock(&pcb->pcb_mtx);
+ 
+@@ -1724,7 +1812,15 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
+ 
+ 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
+ 
+-	while (pcb->rt->pending < pcb->rt->num_pkts &&
++	/*
++	 * NextBSD: one packet, the first on the queue. The callers keep one
++	 * packet in flight per socket (the timeout marks it) and drop one
++	 * record per completed packet; the loop sent the first record again
++	 * until the route's buffers were full, and a controller reporting
++	 * no SCO buffers never sent at all (nextbsd/nextbsd-kernel#237).
++	 */
++	while ((pcb->rt->num_pkts == 0 ||
++		pcb->rt->pending < pcb->rt->num_pkts) &&
+ 	       sbavail(&pcb->so->so_snd) > 0) {
+ 		/* Get a copy of the first packet on send queue */
+ 		m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
+@@ -1756,6 +1852,7 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
+ 			break;
+ 
+ 		pcb->rt->pending ++;
++		break;	/* NextBSD: one packet (#237) */
+ 	}
+ 
+ 	return ((pcb->rt->pending > 0)? 0 : error);

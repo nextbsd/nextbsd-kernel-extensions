@@ -1,0 +1,40 @@
+ng_hci: Command_Status for the synchronous connection commands
+
+A Setup_Synchronous_Connection or Accept_Synchronous_Connection_Request
+the controller refuses never produces Synchronous_Connection_Complete,
+so the socket waited for its connect timeout. Pass the status to
+ng_hci_sync.c (this directory's src/), which fails the waiting
+connection at once, so bluetoothd can fall back from mSBC to CVSD
+without the wait.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#237). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_cmds.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_cmds.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_cmds.c
+@@ -51,6 +51,10 @@
+ 
+ /* NextBSD: LE hardening (nextbsd/nextbsd-kernel#234) */
+ #include "ng_hci_le.h"
++
++/* NextBSD: synchronous connections (nextbsd/nextbsd-kernel#237) */
++#include "ng_hci_sync_lp.h"
++#include "ng_hci_sync.h"
+ 
+ /******************************************************************************
+  ******************************************************************************
+@@ -993,6 +997,14 @@ process_link_control_status(ng_hci_unit_p unit, ng_hci
+ 		break;
+ 
+ 	case NG_HCI_OCF_ACCEPT_CON:
++		break;
++
++	/* NextBSD: SCO and eSCO links (nextbsd/nextbsd-kernel#237) */
++	case NG_HCI_OCF_SETUP_SYNC_CON:
++	case NG_HCI_OCF_ACCEPT_SYNC_CON_REQ:
++	case NG_HCI_OCF_REJECT_SYNC_CON_REQ:
++		error = ng_hci_sync_command_status(unit,
++				NG_HCI_OCF(ep->opcode), ep->status, mcp);
+ 		break;
+ 
+ 	case NG_HCI_OCF_INQUIRY_CANCEL:
