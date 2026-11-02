@@ -1,0 +1,67 @@
+ng_ubt: publish each controller as an IOBluetoothHostController entry
+
+bluetoothd has to learn about USB Bluetooth controllers from a kernel
+notification, the way wland learns about radios from IO80211Controller.
+The bare "ubt" newbus node is a FreeBSD driver name and exists before
+the controller is usable, and polling netgraph (NGM_LISTNODES) races
+arrival.
+
+Publish a virtual IORegistry entry of class IOBluetoothHostController
+under the controller's ubtN node at the end of a successful
+ubt_attach(), once the netgraph node is named and the USB transfers are
+set up, and retire it at the start of ubt_detach(), before the netgraph
+node is torn down. bluetoothd matches it with
+IOServiceAddMatchingNotification (first-match and terminated), as
+Darwin's bluetoothd follows IOBluetoothHostController. The entry itself
+is built in ng_ubt_ioreg.c (this directory's src/), with the kernel's
+ioreg_publish_virtual() and ioreg_retire_virtual().
+
+A part still in firmware bootloader mode is refused by ng_ubt's probe,
+so it publishes nothing until its firmware is loaded and it
+re-enumerates.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel-extensions#27). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
+
+--- a/sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
++++ b/sys/netgraph/bluetooth/drivers/ubt/ng_ubt.c
+@@ -132,6 +132,12 @@
+ #include <netgraph/bluetooth/include/ng_ubt.h>
+ #include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
+ 
++/*
++ * NextBSD: IOBluetoothHostController registry entries
++ * (nextbsd-kernel-extensions#27).
++ */
++#include "ng_ubt_ioreg.h"
++
+ static int		ubt_modevent(module_t, int, void *);
+ static device_probe_t	ubt_probe;
+ static device_attach_t	ubt_attach;
+@@ -792,6 +798,13 @@
+ 	/* Claim second interface belonging to the Bluetooth part */
+ 	usbd_set_parent_iface(uaa->device, iface_index[1], uaa->info.bIfaceIndex);
+ 
++	/*
++	 * NextBSD: publish the controller as an IOBluetoothHostController
++	 * registry entry, now that its netgraph node is named and its
++	 * transfers are set up (nextbsd-kernel-extensions#27).
++	 */
++	ubt_ioreg_publish(dev);
++
+ 	return (0); /* success */
+ 
+ detach:
+@@ -811,6 +824,12 @@
+ 	struct ubt_softc	*sc = device_get_softc(dev);
+ 	node_p			node = sc->sc_node;
+ 
++	/*
++	 * NextBSD: retire the controller's IOBluetoothHostController entry
++	 * before its netgraph node goes (nextbsd-kernel-extensions#27).
++	 */
++	ubt_ioreg_retire(dev);
++
+ 	/* Destroy Netgraph node */
+ 	if (node != NULL) {
+ 		sc->sc_node = NULL;

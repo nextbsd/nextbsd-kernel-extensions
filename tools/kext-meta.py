@@ -31,7 +31,10 @@ of table (nextbsd-kernel#329):
              IOPCIClassMatch (value&mask) for class-only entries
   uhub       IOUSBHostDevice + idVendor/idProduct for each vendor/product entry,
              IOUSBHostInterface + bInterfaceClass/SubClass/Protocol for each
-             interface-class entry (host-mode tables only)
+             interface-class entry, plus idVendor when the entry also names
+             a vendor (ng_ubt's Broadcom, Apple and Foxconn vendor-class
+             entries), as Darwin's IOUSBHostInterface matching takes it
+             (host-mode tables only)
   acpi       IOACPIPlatformDevice + IONameMatch (the _HID strings)
   hidbus     IOHIDDevice + VendorID/ProductID for each vendor/product entry,
              and one IOHIDDevice + DeviceUsagePairs for the top-level
@@ -178,7 +181,10 @@ def personalities(name, bundle_id, pnp):
                 if fl & USB_VENDOR and fl & USB_PRODUCT:
                     usb_dev.add((e.get("vendor", 0) & 0xFFFF, e.get("product", 0) & 0xFFFF))
                 elif fl & (USB_INT_CLASS | USB_INT_SUBCLASS | USB_INT_PROTOCOL):
-                    t = []
+                    # The vendor, when the entry names one, is part of the
+                    # match: dropping it would claim every vendor's interface
+                    # of that class (vendor-specific 0xff ones included).
+                    t = [e.get("vendor", 0) & 0xFFFF if fl & USB_VENDOR else None]
                     for flag, key in ((USB_INT_CLASS, "intclass"),
                                       (USB_INT_SUBCLASS, "intsubclass"),
                                       (USB_INT_PROTOCOL, "intprotocol")):
@@ -220,8 +226,10 @@ def personalities(name, bundle_id, pnp):
         out.append(p)
     for v, pid in sorted(usb_dev):
         out.append({"IOProviderClass": "IOUSBHostDevice", "idVendor": v, "idProduct": pid})
-    for cls, sub, proto in sorted(usb_if, key=lambda t: tuple(-1 if x is None else x for x in t)):
+    for vid, cls, sub, proto in sorted(usb_if, key=lambda t: tuple(-1 if x is None else x for x in t)):
         p = {"IOProviderClass": "IOUSBHostInterface"}
+        if vid is not None:
+            p["idVendor"] = vid
         if cls is not None:
             p["bInterfaceClass"] = cls
         if sub is not None:

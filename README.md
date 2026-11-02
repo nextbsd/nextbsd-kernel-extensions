@@ -41,6 +41,12 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
   `Wlan` carries NextBSD's net80211 changes in `Wlan/src/` (patches applied to a copy at build
   time): each radio is published in the IORegistry as an `IO80211Controller` entry, which
   wland matches (nextbsd-userland#502).
+- **Bluetooth: `NgUbt` is a hardware kext** that autoloads through its USB personalities. It
+  carries NextBSD's ng_ubt changes in `NgUbt/src/`, in the same layout as `Wlan`: each controller
+  is published in the IORegistry as an `IOBluetoothHostController` entry under its `ubtN` node,
+  which `bluetoothd` matches (#27). It also bundles the Intel (`ibt-*`) and Realtek (`rtl_bt`)
+  Bluetooth firmware from linux-firmware, with each vendor's licence, in
+  `Contents/Resources/firmware/intel` and `.../rtl_bt` (nextbsd/nextbsd#476).
 - **Every kext has something that loads it** (E21 kext loaders review, 2026-10-28). The kernel
   doesn't load modules by name, so a kext ships only if IOKit matching, another kext's
   `OSBundleLibraries`, or a planned userland loader brings it in: AutoFS through automount, the
