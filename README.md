@@ -12,7 +12,7 @@ into the kernel. Plan: [E21](https://github.com/nextbsd/nextbsd-userland/wiki/E2
 
 ## What is here
 
-125 kexts (90 on amd64, 101 on arm64), one directory each, named after the kext (`IntelEM/`,
+126 kexts (91 on amd64, 102 on arm64), one directory each, named after the kext (`IntelEM/`,
 `RealtekRE/`, `Wlan/`, `AutoFS/`, …). Which modules are converted, and what each kext is called, is
 decided by data, not by the workflow:
 
@@ -47,11 +47,16 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
   which `bluetoothd` matches (#27). It also bundles the Intel (`ibt-*`) and Realtek (`rtl_bt`)
   Bluetooth firmware from linux-firmware, with each vendor's licence, in
   `Contents/Resources/firmware/intel` and `.../rtl_bt` (nextbsd/nextbsd#476).
+- **`IOHIDUserDevice` is NextBSD's own code** (`IOHIDUserDevice/src/`, #25): `vhid`, a hidbus
+  transport whose devices a root daemon creates through `/dev/hidresource`, modelled on Darwin's
+  `IOHIDUserDevice`. `bluetoothd` makes each Bluetooth keyboard, mouse and trackpad one, and
+  hidbus's drivers attach as they do for USB. `IOHIDUserDevice/src/hidresource.h` is the
+  interface userland includes (libIOKit keeps a copy, nextbsd-userland#521).
 - **Every kext has something that loads it** (E21 kext loaders review, 2026-10-28). The kernel
   doesn't load modules by name, so a kext ships only if IOKit matching, another kext's
   `OSBundleLibraries`, or a planned userland loader brings it in: AutoFS through automount, the
   GEOM layers through partition matching (nextbsd-kernel#364), the Bluetooth stack's upper layers
-  through the future `bluetoothd`. What xnu compiles in (bridge, lagg, IPsec, pf, DTrace, vmm, UDF,
+  and `IOHIDUserDevice` through the future `bluetoothd`. What xnu compiles in (bridge, lagg, IPsec, pf, DTrace, vmm, UDF,
   iconv) is compiled into NextBSD's kernel instead, and the rest was dropped; `data/decisions.tsv`
   gives each reason.
 
