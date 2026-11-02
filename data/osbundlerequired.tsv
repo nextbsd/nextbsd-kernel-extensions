@@ -81,4 +81,5 @@ NgBtsocket	Safe Boot
 NgBluetooth	Safe Boot
 Netgraph	Safe Boot
 NgSocket	Safe Boot
+IOHIDUserDevice	Safe Boot
 AutoFS	Safe Boot
