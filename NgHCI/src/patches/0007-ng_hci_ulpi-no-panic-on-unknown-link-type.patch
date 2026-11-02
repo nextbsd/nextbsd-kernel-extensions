@@ -1,0 +1,28 @@
+ng_hci: refuse an LP_ConnectReq with an unknown link type
+
+ng_hci_lp_con_req() dispatches on the link type ng_l2cap passes in
+LP_ConnectReq (ACL, SCO, LE public or LE random) and panicked on any
+other value. Log it, free the message and return EINVAL instead.
+
+Origin: NextBSD (nextbsd/nextbsd-kernel#234). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_ulpi.c
+@@ -108,7 +108,15 @@ ng_hci_lp_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
+ 	case NG_HCI_LINK_LE_RANDOM:		
+ 		return (ng_hci_lp_le_con_req(unit, item, hook, link_type));
+ 	default:
+-		panic("%s: link_type invalid.", __func__);
++		/*
++		 * NextBSD: refuse the request instead of panicking
++		 * (nextbsd/nextbsd-kernel#234).
++		 */
++		NG_HCI_ERR(
++"%s: %s - invalid link type=%d\n",
++			__func__, NG_NODE_NAME(unit->node), link_type);
++		NG_FREE_ITEM(item);
++		break;
+ 	}
+ 
+ 	return (EINVAL);

@@ -47,6 +47,10 @@ directories are what gets edited. To add a kext, add a directory (or flip its ro
   which `bluetoothd` matches (#27). It also bundles the Intel (`ibt-*`) and Realtek (`rtl_bt`)
   Bluetooth firmware from linux-firmware, with each vendor's licence, in
   `Contents/Resources/firmware/intel` and `.../rtl_bt` (nextbsd/nextbsd#476).
+  `NgHCI` and `NgL2cap` carry NextBSD's LE changes to ng_hci and ng_l2cap the same way
+  (nextbsd/nextbsd-kernel#234): LE Enhanced Connection Complete, a separate LE buffer pool,
+  connection-parameter updates applied through `LE_Connection_Update`, and errors in place of
+  panics on the LE path.
 - **`IOHIDUserDevice` is NextBSD's own code** (`IOHIDUserDevice/src/`, #25): `vhid`, a hidbus
   transport whose devices a root daemon creates through `/dev/hidresource`, modelled on Darwin's
   `IOHIDUserDevice`. `bluetoothd` makes each Bluetooth keyboard, mouse and trackpad one, and
