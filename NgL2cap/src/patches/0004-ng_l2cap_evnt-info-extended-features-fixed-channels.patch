@@ -1,0 +1,89 @@
+ng_l2cap: answer the extended features and fixed channels requests
+
+ng_l2cap answers an Information Request for the extended feature mask
+(0x0002) or the fixed channels (0x0003) "not supported"; every stack
+since Bluetooth 2.1 answers both. Apple's stack (Beats Studio Pro, on a
+Dell XPS 9320) asks for the extended features as the link comes up, and
+after that "not supported" it configures only the first channel opened
+to it: for every later one it answers this side's Configuration Request
+but never sends its own, so the AVDTP (A2DP), RFCOMM (hands-free) and
+AVRCP channels stall until they time out, and the headphones stay
+connected but silent.
+
+Answer both: an empty extended feature mask (ng_l2cap does none of
+ERTM, streaming mode, FCS or EFS), and the signalling and connectionless
+fixed channels. The response is built here, as ng_l2cap_cmds.h's
+_ng_l2cap_info_rsp knows only the connectionless MTU.
+
+Origin: NextBSD. Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/l2cap/ng_l2cap_evnt.c,
+after 0002.
+
+--- a/sys/netgraph/bluetooth/l2cap/ng_l2cap_evnt.c
++++ b/sys/netgraph/bluetooth/l2cap/ng_l2cap_evnt.c
+@@ -1213,6 +1213,39 @@
+ 
+ 	return (error);
+ } /* ng_l2cap_process_echo_rsp */
++
++/*
++ * NextBSD: an Information Response carrying a little-endian mask of size
++ * bytes, for the extended features (0x0002, 4 bytes) and fixed channels
++ * (0x0003, 8 bytes) requests, which ng_l2cap_cmds.h's _ng_l2cap_info_rsp
++ * doesn't know.
++ */
++static struct mbuf *
++ng_l2cap_info_rsp_mask(u_int8_t ident, u_int16_t type, u_int64_t mask,
++    int size)
++{
++	struct _info_rsp_mask {
++		ng_l2cap_cmd_hdr_t	hdr;
++		ng_l2cap_info_rsp_cp	param;
++		u_int8_t		data[8];
++	} __attribute__ ((packed))	*c;
++	struct mbuf			*m;
++	int				 i;
++
++	MGETHDR(m, M_NOWAIT, MT_DATA);
++	if (m == NULL)
++		return (NULL);
++	c = mtod(m, struct _info_rsp_mask *);
++	c->hdr.code = NG_L2CAP_INFO_RSP;
++	c->hdr.ident = ident;
++	c->hdr.length = htole16(sizeof(c->param) + size);
++	c->param.type = htole16(type);
++	c->param.result = htole16(NG_L2CAP_SUCCESS);
++	for (i = 0; i < size; i++)
++		c->data[i] = (mask >> (8 * i)) & 0xff;
++	m->m_pkthdr.len = m->m_len = sizeof(c->hdr) + sizeof(c->param) + size;
++	return (m);
++}
+ 
+ /*
+  * Process L2CAP_InfoReq command
+@@ -1241,8 +1274,25 @@
+ 	case NG_L2CAP_CONNLESS_MTU:
+ 		_ng_l2cap_info_rsp(cmd->aux, ident, NG_L2CAP_CONNLESS_MTU,
+ 				NG_L2CAP_SUCCESS, NG_L2CAP_MTU_DEFAULT);
++		break;
++
++	/*
++	 * NextBSD: every stack since Bluetooth 2.1 answers these two.
++	 * Answered "not supported", Apple's (Beats Studio Pro) configure
++	 * the first channel opened after asking, then never send their
++	 * Configuration Request for any later one: AVDTP, RFCOMM and SDP
++	 * channels stall in configuration. No extended features (none of
++	 * ERTM, streaming mode, FCS, EFS); fixed channels: the signalling
++	 * channel and the connectionless one (bits 1 and 2).
++	 */
++	case 0x0002:
++		cmd->aux = ng_l2cap_info_rsp_mask(ident, type, 0, 4);
+ 		break;
+ 
++	case 0x0003:
++		cmd->aux = ng_l2cap_info_rsp_mask(ident, type, 0x6, 8);
++		break;
++
+ 	default:
+ 		_ng_l2cap_info_rsp(cmd->aux, ident, type,
+ 				NG_L2CAP_NOT_SUPPORTED, 0);
