@@ -1,0 +1,65 @@
+ng_hci: tell ng_l2cap about ACL links created through the RAW hook
+
+bluetoothd creates its ACL links itself, with Create_Connection on the
+HCI RAW socket. con_compl() then finds no connection descriptor, makes
+one, and sends LP_ConnectCfm to nobody: NG_HCI_CON_NOTIFY_ACL is set
+only by an LP_ConnectReq. ng_l2cap learns the handle only when something
+first opens a channel on the link (its LP_ConnectReq is answered at once
+for an open link). Anything for the handle before that is dropped:
+
+  ng_l2cap_lp_receive: ubt0l2cap - unexpected ACL data packet.
+      Connection does not exist, con_handle=256
+  ng_l2cap_lp_enc_change: ubt0l2cap - unexpected LP_Enc Change Event.
+      Connection does not exist, con_handle=256
+
+Beats Studio Pro send L2CAP signalling (an Information Request) as soon
+as the link is up, often before bluetoothd opens its first channel; with
+that request never answered they leave every channel this side opens
+unanswered, so hands-free, AVRCP and A2DP all time out.
+
+Set NG_HCI_CON_NOTIFY_ACL on a RAW-created ACL descriptor, so
+ng_hci_lp_con_cfm() sends ng_l2cap LP_ConnectCfm before any ACL data or
+Encryption_Change for the handle (the same hook and node queue, so in
+order). NgL2cap's 0005 takes that unrequested LP_ConnectCfm as an open
+link.
+
+Also: encryption_change() passed a NULL descriptor to
+ng_hci_lp_enc_change() for a handle it doesn't know (it logged the
+invalid handle first, then dereferenced it). Skip the notification then.
+
+Origin: NextBSD (nextbsd/nextbsd#666). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/hci/ng_hci_evnt.c,
+after 0008.
+
+--- a/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
++++ b/sys/netgraph/bluetooth/hci/ng_hci_evnt.c
+@@ -821,6 +821,18 @@
+ 		}
+ 
+ 		bcopy(&ep->bdaddr, &con->bdaddr, sizeof(con->bdaddr));
++
++		/*
++		 * NextBSD: an ACL link created through the RAW hook (bluetoothd
++		 * sends Create_Connection itself) must reach ng_l2cap too. The
++		 * remote side can send L2CAP signalling, and the controller an
++		 * Encryption_Change, before anything opens a channel on the
++		 * link; until then ng_l2cap does not know the handle and drops
++		 * both. Send it LP_ConnectCfm now, ahead of anything else for
++		 * this handle (nextbsd/nextbsd#666).
++		 */
++		if (ep->link_type == NG_HCI_LINK_ACL)
++			con->flags |= NG_HCI_CON_NOTIFY_ACL;
+ 	} else if ((error = ng_hci_con_untimeout(con)) != 0)
+ 			goto out;
+ 
+@@ -1072,7 +1084,9 @@
+ 			__func__, NG_NODE_NAME(unit->node), ep->status);
+ 
+ 	/*Anyway, propagete encryption status to upper layer*/
+-	ng_hci_lp_enc_change(con, con->encryption_mode);
++	/* NextBSD: not for a handle we do not know (nextbsd/nextbsd#666) */
++	if (con != NULL)
++		ng_hci_lp_enc_change(con, con->encryption_mode);
+ 
+ 	NG_FREE_M(event);
+ 
