@@ -1,0 +1,59 @@
+ng_l2cap: take an unrequested LP_ConnectCfm as an open ACL link
+
+ng_l2cap knew only the ACL links it asked ng_hci for (LP_ConnectReq) or
+accepted (LP_ConnectInd). bluetoothd creates its links itself through
+ng_hci's RAW hook, and ng_l2cap learned of such a link only when
+something first opened a channel on it; the remote side's signalling and
+the Encryption Change that came before were dropped as being for an
+unknown handle, and Beats Studio Pro then stall every channel (see
+NgHCI's 0012, which now sends LP_ConnectCfm for these links).
+
+On a positive LP_ConnectCfm for an ACL link we have no descriptor for,
+make one in the open state with that handle. It is not ours, so it gets
+no CON_OUTGOING and no auto-disconnect timeout, like an accepted link.
+A handle already in use is refused.
+
+Origin: NextBSD (nextbsd/nextbsd#666). Not upstream.
+Applies to: releng/15.1 sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c,
+after 0003.
+
+--- a/sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c
++++ b/sys/netgraph/bluetooth/l2cap/ng_l2cap_llpi.c
+@@ -158,6 +158,37 @@
+ 	ep = (ng_hci_lp_con_cfm_ep *) (msg->data);
+ 	/* Check if we have requested/accepted this connection */
+ 	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr, ep->link_type);
++	if (con == NULL && ep->status == 0 &&
++	    ep->link_type == NG_HCI_LINK_ACL) {
++		/*
++		 * NextBSD: an ACL link we neither requested nor accepted,
++		 * created through ng_hci's RAW hook (bluetoothd sends
++		 * Create_Connection itself). ng_hci tells us as soon as it is
++		 * up, so the remote side's signalling and the Encryption
++		 * Change that may follow at once are not dropped as being for
++		 * an unknown handle (nextbsd/nextbsd#666). Take it as open; it
++		 * is not ours, so no auto disconnect (no CON_OUTGOING).
++		 */
++		if (ng_l2cap_con_by_handle(l2cap, ep->con_handle) != NULL) {
++			NG_L2CAP_ALERT(
++"%s: %s - unexpected LP_ConnectCfm event. " \
++"Connection handle already in use, con_handle=%d\n",
++				__func__, NG_NODE_NAME(l2cap->node),
++				ep->con_handle);
++			error = EEXIST;
++			goto out;
++		}
++
++		con = ng_l2cap_new_con(l2cap, &ep->bdaddr, ep->link_type);
++		if (con == NULL) {
++			error = ENOMEM;
++			goto out;
++		}
++
++		con->state = NG_L2CAP_CON_OPEN;
++		con->con_handle = ep->con_handle;
++		goto out;
++	}
+ 	if (con == NULL) {
+ 		NG_L2CAP_ERR(
+ "%s: %s - unexpected LP_ConnectCfm event. Connection does not exist\n",
