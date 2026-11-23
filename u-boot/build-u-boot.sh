@@ -82,8 +82,13 @@ for want in 'bootdelay=-2' 'boot_targets=mmc usb nvme pxe dhcp'; do
 done
 grep -q '^preboot=.*nvme scan' "$ENVF" || { echo "ERROR: preboot has no nvme scan" >&2; exit 1; }
 grep -q '^bootcmd=.*bootefi .*; reset$' "$ENVF" || { echo "ERROR: bootcmd does not end in reset" >&2; exit 1; }
-BANNER=$(strings "$SRC/u-boot.bin" | grep -m1 '^U-Boot 2026\.10-nextbsd1 ' || true)
-test -n "$BANNER" || { echo "ERROR: no 'U-Boot 2026.10-nextbsd1' banner in u-boot.bin" >&2; exit 1; }
+echo "    uboot.release: $(cat "$SRC/include/config/uboot.release" 2>/dev/null || echo '?')"
+BANNER=$(strings -a "$SRC/u-boot.bin" | grep -m1 -F 'U-Boot 2026.10-nextbsd1' || true)
+if [ -z "$BANNER" ]; then
+    echo "ERROR: no 'U-Boot 2026.10-nextbsd1' banner in u-boot.bin; U-Boot strings found:" >&2
+    strings -a "$SRC/u-boot.bin" | grep -m5 'U-Boot 20' >&2 || true
+    exit 1
+fi
 
 cp "$SRC/u-boot.bin" "$OUT/u-boot.bin"
 cp "$SRC/.config" "$OUT/u-boot.config"
