@@ -42,6 +42,11 @@ jobs:
       - name: Build
         run: sh u-boot/build-u-boot.sh "$RUNNER_TEMP/u-boot-work" "$RUNNER_TEMP/u-boot-out"
 
+      # The diagnostic build: boots nothing, shows on the HDMI screen how far
+      # U-Boot gets (u-boot/nextbsd_rpi_arm64_probe_fragment).
+      - name: Build the probe
+        run: sh u-boot/build-u-boot.sh "$RUNNER_TEMP/u-boot-probe-work" "$RUNNER_TEMP/u-boot-probe-out" probe
+
       - name: Upload u-boot.bin
         uses: actions/upload-artifact@v4
         with:
@@ -51,4 +56,15 @@ jobs:
             ${{ runner.temp }}/u-boot-out/u-boot.config
             ${{ runner.temp }}/u-boot-out/u-boot-initial-env
             ${{ runner.temp }}/u-boot-out/BUILDINFO
+          if-no-files-found: error
+
+      - name: Upload the probe u-boot.bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: u-boot-rpi5-probe
+          path: |
+            ${{ runner.temp }}/u-boot-probe-out/u-boot.bin
+            ${{ runner.temp }}/u-boot-probe-out/u-boot.config
+            ${{ runner.temp }}/u-boot-probe-out/u-boot-initial-env
+            ${{ runner.temp }}/u-boot-probe-out/BUILDINFO
           if-no-files-found: error

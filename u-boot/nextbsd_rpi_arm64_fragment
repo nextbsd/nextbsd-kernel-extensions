@@ -41,3 +41,16 @@ CONFIG_RESET_TO_RETRY=y
 # not depend on how the patches were applied.
 CONFIG_LOCALVERSION="-nextbsd1"
 # CONFIG_LOCALVERSION_AUTO is not set
+
+# No `usb start` before booting. The Pi 5's USB controllers are behind RP1,
+# which U-Boot does not drive, and the first hardware attempt on a Pi 500+
+# hung somewhere with no console to say where (nextbsd/nextbsd#687); USB
+# setup is the first suspect. NVMe is on pcie1 and needs only these two.
+CONFIG_PREBOOT="pci enum; nvme scan;"
+
+# A console that can be read on the HDMI screen. There is usually no serial
+# cable, so the screen is the only place a failure shows: 16x32 characters
+# instead of 8x16 (tiny on a 1440p panel), white on black.
+CONFIG_VIDEO_FONT_16X32=y
+# CONFIG_VIDEO_FONT_8X16 is not set
+CONFIG_SYS_WHITE_ON_BLACK=y

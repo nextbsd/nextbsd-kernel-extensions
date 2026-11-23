@@ -1,0 +1,11 @@
+# The probe build of u-boot.bin (nextbsd/nextbsd#687): appended after
+# nextbsd_rpi_arm64_fragment, so a later line here wins.
+#
+# It boots nothing. It shows on the HDMI screen how far U-Boot gets on a
+# board, one numbered step at a time with a pause after each, so whoever is
+# watching can read where it stopped. If every step finishes it resets, and a
+# tryboot test falls back to config.txt by itself. A step that hangs leaves
+# its number on screen and needs a power cycle.
+CONFIG_LOCALVERSION="-nextbsd1-probe"
+CONFIG_PREBOOT=""
+CONFIG_BOOTCOMMAND="echo; echo ==== NextBSD U-Boot probe for nextbsd 687 ====; echo [1/5] U-Boot is running and can draw on this screen; sleep 15; echo [2/5] pci enum: PCIe; pci enum; pci; sleep 10; echo [3/5] nvme scan: the NVMe drive; nvme scan; nvme info; sleep 10; echo [4/5] the FAT partition on the NVMe drive; ls nvme 0:1 /; ls nvme 0:1 efi/boot; sleep 15; echo [5/5] usb start: USB behind RP1, may hang; usb start; echo ==== probe finished: resetting in 30 seconds ====; sleep 30; reset"
