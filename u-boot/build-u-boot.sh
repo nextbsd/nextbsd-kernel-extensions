@@ -97,7 +97,7 @@ cp "$ENVF" "$OUT/u-boot-initial-env"
     echo "u-boot: $UBOOT_GIT $UBOOT_TAG $UBOOT_COMMIT"
     echo "defconfig: $UBOOT_DEFCONFIG + nextbsd_rpi_arm64_fragment"
     echo "$UBOOT_PATCHES" | while read -r f sum strip; do
-        [ -n "$f" ] && echo "patch: $f sha256=$sum"
+        if [ -n "$f" ]; then echo "patch: $f sha256=$sum"; fi
     done
     echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
     echo "banner: $BANNER"
