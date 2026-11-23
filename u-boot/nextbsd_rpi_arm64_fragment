@@ -1,0 +1,43 @@
+# NextBSD additions to rpi_arm64_defconfig (nextbsd/nextbsd#687).
+# build-u-boot.sh appends this to the defconfig; a later line wins.
+#
+# Boot chain: EEPROM firmware -> FAT: u-boot.bin -> U-Boot's EFI ->
+# FAT: EFI/BOOT/bootaa64.efi (FreeBSD loader.efi) -> /boot on UFS or ZFS.
+
+# As FreeBSD's sysutils/u-boot-rpi-arm64 does (files/rpi_arm64_fragment):
+# no device for the FAT environment, so a uboot.env on some FAT partition is
+# never loaded and the built-in environment below is always the one used.
+CONFIG_ENV_FAT_DEVICE_AND_PART=""
+CONFIG_RPI_EFI_NR_SPIN_PAGES=2
+
+# Never wait at a prompt. A Pi 500+ has no keyboard in U-Boot (USB is behind
+# RP1, which U-Boot does not drive) and usually no serial cable, so a prompt
+# is a hung board that needs someone to pull the power.
+#
+# -2: run bootcmd at once and do not check for a key to abort it.
+CONFIG_BOOTDELAY=-2
+#
+# bootcmd: load loader.efi from the first FAT partition of the NVMe drive,
+# then of the SD card, and start it with the device tree the firmware handed
+# U-Boot (fdt_addr: the firmware's patched DTB, overlays applied). If
+# loader.efi is missing, fails to start, or returns, reset: the next boot is
+# the firmware's again, so a tryboot test falls back to config.txt.
+# Deliberately not `bootflow scan`: it would also try extlinux, scripts and
+# the network, and boot whatever it found first.
+CONFIG_USE_BOOTCOMMAND=y
+CONFIG_BOOTCOMMAND="for nbdev in nvme mmc; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; echo NextBSD: no bootable loader.efi, resetting in 5 seconds; sleep 5; reset"
+#
+# If anything still reaches the command line (a bootcmd that stops early, a
+# command that drops to the prompt), reset after 15 idle seconds.
+CONFIG_BOOT_RETRY=y
+CONFIG_BOOT_RETRY_TIME=15
+CONFIG_RESET_TO_RETRY=y
+#
+# A U-Boot panic or a synchronous abort resets the board (the default; kept
+# explicit so a later defconfig cannot turn it into a hang).
+# CONFIG_PANIC_HANG is not set
+
+# Version banner: "U-Boot 2026.10-nextbsd1". No git suffix, so the string does
+# not depend on how the patches were applied.
+CONFIG_LOCALVERSION="-nextbsd1"
+# CONFIG_LOCALVERSION_AUTO is not set

@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Esselius <pepp@me.com>
+Date: Fri, 30 Oct 2026 23:29:54 +0100
+Subject: [PATCH 3/3] board: raspberrypi: rpi: add nvme to boot_targets
+
+bootstd only scans the labels listed in boot_targets. The NVMe bootdev
+is created by "nvme scan", but automatic boot never considers it because
+the board environment only lists mmc, usb, pxe, and dhcp.
+
+Add nvme after mmc and usb so the existing SD/USB boot order is
+preserved and NVMe is tried when neither produces a bootflow. This makes
+an NVMe-only system boot without an SD card while keeping the SD card as
+a fallback.
+
+Tested on a Raspberry Pi 5 (4 GB) with a BIWIN CE430T5D100-512G NVMe:
+with no SD card, U-Boot 2026.10 scans NVMe and boots extlinux from the
+NVMe ext4 partition; with the installer SD inserted, it still boots the
+SD first.
+
+Signed-off-by: Peter Esselius <pepp@me.com>
+---
+ board/raspberrypi/rpi/rpi.env | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/board/raspberrypi/rpi/rpi.env b/board/raspberrypi/rpi/rpi.env
+index 9ac9d676..6104f3b1 100644
+--- a/board/raspberrypi/rpi/rpi.env
++++ b/board/raspberrypi/rpi/rpi.env
+@@ -77,4 +77,4 @@ pxefile_addr_r=0x05500000
+ fdt_addr_r=0x05600000
+ ramdisk_addr_r=0x05700000
+ 
+-boot_targets=mmc usb pxe dhcp
++boot_targets=mmc usb nvme pxe dhcp
