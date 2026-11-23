@@ -7,5 +7,15 @@
 # tryboot test falls back to config.txt by itself. A step that hangs leaves
 # its number on screen and needs a power cycle.
 CONFIG_LOCALVERSION="-nextbsd1-probe"
+#
+# A crash stays on the screen instead of resetting, so it can be read. Only
+# in the probe: the boot build must never hang.
+CONFIG_PANIC_HANG=y
+#
+# Text goes to every video console, not just the first. On a Pi 5 with the
+# nextbsd-vc4-kms overlay U-Boot binds two display devices (the firmware
+# framebuffer and hdmi0); the second asks the firmware for a new framebuffer,
+# so the one on screen is not the one the first console draws into. Measured
+# on a Pi 500+: the logo, then no text at all.
 CONFIG_PREBOOT=""
-CONFIG_BOOTCOMMAND="echo; echo ==== NextBSD U-Boot probe for nextbsd 687 ====; echo [1/5] U-Boot is running and can draw on this screen; sleep 15; echo [2/5] pci enum: PCIe; pci enum; pci; sleep 10; echo [3/5] nvme scan: the NVMe drive; nvme scan; nvme info; sleep 10; echo [4/5] the FAT partition on the NVMe drive; ls nvme 0:1 /; ls nvme 0:1 efi/boot; sleep 15; echo [5/5] usb start: USB behind RP1, may hang; usb start; echo ==== probe finished: resetting in 30 seconds ====; sleep 30; reset"
+CONFIG_BOOTCOMMAND="setenv stdout serial,vidconsole,vidconsole1; setenv stderr serial,vidconsole,vidconsole1; echo; echo ==== NextBSD U-Boot probe for nextbsd 687 ====; echo [1/5] U-Boot is running and can draw on this screen; coninfo; sleep 15; echo [2/5] pci enum: PCIe; pci enum; pci; sleep 10; echo [3/5] nvme scan: the NVMe drive; nvme scan; nvme info; sleep 10; echo [4/5] the FAT partition on the NVMe drive; ls nvme 0:1 /; ls nvme 0:1 efi/boot; sleep 15; echo [5/5] usb start: USB behind RP1, may hang; usb start; echo ==== probe finished: resetting in 30 seconds ====; sleep 30; reset"
