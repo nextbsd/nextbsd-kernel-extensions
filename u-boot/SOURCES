@@ -1,0 +1,36 @@
+# U-Boot for the Raspberry Pi 5 family (BCM2712): exact sources.
+# sh fragment, read by build-u-boot.sh. nextbsd/nextbsd#687.
+#
+# Upstream release. The build refuses a checkout whose commit is not this one.
+UBOOT_GIT=https://source.denx.de/u-boot/u-boot.git
+UBOOT_TAG=v2026.10
+UBOOT_COMMIT=5508406582f6f7120dce0c4b3059819a41788db2
+UBOOT_DEFCONFIG=rpi_arm64_defconfig
+
+# Patches, applied in this order with `git apply` (no fuzz). Each line:
+#   <file in patches/>  <sha256 of that file>  <strip level>
+#
+# 0001, 0002: posted to the U-Boot list, not merged as of 2026-11-22.
+#   patchwork 2348659 "dm: core: try harder to find a DT node for DMA
+#     constraints" (Torsten Duwe, 2026-11-19), git patch-id --stable
+#     8d69cc0f3d5ae3a3fbfe40b16a0e185aa572b415
+#   patchwork 2348660 "configs: enable NVMe on Raspberry Pi 4&5" (Torsten
+#     Duwe, 2026-11-19): CONFIG_NVME_PCI=y, `nvme scan` in preboot,
+#     git patch-id --stable 7ab5543dc928a1c0a8f6e11806c7ebc18af5731c
+# 0003: patchwork 2332491 "board: raspberrypi: rpi: add nvme to
+#     boot_targets" (Peter Esselius, 2026-10-30),
+#     git patch-id --stable 15608e7637f4ba1f8c4e4e00076c699b9c6d7a35
+#   The three files are `git format-patch` of the patchwork mboxes applied
+#   with `git am` to UBOOT_COMMIT (mailing-list headers dropped; the diffs are
+#   unchanged, which is what the patch-ids pin).
+# freebsd-*: FreeBSD ports sysutils/u-boot-rpi-arm64,
+#   files/patch-lib_efi__loader_efi__console.c at freebsd-ports commit
+#   aa1634ec212b89284d1f1e3cb12fcbee2a93e955, byte for byte. It slows U-Boot's
+#   EFI console poll from 5 us to 100 ms, which FreeBSD's loader.efi needs to
+#   run at a usable speed on U-Boot.
+UBOOT_PATCHES="
+0001-dm-core-try-harder-to-find-a-DT-node-for-DMA-constra.patch fca532fc0da601395afbca973d117ff9425906c9c3071f23fe3f5ca473eeb5d6 1
+0002-configs-enable-NVMe-on-Raspberry-Pi-4-5.patch b9b1be97c2a387aff9a500999a7ca4d560a1a7ee1fdf470e05289f52d634a476 1
+0003-board-raspberrypi-rpi-add-nvme-to-boot_targets.patch d9be89092288fe56016579286785011a40e10552283d29f1f3f0683d1a690f51 1
+freebsd-patch-lib_efi__loader_efi__console.c d8c3c03d7c596ad84c8e2f425f51553412127c1cb304270c0f927df44ef48939 0
+"

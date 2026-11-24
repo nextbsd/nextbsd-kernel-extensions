@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Torsten Duwe <duwe@suse.de>
+Date: Thu, 19 Nov 2026 19:34:40 +0100
+Subject: [PATCH 2/3] configs: enable NVMe on Raspberry Pi 4&5
+
+Enable NVMe in the Raspberry Pi 64-Bit default config and scan for devices.
+
+Signed-off-by: Torsten Duwe <duwe@suse.de>
+Reviewed-by: Peter Robinson <pbrobinson@gmail.com>
+Reviewed-by: Simon Glass <sjg@chromium.org>
+Tested-by: Peter Robinson <pbrobinson@gmail.com>
+---
+ configs/rpi_arm64_defconfig | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/configs/rpi_arm64_defconfig b/configs/rpi_arm64_defconfig
+index cdcf05ea..fb0fdce1 100644
+--- a/configs/rpi_arm64_defconfig
++++ b/configs/rpi_arm64_defconfig
+@@ -16,7 +16,7 @@ CONFIG_BOOTSTD_DEFAULTS=y
+ CONFIG_OF_BOARD_SETUP=y
+ CONFIG_FDT_SIMPLEFB=y
+ CONFIG_USE_PREBOOT=y
+-CONFIG_PREBOOT="pci enum; usb start;"
++CONFIG_PREBOOT="pci enum; usb start; nvme scan;"
+ CONFIG_SYS_PBSIZE=1049
+ # CONFIG_DISPLAY_CPUINFO is not set
+ # CONFIG_DISPLAY_BOARDINFO is not set
+@@ -44,6 +44,7 @@ CONFIG_MMC_SDHCI_SDMA=y
+ CONFIG_MMC_SDHCI_BCM2835=y
+ CONFIG_MMC_SDHCI_BCMSTB=y
+ CONFIG_BCMGENET=y
++CONFIG_NVME_PCI=y
+ CONFIG_PCI_BRCMSTB=y
+ CONFIG_PINCTRL=y
+ # CONFIG_PINCTRL_GENERIC is not set

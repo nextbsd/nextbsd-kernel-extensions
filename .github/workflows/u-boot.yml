@@ -1,0 +1,70 @@
+name: U-Boot (Raspberry Pi 5)
+
+# u-boot.bin for the Raspberry Pi 5 family: the first stage of
+# firmware -> U-Boot -> FreeBSD loader.efi -> /boot/kernel (nextbsd/nextbsd#687).
+# Sources and patches are pinned in u-boot/SOURCES. This workflow is separate
+# from build.yml and touches no kext: it runs only for changes under u-boot/.
+
+on:
+  push:
+    branches: [main]
+    paths: ['u-boot/**', '.github/workflows/u-boot.yml']
+  pull_request:
+    paths: ['u-boot/**', '.github/workflows/u-boot.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build u-boot.bin (rpi_arm64)
+    # Pinned, not ubuntu-latest: the cross compiler is part of the build.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the aarch64 cross toolchain and U-Boot's host tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            gcc-aarch64-linux-gnu make bc bison flex \
+            libssl-dev libgnutls28-dev uuid-dev \
+            python3 python3-dev python3-setuptools python3-pyelftools swig \
+            device-tree-compiler
+          aarch64-linux-gnu-gcc --version | head -1
+
+      - name: Build
+        run: sh u-boot/build-u-boot.sh "$RUNNER_TEMP/u-boot-work" "$RUNNER_TEMP/u-boot-out"
+
+      # The diagnostic build: boots nothing, shows on the HDMI screen how far
+      # U-Boot gets (u-boot/nextbsd_rpi_arm64_probe_fragment).
+      - name: Build the probe
+        run: sh u-boot/build-u-boot.sh "$RUNNER_TEMP/u-boot-probe-work" "$RUNNER_TEMP/u-boot-probe-out" probe
+
+      - name: Upload u-boot.bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: u-boot-rpi5
+          path: |
+            ${{ runner.temp }}/u-boot-out/u-boot.bin
+            ${{ runner.temp }}/u-boot-out/u-boot.config
+            ${{ runner.temp }}/u-boot-out/u-boot-initial-env
+            ${{ runner.temp }}/u-boot-out/BUILDINFO
+          if-no-files-found: error
+
+      - name: Upload the probe u-boot.bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: u-boot-rpi5-probe
+          path: |
+            ${{ runner.temp }}/u-boot-probe-out/u-boot.bin
+            ${{ runner.temp }}/u-boot-probe-out/u-boot.config
+            ${{ runner.temp }}/u-boot-probe-out/u-boot-initial-env
+            ${{ runner.temp }}/u-boot-probe-out/BUILDINFO
+          if-no-files-found: error
