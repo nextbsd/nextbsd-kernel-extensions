@@ -17,15 +17,26 @@ CONFIG_RPI_EFI_NR_SPIN_PAGES=2
 # -2: run bootcmd at once and do not check for a key to abort it.
 CONFIG_BOOTDELAY=-2
 #
-# bootcmd: load loader.efi from the first FAT partition of the NVMe drive,
-# then of the SD card, and start it with the device tree the firmware handed
-# U-Boot (fdt_addr: the firmware's patched DTB, overlays applied). If
-# loader.efi is missing, fails to start, or returns, reset: the next boot is
-# the firmware's again, so a tryboot test falls back to config.txt.
+# bootcmd: load loader.efi from the first FAT partition of the disk the
+# firmware booted from, then of the other one, and start it with the device
+# tree the firmware handed U-Boot (fdt_addr: the firmware's patched DTB,
+# overlays applied). If loader.efi is missing, fails to start, or returns,
+# reset: the next boot is the firmware's again, so a tryboot test falls back
+# to config.txt.
+#
+# The firmware records the disk in /chosen/bootloader/boot-mode (1 = SD,
+# 6 = NVMe). Starting the loader from that disk matters for ZFS: loader.efi
+# looks for a pool on its own disk and boots the pool's bootfs, which is
+# what makes `bectl activate` work. Started from the other disk it never
+# sees the pool (measured on a Pi 500+, nextbsd/nextbsd#687). The firmware
+# tries SD before NVMe, so an SD card with a boot partition wins there too.
+# Anything else (no such property, USB boot) keeps NVMe first. `fdt get value`
+# prints a one-cell property as 0x%08X, hence 0x00000001.
+CONFIG_CMD_FDT=y
 # Deliberately not `bootflow scan`: it would also try extlinux, scripts and
 # the network, and boot whatever it found first.
 CONFIG_USE_BOOTCOMMAND=y
-CONFIG_BOOTCOMMAND="for nbdev in nvme mmc; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; echo NextBSD: no bootable loader.efi, resetting in 5 seconds; sleep 5; reset"
+CONFIG_BOOTCOMMAND="setenv nbmode 0; fdt addr ${fdt_addr} && fdt get value nbmode /chosen/bootloader boot-mode; echo NextBSD: firmware boot-mode ${nbmode}; if test ${nbmode} = 0x00000001; then for nbdev in mmc nvme; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; else for nbdev in nvme mmc; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; fi; echo NextBSD: no bootable loader.efi, resetting in 5 seconds; sleep 5; reset"
 #
 # If anything still reaches the command line (a bootcmd that stops early, a
 # command that drops to the prompt), reset after 15 idle seconds.
