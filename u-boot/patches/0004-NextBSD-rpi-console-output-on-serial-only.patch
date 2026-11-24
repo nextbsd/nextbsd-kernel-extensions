@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: pkgdemon <jpm820@gmail.com>
+Date: Tue, 24 Nov 2026 04:39:19 -0600
+Subject: [PATCH] NextBSD: rpi: console output on serial only
+
+NextBSD boots the Raspberry Pi 5 family silently: from the firmware to
+the login window nothing but the boot splash reaches the screen
+(nextbsd/nextbsd#542). U-Boot's board environment sends stdout and
+stderr to the HDMI screen as well as the serial port, so everything
+U-Boot prints before it starts loader.efi (the PCIe link line from
+"pci enum", the "load" and "bootefi" messages) is drawn on the screen.
+
+Print to the serial port only. The display is still probed, so
+loader.efi gets its EFI GOP framebuffer, and NextBSD's bootcmd switches
+the screen back on before it prints a failure.
+
+NextBSD-only; not for upstream.
+---
+ board/raspberrypi/rpi/rpi.env | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/board/raspberrypi/rpi/rpi.env b/board/raspberrypi/rpi/rpi.env
+index 6104f3b1..d7537fd2 100644
+--- a/board/raspberrypi/rpi/rpi.env
++++ b/board/raspberrypi/rpi/rpi.env
+@@ -6,8 +6,8 @@ dhcpuboot=usb start; dhcp u-boot.uimg; bootm
+ 
+ /* Environment */
+ stdin=serial,usbkbd
+-stdout=serial,vidconsole
+-stderr=serial,vidconsole
++stdout=serial
++stderr=serial
+ 
+ /* DFU over USB/UDC */
+ #ifdef CONFIG_CMD_DFU
+-- 
+2.54.0 (Apple Git-157)
+

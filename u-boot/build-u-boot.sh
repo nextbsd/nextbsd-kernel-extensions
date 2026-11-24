@@ -65,6 +65,8 @@ grep -qx 'boot_targets=mmc usb nvme pxe dhcp' "$SRC/board/raspberrypi/rpi/rpi.en
     { echo "ERROR: 0003 is not in rpi.env" >&2; exit 1; }
 grep -q 'EFI_TIMER_PERIODIC, 100\*1000\*10' "$SRC/lib/efi_loader/efi_console.c" ||
     { echo "ERROR: the FreeBSD console patch is not in efi_console.c" >&2; exit 1; }
+grep -qx 'stdout=serial' "$SRC/board/raspberrypi/rpi/rpi.env" ||
+    { echo "ERROR: 0004 is not in rpi.env" >&2; exit 1; }
 
 echo "==> config: $UBOOT_DEFCONFIG + $FRAGMENTS"
 {
@@ -93,7 +95,7 @@ make -C "$SRC" -s LOCALVERSION= u-boot-initial-env
 test -s "$SRC/u-boot.bin" || { echo "ERROR: no u-boot.bin" >&2; exit 1; }
 ENVF="$SRC/u-boot-initial-env"
 # The built-in environment is what the board will actually run.
-for want in 'bootdelay=-2' 'boot_targets=mmc usb nvme pxe dhcp'; do
+for want in 'bootdelay=-2' 'boot_targets=mmc usb nvme pxe dhcp' 'stdout=serial' 'stderr=serial'; do
     grep -qxF "$want" "$ENVF" || { echo "ERROR: env lacks $want" >&2; exit 1; }
 done
 grep -q '^bootcmd=.*; reset$' "$ENVF" || { echo "ERROR: bootcmd does not end in reset" >&2; exit 1; }
@@ -102,6 +104,8 @@ if [ -z "$VARIANT" ]; then
         { echo "ERROR: preboot is not 'pci enum; nvme scan;'" >&2; exit 1; }
     grep -q '^bootcmd=.*bootefi .*; reset$' "$ENVF" ||
         { echo "ERROR: bootcmd does not start loader.efi" >&2; exit 1; }
+    grep -q '^bootcmd=.*setenv stdout serial,vidconsole; .*no bootable loader.efi' "$ENVF" ||
+        { echo "ERROR: bootcmd does not show its failure on the screen" >&2; exit 1; }
 else
     grep -q '^bootcmd=.*NextBSD U-Boot probe' "$ENVF" ||
         { echo "ERROR: bootcmd is not the probe" >&2; exit 1; }

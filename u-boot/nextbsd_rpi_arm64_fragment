@@ -36,7 +36,7 @@ CONFIG_CMD_FDT=y
 # Deliberately not `bootflow scan`: it would also try extlinux, scripts and
 # the network, and boot whatever it found first.
 CONFIG_USE_BOOTCOMMAND=y
-CONFIG_BOOTCOMMAND="setenv nbmode 0; fdt addr ${fdt_addr} && fdt get value nbmode /chosen/bootloader boot-mode; echo NextBSD: firmware boot-mode ${nbmode}; if test ${nbmode} = 0x00000001; then for nbdev in mmc nvme; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; else for nbdev in nvme mmc; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; fi; echo NextBSD: no bootable loader.efi, resetting in 5 seconds; sleep 5; reset"
+CONFIG_BOOTCOMMAND="setenv nbmode 0; fdt addr ${fdt_addr} && fdt get value nbmode /chosen/bootloader boot-mode; echo NextBSD: firmware boot-mode ${nbmode}; if test ${nbmode} = 0x00000001; then for nbdev in mmc nvme; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; else for nbdev in nvme mmc; do if load ${nbdev} 0:1 ${kernel_addr_r} efi/boot/bootaa64.efi; then echo NextBSD: starting loader.efi from ${nbdev} 0:1; bootefi ${kernel_addr_r} ${fdt_addr}; echo NextBSD: loader.efi returned; fi; done; fi; setenv stdout serial,vidconsole; setenv stderr serial,vidconsole; echo NextBSD: no bootable loader.efi, resetting in 5 seconds; sleep 5; reset"
 #
 # If anything still reaches the command line (a bootcmd that stops early, a
 # command that drops to the prompt), reset after 15 idle seconds.
@@ -59,9 +59,17 @@ CONFIG_LOCALVERSION="-nextbsd1"
 # setup is the first suspect. NVMe is on pcie1 and needs only these two.
 CONFIG_PREBOOT="pci enum; nvme scan;"
 
-# A console that can be read on the HDMI screen. There is usually no serial
-# cable, so the screen is the only place a failure shows: 16x32 characters
-# instead of 8x16 (tiny on a 1440p panel), white on black.
+# Silent on the screen (nextbsd/nextbsd#542, nextbsd-kernel-extensions#39).
+# A normal boot draws nothing between the firmware and loader.efi's boot
+# splash: no logo, and patch 0004 sends stdout and stderr to serial only.
+# The display is still probed, so loader.efi gets its GOP framebuffer, and
+# the screen stays the black U-Boot cleared it to. bootcmd's failure path
+# above switches the screen back on before it prints: there is usually no
+# serial cable, so the screen is the only place a failure shows.
+# CONFIG_VIDEO_LOGO is not set
+#
+# That failure text: 16x32 characters instead of 8x16 (tiny on a 1440p
+# panel), white on black.
 CONFIG_VIDEO_FONT_16X32=y
 # CONFIG_VIDEO_FONT_8X16 is not set
 CONFIG_SYS_WHITE_ON_BLACK=y
