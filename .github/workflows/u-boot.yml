@@ -68,3 +68,50 @@ jobs:
             ${{ runner.temp }}/u-boot-probe-out/u-boot-initial-env
             ${{ runner.temp }}/u-boot-probe-out/BUILDINFO
           if-no-files-found: error
+
+  # On main, publish u-boot.bin for nextbsd-pkg and the nextbsd image build
+  # (#41). Its own release, not the kexts' `continuous`: build.yml rewrites
+  # that release's notes on every publish. The asset names are stable, so
+  # each publish replaces the last.
+  publish:
+    name: publish continuous-u-boot
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download u-boot.bin
+        uses: actions/download-artifact@v4
+        with:
+          name: u-boot-rpi5
+          path: out
+
+      - name: Check it
+        run: |
+          ls -l out
+          test -s out/u-boot.bin && test -s out/BUILDINFO
+          ( cd out && sha256sum u-boot.bin > u-boot.bin.sha256 && cat u-boot.bin.sha256 )
+
+      - name: Publish to continuous-u-boot
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous-u-boot
+          name: Continuous U-Boot build (Raspberry Pi 5)
+          body: |
+            Rolling build of `u-boot.bin` for the Raspberry Pi 5 family, refreshed on every
+            `main` change under `u-boot/`. It is the first stage of
+            firmware -> U-Boot -> FreeBSD `loader.efi` -> `/boot/kernel.RPI5/kernel`
+            (nextbsd/nextbsd#687) and goes on the FAT partition next to `config.txt`
+            (`kernel=u-boot.bin`). Sources and patches are pinned in `u-boot/SOURCES`;
+            `BUILDINFO` records them.
+
+            Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Commit: ${{ github.sha }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          files: |
+            out/u-boot.bin
+            out/u-boot.bin.sha256
+            out/BUILDINFO
